@@ -64,31 +64,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       // insert the matching row in public.users: the schema has full_name as NOT NULL and the RLS policies rely on this table existing for the user
-      await _supabase.from('users').insert({
-        'auth_user_id': authUser.id,
-        'full_name': fullName,
-        'email': email,
-        'role': 'owner', // everyone starts as an owner of their own record
-      });
-
-      if (!mounted) return;
-
-      // if session came back, the user is already logged in
       if (response.session != null) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        await _supabase.from('users').insert({
+          'auth_user_id': authUser.id,
+          'full_name': fullName,
+          'email': email,
+          'role': 'owner',
+        });
+
+        if (!mounted) return;
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+              (route) => false,
+        );
       } else {
-        // email confirmation is enabled on the Supabase project, so tell the user to check their inbox before logging in
+        // If this happens, check for email confirmation
         setState(() {
           _errorMessage =
-          'Account created. Check your email to confirm, then log in.';
+          'Account created, but no session was returned. Turn OFF email confirmation in Supabase for development.';
         });
       }
 
     } on AuthException catch (e) {
-      setState(() => _errorMessage = e.message);
+      setState(() => _errorMessage = 'Auth error: ${e.message}');
+
+    } on PostgrestException catch (e) {
+      setState(() => _errorMessage = 'Database error: ${e.message}');
 
     } catch (e) {
-      setState(() => _errorMessage = 'Something went wrong. Please try again.');
+      setState(() => _errorMessage = 'Unexpected error: $e');
 
     } finally {
       if (mounted) setState(() => _isLoading = false);
