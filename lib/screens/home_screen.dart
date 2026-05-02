@@ -15,30 +15,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _fullName;
   bool _isLoading = true;
+  bool _hasProfile = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserName();
+    _loadUserInfo();
   }
 
-  // fetches the full name from public.users using the current auth id
-  Future<void> _loadUserName() async {
+  Future<void> _loadUserInfo() async {
     try {
       final authId = _supabase.auth.currentUser?.id;
       if (authId == null) return;
 
-      final row = await _supabase
+      final userRow = await _supabase
           .from('users')
-          .select('full_name')
+          .select('id, full_name')
           .eq('auth_user_id', authId)
           .maybeSingle();
 
-      if (row != null && mounted) {
-        setState(() => _fullName = row['full_name'] as String?);
+      if (userRow == null) return;
+
+      _fullName = userRow['full_name'] as String?;
+
+      // check if the user already has a patient profile
+      final profileRow = await _supabase
+          .from('patient_profiles')
+          .select('id')
+          .eq('user_id', userRow['id'])
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() => _hasProfile = profileRow != null);
       }
     } catch (_) {
-      // if the fetch fails we just fall back to the generic greeting
+      // not critical --> just falls back to generic greeting
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -64,12 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: _isLoading
-        // show a spinner while we fetch the name
-            ? const CircularProgressIndicator()
-            : Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               _fullName != null ? 'Welcome, $_fullName' : 'Welcome',
@@ -77,13 +88,103 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.center,
             ),
+
+            // nudge the user to fill their profile if they haven't yet
+            if (!_hasProfile) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'Start by filling in your medical profile.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+
             const SizedBox(height: 24),
 
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/profile'),
-              child: const Text('My Profile'),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              // disable grid's own scrolling since we're inside SingleChildScrollView
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              children: [
+                _NavCard(
+                  icon: Icons.person_outline,
+                  label: 'My Profile',
+                  onTap: () => Navigator.pushNamed(context, '/profile'),
+                ),
+                _NavCard(
+                  icon: Icons.medical_services_outlined,
+                  label: 'Medical Summary',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/medical_summary'),
+                ),
+                _NavCard(
+                  icon: Icons.emergency_outlined,
+                  label: 'Emergency View',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/emergency'),
+                ),
+                _NavCard(
+                  icon: Icons.qr_code,
+                  label: 'Emergency QR',
+                  onTap: () => Navigator.pushNamed(context, '/qr'),
+                ),
+                _NavCard(
+                  icon: Icons.people_outline,
+                  label: 'Caregivers',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/caregivers'),
+                ),
+                _NavCard(
+                  icon: Icons.history,
+                  label: 'Audit Log',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/audit_log'),
+                ),
+                _NavCard(
+                  icon: Icons.settings_outlined,
+                  label: 'Settings',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/settings'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// reusable card used in the navigation grid
+class _NavCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13),
             ),
           ],
         ),
