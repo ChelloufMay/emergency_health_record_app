@@ -17,7 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _legalIdController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bloodTypeController = TextEditingController();
-  String _selectedSex = 'unknown';
+  String? _selectedSex;
   DateTime? _selectedDOB;
 
   // ------------------------------- address -------------------------------
@@ -31,7 +31,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ------------------------------- medical extras -------------------------------
   final _insurancePlanController = TextEditingController();
-  final _covidVaccineTypeController = TextEditingController();
+
+  // null means not vaccinated or not recorded
+  String? _selectedCovidVaccine;
+
+  // the seven vaccines available in Tunisia
+  static const List<String> _covidVaccines = [
+    'Pfizer-BioNTech (Comirnaty)',
+    'Moderna (Spikevax)',
+    'AstraZeneca/Oxford (Vaxzevria)',
+    'Johnson & Johnson (Janssen)',
+    'Sinovac (CoronaVac)',
+    'Sputnik V',
+    'Sinopharm',
+  ];
 
   // ------------------------------- emergency contact -------------------------------
   final _emergencyContactNameController = TextEditingController();
@@ -43,13 +56,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _errorMessage;
   String? _successMessage;
 
-  // internal IDs  to link rows correctly
   String? _appUserId;
   String? _existingAddressId;
   bool _profileExists = false;
 
   @override
-  // load the user’s existing profile
   void initState() {
     super.initState();
     _loadProfile();
@@ -69,7 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // find the matching row in public.users
       final userRow = await _supabase
           .from('users')
           .select('id')
@@ -84,7 +94,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       _appUserId = userRow['id'] as String;
 
-      // try to load the existing patient profile
       final profileRow = await _supabase
           .from('patient_profiles')
           .select()
@@ -94,31 +103,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (profileRow != null) {
         _profileExists = true;
 
-        // ------------------------------- automatic fill to personal info -------------------------------
+        // ------------------------------- fill personal info -------------------------------
         _firstNameController.text = profileRow['first_name'] ?? '';
         _familyNameController.text = profileRow['family_name'] ?? '';
         _legalIdController.text = profileRow['legal_id'] ?? '';
         _phoneController.text = profileRow['phone'] ?? '';
         _bloodTypeController.text = profileRow['blood_type'] ?? '';
-        _selectedSex = profileRow['sex'] ?? 'unknown';
+
+        // if the stored value is 'unknown' or null, leave the dropdown empty
+        final storedSex = profileRow['sex'] as String?;
+        _selectedSex = (storedSex == 'unknown' || storedSex == null)
+            ? null
+            : storedSex;
 
         final dobValue = profileRow['date_of_birth'];
         if (dobValue != null) {
           _selectedDOB = DateTime.tryParse(dobValue.toString());
         }
 
-        // ------------------------------- automatic fill to medical extras -------------------------------
+        // ------------------------------- fill medical extras -------------------------------
         _insurancePlanController.text = profileRow['insurance_plan'] ?? '';
-        _covidVaccineTypeController.text =
-            profileRow['covid_vaccine_type'] ?? '';
 
-        // ------------------------------- automatic fill to emergency contact -------------------------------
+        // only set the dropdown if the stored value matches one of our options
+        final storedVaccine = profileRow['covid_vaccine_type'] as String?;
+        if (storedVaccine != null && _covidVaccines.contains(storedVaccine)) {
+          _selectedCovidVaccine = storedVaccine;
+        }
+
+        // ------------------------------- fill emergency contact -------------------------------
         _emergencyContactNameController.text =
             profileRow['emergency_contact_name'] ?? '';
         _emergencyContactPhoneController.text =
             profileRow['emergency_contact_phone'] ?? '';
 
-        // ------------------------------- automatic fill to linked address, if exist -------------------------------
+        // ------------------------------- fill address if linked -------------------------------
         final addressId = profileRow['address_id'] as String?;
         if (addressId != null) {
           _existingAddressId = addressId;
@@ -158,7 +176,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked != null) setState(() => _selectedDOB = picked);
   }
 
-  // returns null if the address section is empty
   bool _hasAddressData() {
     return _countryController.text.trim().isNotEmpty ||
         _governorateController.text.trim().isNotEmpty ||
@@ -166,11 +183,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _streetController.text.trim().isNotEmpty;
   }
 
-  // saves or updates the address row and returns its ID --> returns null if the user left the address section empty
   Future<String?> _saveAddress() async {
     if (!_hasAddressData()) return _existingAddressId;
 
-    // country is required in the addresses table
     if (_countryController.text.trim().isEmpty) {
       throw Exception('Country is required when filling in an address.');
     }
@@ -198,14 +213,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     };
 
     if (_existingAddressId != null) {
-      // address already exists -->  update it
       await _supabase
           .from('addresses')
           .update(addressData)
           .eq('id', _existingAddressId!);
       return _existingAddressId;
     } else {
-      // first time -->  insert a new address row and return its generated ID
       final result = await _supabase
           .from('addresses')
           .insert(addressData)
@@ -236,13 +249,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // save the address first so we get its ID to link in the profile
       String? addressId;
       try {
         addressId = await _saveAddress();
         if (addressId != null) _existingAddressId = addressId;
       } catch (e) {
-        setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
+        setState(() =>
+        _errorMessage = e.toString().replaceAll('Exception: ', ''));
         return;
       }
 
@@ -259,15 +272,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'blood_type': _bloodTypeController.text.trim().isEmpty
             ? null
             : _bloodTypeController.text.trim(),
-        'sex': _selectedSex,
+        // if the user didn't pick a sex, store 'unknown' in the DB
+        'sex': _selectedSex ?? 'unknown',
         'date_of_birth': _selectedDOB?.toIso8601String().split('T').first,
         'address_id': addressId,
         'insurance_plan': _insurancePlanController.text.trim().isEmpty
             ? null
             : _insurancePlanController.text.trim(),
-        'covid_vaccine_type': _covidVaccineTypeController.text.trim().isEmpty
-            ? null
-            : _covidVaccineTypeController.text.trim(),
+        // null if nothing was selected in the dropdown
+        'covid_vaccine_type': _selectedCovidVaccine,
         'emergency_contact_name':
         _emergencyContactNameController.text.trim().isEmpty
             ? null
@@ -313,13 +326,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _postalCodeController.dispose();
     _extraDetailsController.dispose();
     _insurancePlanController.dispose();
-    _covidVaccineTypeController.dispose();
     _emergencyContactNameController.dispose();
     _emergencyContactPhoneController.dispose();
     super.dispose();
   }
 
-  // small helper to keep the section headers consistent
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -346,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ------------------------------- personal info -------------------------------
+            // ------------------------------- Personal info -------------------------------
             _sectionTitle('Personal Information'),
 
             TextField(
@@ -379,13 +390,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // maps to the sex_type enum in the database
+            // sex is medically relevant so we only show the two real options. the DB stores 'unknown' if the user never picks one.
             DropdownButtonFormField<String>(
               value: _selectedSex,
               decoration: const InputDecoration(labelText: 'Sex'),
+              hint: const Text('Select'),
               items: const [
-                DropdownMenuItem(
-                    value: 'unknown', child: Text('Prefer not to say')),
                 DropdownMenuItem(value: 'male', child: Text('Male')),
                 DropdownMenuItem(value: 'female', child: Text('Female')),
               ],
@@ -395,7 +405,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // date picker keeps the format consistent
             Row(
               children: [
                 Expanded(
@@ -424,7 +433,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(height: 40),
 
             // ------------------------------- Address -------------------------------
-            // stored in the addresses table and linked via address_id
             _sectionTitle('Address'),
 
             TextField(
@@ -491,12 +499,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            TextField(
-              controller: _covidVaccineTypeController,
-              decoration: const InputDecoration(
-                labelText: 'COVID Vaccine Type',
-                hintText: 'e.g. Pfizer, AstraZeneca, Sputnik',
-              ),
+            // dropdown listing the vaccines distributed in Tunisia. leaving it empty means not vaccinated or not recorded.
+            DropdownButtonFormField<String>(
+              value: _selectedCovidVaccine,
+              decoration: const InputDecoration(labelText: 'COVID-19 Vaccine'),
+              hint: const Text('Not vaccinated / Not recorded'),
+              isExpanded: true,
+              items: _covidVaccines.map((vaccine) {
+                return DropdownMenuItem(
+                  value: vaccine,
+                  child: Text(vaccine),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() => _selectedCovidVaccine = value);
+              },
             ),
             const Divider(height: 40),
 
@@ -551,7 +568,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            // small reminder that family doctor is handled separately
             const SizedBox(height: 12),
             const Text(
               'Family doctor details can be added from the medical summary screen.',
