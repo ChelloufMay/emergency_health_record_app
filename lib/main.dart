@@ -1,14 +1,17 @@
-// the app entry point
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'config/supabase_config.dart';
+import 'screens/audit_log_screen.dart';
+import 'screens/caregiver_screen.dart';
+import 'screens/emergency_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/welcome_screen.dart';
+import 'screens/medical_summary_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/qr_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/welcome_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +32,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Health Record App',
-
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -37,8 +39,6 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
       ),
-
-      // named routes
       initialRoute: '/',
       routes: {
         '/': (context) => const WelcomeScreen(),
@@ -46,6 +46,12 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
+        '/medical_summary': (context) => const MedicalSummaryScreen(),
+        '/emergency': (context) => const EmergencyScreen(),
+        '/qr': (context) => const QrScreen(),
+        '/caregivers': (context) => const CaregiverScreen(),
+        '/audit_log': (context) => const AuditLogScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }
