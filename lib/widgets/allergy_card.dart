@@ -4,35 +4,56 @@ import 'verification_badge.dart';
 
 class AllergyCard extends StatelessWidget {
   final AllergyModel allergy;
+  final bool canEdit;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   const AllergyCard({
     super.key,
     required this.allergy,
+    this.canEdit = false,
+    this.onEdit,
     this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
+    final badge = allergy.verificationStatus ?? 'user_entered';
+
     return Card(
-      child: ListTile(
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Text(allergy.allergenName)),
-            const SizedBox(width: 8),
-            VerificationBadge(status: allergy.source == 'clinician' ? 'clinician_verified' : allergy.source == 'caregiver' ? 'caregiver_entered' : 'user_entered'),
+            Row(
+              children: [
+                Expanded(child: Text(allergy.allergenName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                VerificationBadge(status: badge),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${allergy.allergyType}'
+                  '${allergy.severity != null && allergy.severity!.isNotEmpty ? ' • ${allergy.severity}' : ''}'
+                  '${allergy.reaction != null && allergy.reaction!.isNotEmpty ? '\n${allergy.reaction}' : ''}',
+            ),
+            if (canEdit) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: onEdit,
+                    child: const Text('Edit'),
+                  ),
+                  TextButton(
+                    onPressed: onDelete,
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ),
-        subtitle: Text(
-          '${allergy.allergyType}${allergy.severity != null && allergy.severity!.isNotEmpty ? ' • ${allergy.severity}' : ''}'
-              '${allergy.reaction != null && allergy.reaction!.isNotEmpty ? '\n${allergy.reaction}' : ''}',
-        ),
-        isThreeLine: true,
-        trailing: onDelete == null
-            ? null
-            : IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: onDelete,
         ),
       ),
     );
