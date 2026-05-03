@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/allergy_model.dart';
+import '../models/medication_model.dart';
+import '../services/allergy_service.dart';
+import '../services/medication_service.dart';
+import '../services/patient_service.dart';
 
-// read-only emergency view — shows only what a paramedic needs
-// every time this screen opens, a break_glass event is written to audit_logs
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
 
@@ -11,359 +13,77 @@ class EmergencyScreen extends StatefulWidget {
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  final _supabase = Supabase.instance.client;
+  final _patientService = PatientService();
+  final _allergyService = AllergyService();
+  final _medicationService = MedicationService();
 
-  Map<String, dynamic>? _profile;
-  List<Map<String, dynamic>> _allergies = [];
-  List<Map<String, dynamic>> _medications = [];
-  bool _isLoading = true;
-  String? _errorMessage;
+  bool _loading = true;
+  String? _name;
+  String? _dob;
+  String? _bloodType;
+  String? _emergencyContact;
+  List<AllergyModel> _allergies = [];
+  List<MedicationModel> _medications = [];
 
   @override
   void initState() {
     super.initState();
-    _loadEmergencyData();
+    _load();
   }
 
-  Future<void> _loadEmergencyData() async {
-    try {
-      final authId = _supabase.auth.currentUser?.id;
-      if (authId == null) return;
-
-      final userRow = await _supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', authId)
-          .maybeSingle();
-
-      if (userRow == null) return;
-      final appUserId = userRow['id'] as String;
-
-      final profileRow = await _supabase
-          .from('patient_profiles')
-          .select()
-          .eq('user_id', appUserId)
-          .maybeSingle();
-
-      if (profileRow == null) {
-        setState(() => _errorMessage =
-        'No profile found. Please complete your profile first.');
-        return;
-      }
-
-      _profile = profileRow;
-      final patientId = profileRow['id'] as String;
-
-      // load allergies and medications in parallel
-      final results = await Future.wait([
-        _supabase
-            .from('allergies')
-            .select()
-            .eq('patient_id', patientId)
-            .order('created_at'),
-        _supabase
-            .from('medications')
-            .select()
-            .eq('patient_id', patientId)
-            .order('created_at'),
-      ]);
-
-      _allergies = List<Map<String, dynamic>>.from(results[0] as List);
-      _medications = List<Map<String, dynamic>>.from(results[1] as List);
-
-      // log that the emergency view was opened
-      // we wrap this in try-catch so a logging failure never blocks emergency access
-      try {
-        await _supabase.from('audit_logs').insert({
-          'patient_id': patientId,
-          'performed_by_user_id': appUserId,
-          'action': 'break_glass',
-          'entity_type': 'patient_profiles',
-          'entity_id': patientId,
-          'break_glass_reason': 'Emergency view opened from app',
-        });
-      } catch (_) {
-        // audit failure is not critical here — never block emergency access
-      }
-    } on PostgrestException catch (e) {
-      setState(() => _errorMessage = 'Failed to load data: ${e.message}');
-    } catch (_) {
-      setState(() => _errorMessage = 'Unexpected error.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  Future<void> _load() async {
+    final identity = await _patientService.resolveIdentity();
+    if (identity == null) {
+      setState(() => _loading = false);
+      return;
     }
-  }
 
-  // calculates current age from a date of birth string
-  int? _calculateAge(String? dobString) {
-    if (dobString == null) return null;
-    final dob = DateTime.tryParse(dobString);
-    if (dob == null) return null;
-    final now = DateTime.now();
-    int age = now.year - dob.year;
-    if (now.month < dob.month ||
-        (now.month == dob.month && now.day < dob.day)) {
-      age--;
+    final row = await _patientService._supabase
+        .from('patient_profiles')
+        .select()
+        .eq('id', identity.patientId)
+        .maybeSingle();
+
+    if (row != null) {
+      _name = '${row['first_name'] ?? ''} ${row['family_name'] ?? ''}'.trim();
+      _dob = row['date_of_birth']?.toString();
+      _bloodType = row['blood_type']?.toString();
+      _emergencyContact = '${row['emergency_contact_name'] ?? ''} ${row['emergency_contact_phone'] ?? ''}'.trim();
     }
-    return age;
+
+    _allergies = await _allergyService.fetchAllergies(identity.patientId);
+    _medications = await _medicationService.fetchMedications(identity.patientId);
+
+    setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.red.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        title: const Text('⚠ Emergency View'),
-      ),
-      body: _isLoading
+      appBar: AppBar(title: const Text('Emergency view')),
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            _errorMessage!,
-            style: const TextStyle(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : SingleChildScrollView(
+          : ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // clear warning that this is read-only and logged
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'READ-ONLY — For emergency use only. Access is logged.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ------------------------------- Identity -------------------------------
-            _EmergencySection(
-              title: 'Patient',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _EmergencyRow(
-                    'Name',
-                    '${_profile!['first_name']} ${_profile!['family_name']}',
-                  ),
-                  if (_calculateAge(
-                      _profile!['date_of_birth']?.toString()) !=
-                      null)
-                    _EmergencyRow(
-                      'Age',
-                      '${_calculateAge(_profile!['date_of_birth']?.toString())} years old',
-                    ),
-                  if (_profile!['sex'] != null &&
-                      _profile!['sex'] != 'unknown')
-                    _EmergencyRow('Sex', _profile!['sex']),
-                  if (_profile!['blood_type'] != null)
-                    _EmergencyRow(
-                      'Blood Type',
-                      _profile!['blood_type'],
-                      highlight: true,
-                    ),
-                ],
-              ),
-            ),
-
-            // ------------------------------- Allergies -------------------------------
-            _EmergencySection(
-              title: 'Allergies',
-              child: _allergies.isEmpty
-                  ? const Text('None recorded.')
-                  : Column(
-                children: _allergies.map((a) {
-                  final severity =
-                  (a['severity'] ?? '') as String;
-                  final isSerious = severity
-                      .toLowerCase()
-                      .contains('severe') ||
-                      severity
-                          .toLowerCase()
-                          .contains('anaphylaxis');
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isSerious
-                          ? Colors.red.shade100
-                          : Colors.orange.shade50,
-                      borderRadius:
-                      BorderRadius.circular(6),
-                      border: Border.all(
-                        color: isSerious
-                            ? Colors.red
-                            : Colors.orange,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        if (isSerious)
-                          const Icon(Icons.warning,
-                              color: Colors.red, size: 18),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '${a['allergen_name']}${severity.isNotEmpty ? ' — $severity' : ''}',
-                            style: TextStyle(
-                              fontWeight: isSerious
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            // ------------------------------- Medications -------------------------------
-            _EmergencySection(
-              title: 'Current Medications',
-              child: _medications.isEmpty
-                  ? const Text('None recorded.')
-                  : Column(
-                children: _medications.map((m) {
-                  return Padding(
-                    padding:
-                    const EdgeInsets.only(bottom: 4),
-                    child: _EmergencyRow(
-                      m['medication_name'] ?? '',
-                      [
-                        if (m['dosage'] != null)
-                          m['dosage'],
-                        if (m['frequency'] != null)
-                          m['frequency'],
-                      ].join(' — '),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            // ------------------------------- Emergency contact -------------------------------
-            if (_profile!['emergency_contact_name'] != null ||
-                _profile!['emergency_contact_phone'] != null)
-              _EmergencySection(
-                title: 'Emergency Contact',
-                child: Column(
-                  children: [
-                    if (_profile!['emergency_contact_name'] !=
-                        null)
-                      _EmergencyRow(
-                        'Name',
-                        _profile!['emergency_contact_name'],
-                      ),
-                    if (_profile!['emergency_contact_phone'] !=
-                        null)
-                      _EmergencyRow(
-                        'Phone',
-                        _profile!['emergency_contact_phone'],
-                        highlight: true,
-                      ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 8),
-            const Text(
-              'This information is user-entered and may not be clinician-verified. '
-                  'Use clinical judgment accordingly.',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// card wrapper for each section in the emergency view
-class _EmergencySection extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _EmergencySection({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.red.shade700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-// a single label + value line used inside emergency sections
-class _EmergencyRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool highlight;
-
-  const _EmergencyRow(this.label, this.value, {this.highlight = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: highlight ? Colors.red.shade800 : null,
-                fontWeight: highlight ? FontWeight.bold : null,
-              ),
-            ),
-          ),
+          Text(_name ?? 'Unknown', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text('DOB: ${_dob ?? '-'}'),
+          Text('Blood type: ${_bloodType ?? '-'}'),
+          const SizedBox(height: 20),
+          const Text('Allergies', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ..._allergies.map((a) => ListTile(
+            title: Text(a.allergenName),
+            subtitle: Text('${a.reaction ?? ''} • ${a.severity ?? ''}'),
+          )),
+          const SizedBox(height: 12),
+          const Text('Medications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ..._medications.map((m) => ListTile(
+            title: Text(m.medicationName),
+            subtitle: Text('${m.dosage ?? ''} • ${m.frequency ?? ''}'),
+          )),
+          const SizedBox(height: 12),
+          const Text('Emergency contact', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(_emergencyContact ?? '-'),
         ],
       ),
     );
