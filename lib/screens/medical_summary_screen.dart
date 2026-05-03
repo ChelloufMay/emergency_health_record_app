@@ -29,8 +29,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
 
   String? _patientId;
   String? _appUserId;
-
-  // tracks whether the current user can edit or only read
   bool _canEdit = true;
 
   bool _isLoading = true;
@@ -39,9 +37,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
   List<AllergyModel> _allergies = [];
   List<MedicationModel> _medications = [];
   List<MedicalConditionModel> _conditions = [];
-
-  // verification statuses keyed by entity id
-  Map<String, String> _verificationMap = {};
 
   @override
   void initState() {
@@ -63,7 +58,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
       final authId = _supabase.auth.currentUser?.id;
       if (authId == null) return;
 
-      // resolve app user id
       final userRow = await _supabase
           .from('users')
           .select('id')
@@ -72,7 +66,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
       if (userRow == null) return;
       _appUserId = userRow['id'] as String;
 
-      // resolve patient profile id
       final profileRow = await _supabase
           .from('patient_profiles')
           .select('id')
@@ -81,16 +74,15 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
 
       if (profileRow == null) {
         if (mounted) {
-          setState(() => _errorMessage =
-          'Please complete your profile before adding medical data.');
+          setState(() {
+            _errorMessage = 'Please complete your profile before adding medical data.';
+          });
         }
         return;
       }
 
       _patientId = profileRow['id'] as String;
 
-      // check if this user has only read access (caregiver with read permission)
-      // owners always have edit access
       final permRow = await _supabase
           .from('caregiver_permissions')
           .select('permission')
@@ -100,12 +92,9 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
           .maybeSingle();
 
       if (permRow != null) {
-        // this user is a caregiver — check their permission level
         _canEdit = permRow['permission'] == 'edit';
       }
-      // if no perm row, they are the owner and can always edit
 
-      // fetch all data and verification labels in parallel
       final results = await Future.wait([
         _allergyService.fetchAllergies(_patientId!),
         _medicationService.fetchMedications(_patientId!),
@@ -116,9 +105,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
             .eq('patient_id', _patientId!),
       ]);
 
-      // build a map of entity_id -> verification status for quick lookup
-      final verificationRows =
-      List<Map<String, dynamic>>.from(results[3] as List);
+      final verificationRows = List<Map<String, dynamic>>.from(results[3] as List);
       final verMap = <String, String>{};
       for (final row in verificationRows) {
         final entityId = row['entity_id'] as String?;
@@ -128,7 +115,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
         }
       }
 
-      // attach verification status to each model
       final allergies = results[0] as List<AllergyModel>;
       final medications = results[1] as List<MedicationModel>;
       final conditions = results[2] as List<MedicalConditionModel>;
@@ -148,7 +134,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
           _allergies = allergies;
           _medications = medications;
           _conditions = conditions;
-          _verificationMap = verMap;
         });
       }
     } on PostgrestException catch (e) {
@@ -164,15 +149,10 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     }
   }
 
-  // ── Allergy dialog ────────────────────────────────────────────────────────────
-
   Future<void> _showAllergyDialog({AllergyModel? existing}) async {
-    final nameCtrl =
-    TextEditingController(text: existing?.allergenName ?? '');
-    final reactionCtrl =
-    TextEditingController(text: existing?.reaction ?? '');
-    final severityCtrl =
-    TextEditingController(text: existing?.severity ?? '');
+    final nameCtrl = TextEditingController(text: existing?.allergenName ?? '');
+    final reactionCtrl = TextEditingController(text: existing?.reaction ?? '');
+    final severityCtrl = TextEditingController(text: existing?.severity ?? '');
     String selectedType = existing?.allergyType ?? 'other';
 
     await showDialog(
@@ -187,8 +167,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 TextField(
                   controller: nameCtrl,
                   autofocus: true,
-                  decoration:
-                  const InputDecoration(labelText: 'Allergen Name *'),
+                  decoration: const InputDecoration(labelText: 'Allergen Name *'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -196,8 +175,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: const [
                     DropdownMenuItem(value: 'food', child: Text('Food')),
-                    DropdownMenuItem(
-                        value: 'medication', child: Text('Medication')),
+                    DropdownMenuItem(value: 'medication', child: Text('Medication')),
                     DropdownMenuItem(value: 'other', child: Text('Other')),
                   ],
                   onChanged: (v) {
@@ -234,14 +212,11 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                   patientId: _patientId!,
                   allergenName: nameCtrl.text.trim(),
                   allergyType: selectedType,
-                  reaction: reactionCtrl.text.trim().isEmpty
-                      ? null
-                      : reactionCtrl.text.trim(),
-                  severity: severityCtrl.text.trim().isEmpty
-                      ? null
-                      : severityCtrl.text.trim(),
-                  source: 'user',
+                  reaction: reactionCtrl.text.trim().isEmpty ? null : reactionCtrl.text.trim(),
+                  severity: severityCtrl.text.trim().isEmpty ? null : severityCtrl.text.trim(),
+                  source: existing?.source ?? 'user',
                   createdAt: existing?.createdAt ?? DateTime.now(),
+                  updatedAt: DateTime.now(),
                 );
 
                 await _allergyService.saveAllergy(
@@ -265,17 +240,11 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     severityCtrl.dispose();
   }
 
-  // ── Medication dialog ─────────────────────────────────────────────────────────
-
   Future<void> _showMedicationDialog({MedicationModel? existing}) async {
-    final nameCtrl =
-    TextEditingController(text: existing?.medicationName ?? '');
-    final dosageCtrl =
-    TextEditingController(text: existing?.dosage ?? '');
-    final frequencyCtrl =
-    TextEditingController(text: existing?.frequency ?? '');
-    final purposeCtrl =
-    TextEditingController(text: existing?.purpose ?? '');
+    final nameCtrl = TextEditingController(text: existing?.medicationName ?? '');
+    final dosageCtrl = TextEditingController(text: existing?.dosage ?? '');
+    final frequencyCtrl = TextEditingController(text: existing?.frequency ?? '');
+    final purposeCtrl = TextEditingController(text: existing?.purpose ?? '');
     DateTime? startDate = existing?.startDate;
     DateTime? endDate = existing?.endDate;
 
@@ -283,8 +252,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-              existing == null ? 'Add Medication' : 'Edit Medication'),
+          title: Text(existing == null ? 'Add Medication' : 'Edit Medication'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -292,35 +260,32 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 TextField(
                   controller: nameCtrl,
                   autofocus: true,
-                  decoration:
-                  const InputDecoration(labelText: 'Medication Name *'),
+                  decoration: const InputDecoration(labelText: 'Medication Name *'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: dosageCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Dosage', hintText: 'e.g. 500 mg'),
+                  decoration: const InputDecoration(labelText: 'Dosage', hintText: 'e.g. 500 mg'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: frequencyCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Frequency',
-                      hintText: 'e.g. twice daily'),
+                  decoration: const InputDecoration(labelText: 'Frequency', hintText: 'e.g. twice daily'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: purposeCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Purpose / Reason'),
+                  decoration: const InputDecoration(labelText: 'Purpose / Reason'),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: Text(startDate == null
-                          ? 'Start: not set'
-                          : 'Start: ${startDate!.toIso8601String().split('T').first}'),
+                      child: Text(
+                        startDate == null
+                            ? 'Start: not set'
+                            : 'Start: ${startDate!.toIso8601String().split('T').first}',
+                      ),
                     ),
                     TextButton(
                       child: const Text('Pick'),
@@ -341,9 +306,11 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: Text(endDate == null
-                          ? 'End: not set'
-                          : 'End: ${endDate!.toIso8601String().split('T').first}'),
+                      child: Text(
+                        endDate == null
+                            ? 'End: not set'
+                            : 'End: ${endDate!.toIso8601String().split('T').first}',
+                      ),
                     ),
                     TextButton(
                       child: const Text('Pick'),
@@ -377,19 +344,14 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                   id: existing?.id ?? '',
                   patientId: _patientId!,
                   medicationName: nameCtrl.text.trim(),
-                  dosage: dosageCtrl.text.trim().isEmpty
-                      ? null
-                      : dosageCtrl.text.trim(),
-                  frequency: frequencyCtrl.text.trim().isEmpty
-                      ? null
-                      : frequencyCtrl.text.trim(),
-                  purpose: purposeCtrl.text.trim().isEmpty
-                      ? null
-                      : purposeCtrl.text.trim(),
-                  source: 'user',
+                  dosage: dosageCtrl.text.trim().isEmpty ? null : dosageCtrl.text.trim(),
+                  frequency: frequencyCtrl.text.trim().isEmpty ? null : frequencyCtrl.text.trim(),
+                  purpose: purposeCtrl.text.trim().isEmpty ? null : purposeCtrl.text.trim(),
+                  source: existing?.source ?? 'user',
                   startDate: startDate,
                   endDate: endDate,
                   createdAt: existing?.createdAt ?? DateTime.now(),
+                  updatedAt: DateTime.now(),
                 );
 
                 await _medicationService.saveMedication(
@@ -414,20 +376,12 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     purposeCtrl.dispose();
   }
 
-  // ── Medical condition dialog ──────────────────────────────────────────────────
-
-  Future<void> _showConditionDialog(
-      {MedicalConditionModel? existing}) async {
-    final nameCtrl =
-    TextEditingController(text: existing?.conditionName ?? '');
-    final placeCtrl =
-    TextEditingController(text: existing?.diagnosisPlace ?? '');
-    final doctorCtrl =
-    TextEditingController(text: existing?.followUpDoctor ?? '');
-    final treatmentCtrl =
-    TextEditingController(text: existing?.treatment ?? '');
-    final notesCtrl =
-    TextEditingController(text: existing?.notes ?? '');
+  Future<void> _showConditionDialog({MedicalConditionModel? existing}) async {
+    final nameCtrl = TextEditingController(text: existing?.conditionName ?? '');
+    final placeCtrl = TextEditingController(text: existing?.diagnosisPlace ?? '');
+    final doctorCtrl = TextEditingController(text: existing?.followUpDoctor ?? '');
+    final treatmentCtrl = TextEditingController(text: existing?.treatment ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     String selectedType = existing?.type ?? 'chronic';
     DateTime? diagnosisDate = existing?.diagnosisDate;
 
@@ -435,8 +389,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-              existing == null ? 'Add Condition' : 'Edit Condition'),
+          title: Text(existing == null ? 'Add Condition' : 'Edit Condition'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -444,18 +397,15 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 TextField(
                   controller: nameCtrl,
                   autofocus: true,
-                  decoration:
-                  const InputDecoration(labelText: 'Condition Name *'),
+                  decoration: const InputDecoration(labelText: 'Condition Name *'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: selectedType,
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: const [
-                    DropdownMenuItem(
-                        value: 'chronic', child: Text('Chronic')),
-                    DropdownMenuItem(
-                        value: 'acute', child: Text('Acute')),
+                    DropdownMenuItem(value: 'chronic', child: Text('Chronic')),
+                    DropdownMenuItem(value: 'acute', child: Text('Acute')),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => selectedType = v);
@@ -465,9 +415,11 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: Text(diagnosisDate == null
-                          ? 'Diagnosed: not set'
-                          : 'Diagnosed: ${diagnosisDate!.toIso8601String().split('T').first}'),
+                      child: Text(
+                        diagnosisDate == null
+                            ? 'Diagnosed: not set'
+                            : 'Diagnosed: ${diagnosisDate!.toIso8601String().split('T').first}',
+                      ),
                     ),
                     TextButton(
                       child: const Text('Pick'),
@@ -488,20 +440,17 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: placeCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Diagnosis Place'),
+                  decoration: const InputDecoration(labelText: 'Diagnosis Place'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: doctorCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Follow-up Doctor'),
+                  decoration: const InputDecoration(labelText: 'Follow-up Doctor'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: treatmentCtrl,
-                  decoration:
-                  const InputDecoration(labelText: 'Treatment'),
+                  decoration: const InputDecoration(labelText: 'Treatment'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -527,19 +476,12 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                   conditionName: nameCtrl.text.trim(),
                   type: selectedType,
                   diagnosisDate: diagnosisDate,
-                  diagnosisPlace: placeCtrl.text.trim().isEmpty
-                      ? null
-                      : placeCtrl.text.trim(),
-                  followUpDoctor: doctorCtrl.text.trim().isEmpty
-                      ? null
-                      : doctorCtrl.text.trim(),
-                  treatment: treatmentCtrl.text.trim().isEmpty
-                      ? null
-                      : treatmentCtrl.text.trim(),
-                  notes: notesCtrl.text.trim().isEmpty
-                      ? null
-                      : notesCtrl.text.trim(),
+                  diagnosisPlace: placeCtrl.text.trim().isEmpty ? null : placeCtrl.text.trim(),
+                  followUpDoctor: doctorCtrl.text.trim().isEmpty ? null : doctorCtrl.text.trim(),
+                  treatment: treatmentCtrl.text.trim().isEmpty ? null : treatmentCtrl.text.trim(),
+                  notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
                   createdAt: existing?.createdAt ?? DateTime.now(),
+                  updatedAt: DateTime.now(),
                 );
 
                 await _conditionService.saveCondition(
@@ -569,7 +511,8 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (_errorMessage != null) {
@@ -578,9 +521,11 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(_errorMessage!,
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );
@@ -598,7 +543,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
           ],
         ),
       ),
-      // FAB is only shown when the user has edit rights
       floatingActionButton: _canEdit
           ? FloatingActionButton(
         onPressed: () {
@@ -613,8 +557,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-
-          // ------------------------------- Allergies tab -------------------------------
           _allergies.isEmpty
               ? const Center(child: Text('No allergies recorded.'))
               : ListView.builder(
@@ -623,8 +565,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
             itemBuilder: (ctx, i) => AllergyCard(
               allergy: _allergies[i],
               canEdit: _canEdit,
-              onEdit: () =>
-                  _showAllergyDialog(existing: _allergies[i]),
+              onEdit: () => _showAllergyDialog(existing: _allergies[i]),
               onDelete: () async {
                 await _allergyService.deleteAllergy(
                   id: _allergies[i].id,
@@ -636,8 +577,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               },
             ),
           ),
-
-          // ------------------------------- Medications tab -------------------------------
           _medications.isEmpty
               ? const Center(child: Text('No medications recorded.'))
               : ListView.builder(
@@ -646,8 +585,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
             itemBuilder: (ctx, i) => MedicationCard(
               medication: _medications[i],
               canEdit: _canEdit,
-              onEdit: () =>
-                  _showMedicationDialog(existing: _medications[i]),
+              onEdit: () => _showMedicationDialog(existing: _medications[i]),
               onDelete: () async {
                 await _medicationService.deleteMedication(
                   id: _medications[i].id,
@@ -659,8 +597,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               },
             ),
           ),
-
-          // ------------------------------- Conditions tab -------------------------------
           _conditions.isEmpty
               ? const Center(child: Text('No conditions recorded.'))
               : ListView.builder(
@@ -678,34 +614,30 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.local_hospital,
-                              color: isChronic
-                                  ? Colors.red
-                                  : Colors.green,
-                              size: 20),
+                          Icon(
+                            Icons.local_hospital,
+                            color: isChronic ? Colors.red : Colors.green,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               c.conditionName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                           if (_canEdit) ...[
                             IconButton(
                               icon: const Icon(Icons.edit, size: 18),
-                              onPressed: () =>
-                                  _showConditionDialog(existing: c),
+                              onPressed: () => _showConditionDialog(existing: c),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.delete,
-                                  size: 18, color: Colors.red),
+                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
                               onPressed: () async {
-                                await _conditionService
-                                    .deleteCondition(
+                                await _conditionService.deleteCondition(
                                   id: c.id,
                                   patientId: _patientId!,
                                   performedByUserId: _appUserId!,
@@ -723,25 +655,21 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                       Wrap(
                         spacing: 8,
                         children: [
-                          Text(c.type,
-                              style: const TextStyle(fontSize: 12)),
+                          Text(c.type, style: const TextStyle(fontSize: 12)),
                           if (c.diagnosisDate != null)
                             Text(
                               'since ${c.diagnosisDate!.toIso8601String().split('T').first}',
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           if (c.treatment != null)
-                            Text(c.treatment!,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey)),
+                            Text(
+                              c.treatment!,
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      VerificationBadge(
-                          status: c.verificationStatus),
+                      VerificationBadge(status: c.verificationStatus ?? 'user_entered'),
                     ],
                   ),
                 ),

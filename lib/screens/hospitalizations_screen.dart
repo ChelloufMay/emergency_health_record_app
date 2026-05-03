@@ -12,8 +12,8 @@ class HospitalizationsScreen extends StatefulWidget {
 }
 
 class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
-  final _service = HospitalizationService();
-  final _patientService = PatientService();
+  final HospitalizationService _service = HospitalizationService();
+  final PatientService _patientService = PatientService();
 
   bool _loading = true;
   String? _patientId;
@@ -29,13 +29,15 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   Future<void> _load() async {
     final identity = await _patientService.resolveIdentity();
     if (identity == null) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       return;
     }
+
     _patientId = identity.patientId;
     _userId = identity.appUserId;
     _items = await _service.fetchHospitalizations(_patientId!);
-    setState(() => _loading = false);
+
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _add() async {
@@ -52,17 +54,38 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
         content: SingleChildScrollView(
           child: Column(
             children: [
-              TextField(controller: hospitalController, decoration: const InputDecoration(labelText: 'Hospital name')),
-              TextField(controller: admissionController, decoration: const InputDecoration(labelText: 'Admission date (YYYY-MM-DD)')),
-              TextField(controller: dischargeController, decoration: const InputDecoration(labelText: 'Discharge date (YYYY-MM-DD)')),
-              TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Reason')),
-              TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notes')),
+              TextField(
+                controller: hospitalController,
+                decoration: const InputDecoration(labelText: 'Hospital name'),
+              ),
+              TextField(
+                controller: admissionController,
+                decoration: const InputDecoration(labelText: 'Admission date (YYYY-MM-DD)'),
+              ),
+              TextField(
+                controller: dischargeController,
+                decoration: const InputDecoration(labelText: 'Discharge date (YYYY-MM-DD)'),
+              ),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(labelText: 'Reason'),
+              ),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(labelText: 'Notes'),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
@@ -73,8 +96,12 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
       id: 'temp',
       patientId: _patientId!,
       hospitalName: hospitalController.text.trim(),
-      admissionDate: admissionController.text.trim().isEmpty ? null : DateTime.tryParse(admissionController.text.trim()),
-      dischargeDate: dischargeController.text.trim().isEmpty ? null : DateTime.tryParse(dischargeController.text.trim()),
+      admissionDate: admissionController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(admissionController.text.trim()),
+      dischargeDate: dischargeController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(dischargeController.text.trim()),
       reason: reasonController.text.trim(),
       notes: notesController.text.trim(),
       createdAt: DateTime.now(),
@@ -84,17 +111,20 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
       hospitalization: item,
       performedByUserId: _userId!,
     );
+
     await _load();
   }
 
   Future<void> _deleteItem(HospitalizationModel item) async {
     if (_patientId == null || _userId == null) return;
+
     await _service.deleteHospitalization(
       id: item.id,
       patientId: item.patientId,
       performedByUserId: _userId!,
       hospitalName: item.hospitalName ?? '',
     );
+
     await _load();
   }
 
@@ -116,7 +146,9 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
             child: ListTile(
               title: Row(
                 children: [
-                  Expanded(child: Text(item.hospitalName ?? 'Hospitalization')),
+                  Expanded(
+                    child: Text(item.hospitalName ?? 'Hospitalization'),
+                  ),
                   const SizedBox(width: 8),
                   const VerificationBadge(status: 'user_entered'),
                 ],
