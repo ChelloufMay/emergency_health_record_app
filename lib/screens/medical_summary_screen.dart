@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/allergy_model.dart';
+import '../models/medical_condition_model.dart';
+import '../models/medication_model.dart';
+import '../services/allergy_service.dart';
+import '../services/medical_condition_service.dart';
+import '../services/medication_service.dart';
+import '../widgets/allergy_card.dart';
+import '../widgets/medication_card.dart';
+import '../widgets/verification_badge.dart';
 
-// shows allergies, medications, and medical conditions in three tabs each tab supports add, edit, and delete
 class MedicalSummaryScreen extends StatefulWidget {
   const MedicalSummaryScreen({super.key});
 
@@ -12,15 +20,28 @@ class MedicalSummaryScreen extends StatefulWidget {
 class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     with SingleTickerProviderStateMixin {
   final _supabase = Supabase.instance.client;
+
+  final _allergyService = AllergyService();
+  final _medicationService = MedicationService();
+  final _conditionService = MedicalConditionService();
+
   late TabController _tabController;
 
   String? _patientId;
+  String? _appUserId;
+
+  // tracks whether the current user can edit or only read
+  bool _canEdit = true;
+
   bool _isLoading = true;
   String? _errorMessage;
 
-  List<Map<String, dynamic>> _allergies = [];
-  List<Map<String, dynamic>> _medications = [];
-  List<Map<String, dynamic>> _conditions = [];
+  List<AllergyModel> _allergies = [];
+  List<MedicationModel> _medications = [];
+  List<MedicalConditionModel> _conditions = [];
+
+  // verification statuses keyed by entity id
+  Map<String, String> _verificationMap = {};
 
   @override
   void initState() {
@@ -36,79 +57,123 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
 
     try {
       final authId = _supabase.auth.currentUser?.id;
       if (authId == null) return;
 
+      // resolve app user id
       final userRow = await _supabase
           .from('users')
           .select('id')
           .eq('auth_user_id', authId)
           .maybeSingle();
-
       if (userRow == null) return;
+      _appUserId = userRow['id'] as String;
 
+      // resolve patient profile id
       final profileRow = await _supabase
           .from('patient_profiles')
           .select('id')
-          .eq('user_id', userRow['id'])
+          .eq('user_id', _appUserId!)
           .maybeSingle();
 
       if (profileRow == null) {
-        setState(() => _errorMessage =
-        'Please complete your profile before adding medical data.');
+        if (mounted) {
+          setState(() => _errorMessage =
+          'Please complete your profile before adding medical data.');
+        }
         return;
       }
 
       _patientId = profileRow['id'] as String;
 
-      // fetch all three lists at the same time to save round trips
+      // check if this user has only read access (caregiver with read permission)
+      // owners always have edit access
+      final permRow = await _supabase
+          .from('caregiver_permissions')
+          .select('permission')
+          .eq('patient_id', _patientId!)
+          .eq('caregiver_user_id', _appUserId!)
+          .eq('status', 'active')
+          .maybeSingle();
+
+      if (permRow != null) {
+        // this user is a caregiver — check their permission level
+        _canEdit = permRow['permission'] == 'edit';
+      }
+      // if no perm row, they are the owner and can always edit
+
+      // fetch all data and verification labels in parallel
       final results = await Future.wait([
+        _allergyService.fetchAllergies(_patientId!),
+        _medicationService.fetchMedications(_patientId!),
+        _conditionService.fetchConditions(_patientId!),
         _supabase
-            .from('allergies')
+            .from('verification_labels')
             .select()
-            .eq('patient_id', _patientId!)
-            .order('created_at', ascending: false),
-        _supabase
-            .from('medications')
-            .select()
-            .eq('patient_id', _patientId!)
-            .order('created_at', ascending: false),
-        _supabase
-            .from('medical_conditions')
-            .select()
-            .eq('patient_id', _patientId!)
-            .order('created_at', ascending: false),
+            .eq('patient_id', _patientId!),
       ]);
+
+      // build a map of entity_id -> verification status for quick lookup
+      final verificationRows =
+      List<Map<String, dynamic>>.from(results[3] as List);
+      final verMap = <String, String>{};
+      for (final row in verificationRows) {
+        final entityId = row['entity_id'] as String?;
+        final status = row['status'] as String?;
+        if (entityId != null && status != null) {
+          verMap[entityId] = status;
+        }
+      }
+
+      // attach verification status to each model
+      final allergies = results[0] as List<AllergyModel>;
+      final medications = results[1] as List<MedicationModel>;
+      final conditions = results[2] as List<MedicalConditionModel>;
+
+      for (final a in allergies) {
+        a.verificationStatus = verMap[a.id];
+      }
+      for (final m in medications) {
+        m.verificationStatus = verMap[m.id];
+      }
+      for (final c in conditions) {
+        c.verificationStatus = verMap[c.id];
+      }
 
       if (mounted) {
         setState(() {
-          _allergies = List<Map<String, dynamic>>.from(results[0] as List);
-          _medications = List<Map<String, dynamic>>.from(results[1] as List);
-          _conditions = List<Map<String, dynamic>>.from(results[2] as List);
+          _allergies = allergies;
+          _medications = medications;
+          _conditions = conditions;
+          _verificationMap = verMap;
         });
       }
     } on PostgrestException catch (e) {
-      setState(() => _errorMessage = 'Failed to load data: ${e.message}');
+      if (mounted) {
+        setState(() => _errorMessage = 'Failed to load data: ${e.message}');
+      }
     } catch (_) {
-      setState(() => _errorMessage = 'Unexpected error while loading data.');
+      if (mounted) {
+        setState(() => _errorMessage = 'Unexpected error while loading data.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ------------------------------- Allergy dialog -------------------------------
+  // ── Allergy dialog ────────────────────────────────────────────────────────────
 
-  Future<void> _showAllergyDialog({Map<String, dynamic>? existing}) async {
+  Future<void> _showAllergyDialog({AllergyModel? existing}) async {
     final nameCtrl =
-    TextEditingController(text: existing?['allergen_name'] ?? '');
+    TextEditingController(text: existing?.allergenName ?? '');
     final reactionCtrl =
-    TextEditingController(text: existing?['reaction'] ?? '');
+    TextEditingController(text: existing?.reaction ?? '');
     final severityCtrl =
-    TextEditingController(text: existing?['severity'] ?? '');
-    String selectedType = existing?['allergy_type'] ?? 'other';
+    TextEditingController(text: existing?.severity ?? '');
+    String selectedType = existing?.allergyType ?? 'other';
 
     await showDialog(
       context: context,
@@ -127,7 +192,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: const [
                     DropdownMenuItem(value: 'food', child: Text('Food')),
@@ -164,27 +229,26 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
 
-                final data = {
-                  'patient_id': _patientId,
-                  'allergen_name': nameCtrl.text.trim(),
-                  'allergy_type': selectedType,
-                  'reaction': reactionCtrl.text.trim().isEmpty
+                final allergy = AllergyModel(
+                  id: existing?.id ?? '',
+                  patientId: _patientId!,
+                  allergenName: nameCtrl.text.trim(),
+                  allergyType: selectedType,
+                  reaction: reactionCtrl.text.trim().isEmpty
                       ? null
                       : reactionCtrl.text.trim(),
-                  'severity': severityCtrl.text.trim().isEmpty
+                  severity: severityCtrl.text.trim().isEmpty
                       ? null
                       : severityCtrl.text.trim(),
-                  'source': 'user',
-                };
+                  source: 'user',
+                  createdAt: existing?.createdAt ?? DateTime.now(),
+                );
 
-                if (existing == null) {
-                  await _supabase.from('allergies').insert(data);
-                } else {
-                  await _supabase
-                      .from('allergies')
-                      .update(data)
-                      .eq('id', existing['id']);
-                }
+                await _allergyService.saveAllergy(
+                  allergy: allergy,
+                  performedByUserId: _appUserId!,
+                  existingId: existing?.id,
+                );
 
                 if (ctx.mounted) Navigator.pop(ctx);
                 await _loadData();
@@ -201,36 +265,26 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     severityCtrl.dispose();
   }
 
-  Future<void> _deleteAllergy(String id) async {
-    await _supabase.from('allergies').delete().eq('id', id);
-    await _loadData();
-  }
+  // ── Medication dialog ─────────────────────────────────────────────────────────
 
-  // ------------------------------- Medication dialog -------------------------------
-
-  Future<void> _showMedicationDialog({Map<String, dynamic>? existing}) async {
+  Future<void> _showMedicationDialog({MedicationModel? existing}) async {
     final nameCtrl =
-    TextEditingController(text: existing?['medication_name'] ?? '');
+    TextEditingController(text: existing?.medicationName ?? '');
     final dosageCtrl =
-    TextEditingController(text: existing?['dosage'] ?? '');
+    TextEditingController(text: existing?.dosage ?? '');
     final frequencyCtrl =
-    TextEditingController(text: existing?['frequency'] ?? '');
+    TextEditingController(text: existing?.frequency ?? '');
     final purposeCtrl =
-    TextEditingController(text: existing?['purpose'] ?? '');
-
-    DateTime? startDate = existing?['start_date'] != null
-        ? DateTime.tryParse(existing!['start_date'].toString())
-        : null;
-    DateTime? endDate = existing?['end_date'] != null
-        ? DateTime.tryParse(existing!['end_date'].toString())
-        : null;
+    TextEditingController(text: existing?.purpose ?? '');
+    DateTime? startDate = existing?.startDate;
+    DateTime? endDate = existing?.endDate;
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title:
-          Text(existing == null ? 'Add Medication' : 'Edit Medication'),
+          title: Text(
+              existing == null ? 'Add Medication' : 'Edit Medication'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -245,68 +299,63 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 TextField(
                   controller: dosageCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Dosage',
-                    hintText: 'e.g. 500 mg',
-                  ),
+                      labelText: 'Dosage', hintText: 'e.g. 500 mg'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: frequencyCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Frequency',
-                    hintText: 'e.g. twice daily',
-                  ),
+                      labelText: 'Frequency',
+                      hintText: 'e.g. twice daily'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: purposeCtrl,
-                  decoration:
-                  const InputDecoration(labelText: 'Purpose / Reason'),
+                  decoration: const InputDecoration(
+                      labelText: 'Purpose / Reason'),
                 ),
                 const SizedBox(height: 12),
-                // start date picker
                 Row(
                   children: [
                     Expanded(
                       child: Text(startDate == null
-                          ? 'Start date: not set'
+                          ? 'Start: not set'
                           : 'Start: ${startDate!.toIso8601String().split('T').first}'),
                     ),
                     TextButton(
                       child: const Text('Pick'),
                       onPressed: () async {
-                        final picked = await showDatePicker(
+                        final p = await showDatePicker(
                           context: ctx,
                           initialDate: startDate ?? DateTime.now(),
                           firstDate: DateTime(2000),
                           lastDate: DateTime(2100),
                         );
-                        if (picked != null) {
-                          setDialogState(() => startDate = picked);
+                        if (p != null) {
+                          setDialogState(() => startDate = p);
                         }
                       },
                     ),
                   ],
                 ),
-                // end date picker
                 Row(
                   children: [
                     Expanded(
                       child: Text(endDate == null
-                          ? 'End date: not set'
+                          ? 'End: not set'
                           : 'End: ${endDate!.toIso8601String().split('T').first}'),
                     ),
                     TextButton(
                       child: const Text('Pick'),
                       onPressed: () async {
-                        final picked = await showDatePicker(
+                        final p = await showDatePicker(
                           context: ctx,
                           initialDate: endDate ?? DateTime.now(),
                           firstDate: DateTime(2000),
                           lastDate: DateTime(2100),
                         );
-                        if (picked != null) {
-                          setDialogState(() => endDate = picked);
+                        if (p != null) {
+                          setDialogState(() => endDate = p);
                         }
                       },
                     ),
@@ -324,32 +373,30 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
 
-                final data = {
-                  'patient_id': _patientId,
-                  'medication_name': nameCtrl.text.trim(),
-                  'dosage': dosageCtrl.text.trim().isEmpty
+                final medication = MedicationModel(
+                  id: existing?.id ?? '',
+                  patientId: _patientId!,
+                  medicationName: nameCtrl.text.trim(),
+                  dosage: dosageCtrl.text.trim().isEmpty
                       ? null
                       : dosageCtrl.text.trim(),
-                  'frequency': frequencyCtrl.text.trim().isEmpty
+                  frequency: frequencyCtrl.text.trim().isEmpty
                       ? null
                       : frequencyCtrl.text.trim(),
-                  'purpose': purposeCtrl.text.trim().isEmpty
+                  purpose: purposeCtrl.text.trim().isEmpty
                       ? null
                       : purposeCtrl.text.trim(),
-                  'start_date':
-                  startDate?.toIso8601String().split('T').first,
-                  'end_date': endDate?.toIso8601String().split('T').first,
-                  'source': 'user',
-                };
+                  source: 'user',
+                  startDate: startDate,
+                  endDate: endDate,
+                  createdAt: existing?.createdAt ?? DateTime.now(),
+                );
 
-                if (existing == null) {
-                  await _supabase.from('medications').insert(data);
-                } else {
-                  await _supabase
-                      .from('medications')
-                      .update(data)
-                      .eq('id', existing['id']);
-                }
+                await _medicationService.saveMedication(
+                  medication: medication,
+                  performedByUserId: _appUserId!,
+                  existingId: existing?.id,
+                );
 
                 if (ctx.mounted) Navigator.pop(ctx);
                 await _loadData();
@@ -367,35 +414,29 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     purposeCtrl.dispose();
   }
 
-  Future<void> _deleteMedication(String id) async {
-    await _supabase.from('medications').delete().eq('id', id);
-    await _loadData();
-  }
+  // ── Medical condition dialog ──────────────────────────────────────────────────
 
-  // ------------------------------- Medical condition dialog -------------------------------
-
-  Future<void> _showConditionDialog({Map<String, dynamic>? existing}) async {
+  Future<void> _showConditionDialog(
+      {MedicalConditionModel? existing}) async {
     final nameCtrl =
-    TextEditingController(text: existing?['condition_name'] ?? '');
+    TextEditingController(text: existing?.conditionName ?? '');
     final placeCtrl =
-    TextEditingController(text: existing?['diagnosis_place'] ?? '');
+    TextEditingController(text: existing?.diagnosisPlace ?? '');
     final doctorCtrl =
-    TextEditingController(text: existing?['follow_up_doctor'] ?? '');
+    TextEditingController(text: existing?.followUpDoctor ?? '');
     final treatmentCtrl =
-    TextEditingController(text: existing?['treatment'] ?? '');
-    final notesCtrl = TextEditingController(text: existing?['notes'] ?? '');
-
-    String selectedType = existing?['type'] ?? 'chronic';
-    DateTime? diagnosisDate = existing?['diagnosis_date'] != null
-        ? DateTime.tryParse(existing!['diagnosis_date'].toString())
-        : null;
+    TextEditingController(text: existing?.treatment ?? '');
+    final notesCtrl =
+    TextEditingController(text: existing?.notes ?? '');
+    String selectedType = existing?.type ?? 'chronic';
+    DateTime? diagnosisDate = existing?.diagnosisDate;
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title:
-          Text(existing == null ? 'Add Condition' : 'Edit Condition'),
+          title: Text(
+              existing == null ? 'Add Condition' : 'Edit Condition'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -408,12 +449,13 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: const [
                     DropdownMenuItem(
                         value: 'chronic', child: Text('Chronic')),
-                    DropdownMenuItem(value: 'acute', child: Text('Acute')),
+                    DropdownMenuItem(
+                        value: 'acute', child: Text('Acute')),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => selectedType = v);
@@ -430,14 +472,14 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                     TextButton(
                       child: const Text('Pick'),
                       onPressed: () async {
-                        final picked = await showDatePicker(
+                        final p = await showDatePicker(
                           context: ctx,
                           initialDate: diagnosisDate ?? DateTime.now(),
                           firstDate: DateTime(1900),
                           lastDate: DateTime.now(),
                         );
-                        if (picked != null) {
-                          setDialogState(() => diagnosisDate = picked);
+                        if (p != null) {
+                          setDialogState(() => diagnosisDate = p);
                         }
                       },
                     ),
@@ -446,14 +488,14 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: placeCtrl,
-                  decoration:
-                  const InputDecoration(labelText: 'Diagnosis Place'),
+                  decoration: const InputDecoration(
+                      labelText: 'Diagnosis Place'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: doctorCtrl,
-                  decoration:
-                  const InputDecoration(labelText: 'Follow-up Doctor'),
+                  decoration: const InputDecoration(
+                      labelText: 'Follow-up Doctor'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -479,34 +521,32 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
 
-                final data = {
-                  'patient_id': _patientId,
-                  'condition_name': nameCtrl.text.trim(),
-                  'type': selectedType,
-                  'diagnosis_date':
-                  diagnosisDate?.toIso8601String().split('T').first,
-                  'diagnosis_place': placeCtrl.text.trim().isEmpty
+                final condition = MedicalConditionModel(
+                  id: existing?.id ?? '',
+                  patientId: _patientId!,
+                  conditionName: nameCtrl.text.trim(),
+                  type: selectedType,
+                  diagnosisDate: diagnosisDate,
+                  diagnosisPlace: placeCtrl.text.trim().isEmpty
                       ? null
                       : placeCtrl.text.trim(),
-                  'follow_up_doctor': doctorCtrl.text.trim().isEmpty
+                  followUpDoctor: doctorCtrl.text.trim().isEmpty
                       ? null
                       : doctorCtrl.text.trim(),
-                  'treatment': treatmentCtrl.text.trim().isEmpty
+                  treatment: treatmentCtrl.text.trim().isEmpty
                       ? null
                       : treatmentCtrl.text.trim(),
-                  'notes': notesCtrl.text.trim().isEmpty
+                  notes: notesCtrl.text.trim().isEmpty
                       ? null
                       : notesCtrl.text.trim(),
-                };
+                  createdAt: existing?.createdAt ?? DateTime.now(),
+                );
 
-                if (existing == null) {
-                  await _supabase.from('medical_conditions').insert(data);
-                } else {
-                  await _supabase
-                      .from('medical_conditions')
-                      .update(data)
-                      .eq('id', existing['id']);
-                }
+                await _conditionService.saveCondition(
+                  condition: condition,
+                  performedByUserId: _appUserId!,
+                  existingId: existing?.id,
+                );
 
                 if (ctx.mounted) Navigator.pop(ctx);
                 await _loadData();
@@ -525,11 +565,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
     notesCtrl.dispose();
   }
 
-  Future<void> _deleteCondition(String id) async {
-    await _supabase.from('medical_conditions').delete().eq('id', id);
-    await _loadData();
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -543,11 +578,9 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
+            child: Text(_errorMessage!,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center),
           ),
         ),
       );
@@ -565,8 +598,9 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
           ],
         ),
       ),
-      // the FAB action changes depending on which tab is open
-      floatingActionButton: FloatingActionButton(
+      // FAB is only shown when the user has edit rights
+      floatingActionButton: _canEdit
+          ? FloatingActionButton(
         onPressed: () {
           final tab = _tabController.index;
           if (tab == 0) _showAllergyDialog();
@@ -574,47 +608,33 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
           if (tab == 2) _showConditionDialog();
         },
         child: const Icon(Icons.add),
-      ),
+      )
+          : null,
       body: TabBarView(
         controller: _tabController,
         children: [
+
           // ------------------------------- Allergies tab -------------------------------
           _allergies.isEmpty
               ? const Center(child: Text('No allergies recorded.'))
               : ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: _allergies.length,
-            itemBuilder: (ctx, i) {
-              final a = _allergies[i];
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.warning_amber,
-                      color: Colors.orange),
-                  title: Text(a['allergen_name'] ?? ''),
-                  subtitle: Text([
-                    if (a['allergy_type'] != null) a['allergy_type'],
-                    if (a['severity'] != null) a['severity'],
-                    if (a['reaction'] != null) a['reaction'],
-                  ].join(' · ')),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () =>
-                            _showAllergyDialog(existing: a),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete,
-                            size: 20, color: Colors.red),
-                        onPressed: () =>
-                            _deleteAllergy(a['id'] as String),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (ctx, i) => AllergyCard(
+              allergy: _allergies[i],
+              canEdit: _canEdit,
+              onEdit: () =>
+                  _showAllergyDialog(existing: _allergies[i]),
+              onDelete: () async {
+                await _allergyService.deleteAllergy(
+                  id: _allergies[i].id,
+                  patientId: _patientId!,
+                  performedByUserId: _appUserId!,
+                  allergenName: _allergies[i].allergenName,
+                );
+                await _loadData();
+              },
+            ),
           ),
 
           // ------------------------------- Medications tab -------------------------------
@@ -623,37 +643,21 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
               : ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: _medications.length,
-            itemBuilder: (ctx, i) {
-              final m = _medications[i];
-              return Card(
-                child: ListTile(
-                  leading:
-                  const Icon(Icons.medication, color: Colors.blue),
-                  title: Text(m['medication_name'] ?? ''),
-                  subtitle: Text([
-                    if (m['dosage'] != null) m['dosage'],
-                    if (m['frequency'] != null) m['frequency'],
-                    if (m['purpose'] != null) m['purpose'],
-                  ].join(' · ')),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () =>
-                            _showMedicationDialog(existing: m),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete,
-                            size: 20, color: Colors.red),
-                        onPressed: () =>
-                            _deleteMedication(m['id'] as String),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (ctx, i) => MedicationCard(
+              medication: _medications[i],
+              canEdit: _canEdit,
+              onEdit: () =>
+                  _showMedicationDialog(existing: _medications[i]),
+              onDelete: () async {
+                await _medicationService.deleteMedication(
+                  id: _medications[i].id,
+                  patientId: _patientId!,
+                  performedByUserId: _appUserId!,
+                  medicationName: _medications[i].medicationName,
+                );
+                await _loadData();
+              },
+            ),
           ),
 
           // ------------------------------- Conditions tab -------------------------------
@@ -664,35 +668,80 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen>
             itemCount: _conditions.length,
             itemBuilder: (ctx, i) {
               final c = _conditions[i];
-              // chronic conditions are highlighted in red, acute in green
-              final isChronic = c['type'] == 'chronic';
+              final isChronic = c.type == 'chronic';
               return Card(
-                child: ListTile(
-                  leading: Icon(
-                    Icons.local_hospital,
-                    color: isChronic ? Colors.red : Colors.green,
-                  ),
-                  title: Text(c['condition_name'] ?? ''),
-                  subtitle: Text([
-                    if (c['type'] != null) c['type'],
-                    if (c['diagnosis_date'] != null)
-                      'since ${c['diagnosis_date']}',
-                    if (c['treatment'] != null) c['treatment'],
-                  ].join(' · ')),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () =>
-                            _showConditionDialog(existing: c),
+                      Row(
+                        children: [
+                          Icon(Icons.local_hospital,
+                              color: isChronic
+                                  ? Colors.red
+                                  : Colors.green,
+                              size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              c.conditionName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          if (_canEdit) ...[
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18),
+                              onPressed: () =>
+                                  _showConditionDialog(existing: c),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  size: 18, color: Colors.red),
+                              onPressed: () async {
+                                await _conditionService
+                                    .deleteCondition(
+                                  id: c.id,
+                                  patientId: _patientId!,
+                                  performedByUserId: _appUserId!,
+                                  conditionName: c.conditionName,
+                                );
+                                await _loadData();
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete,
-                            size: 20, color: Colors.red),
-                        onPressed: () =>
-                            _deleteCondition(c['id'] as String),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          Text(c.type,
+                              style: const TextStyle(fontSize: 12)),
+                          if (c.diagnosisDate != null)
+                            Text(
+                              'since ${c.diagnosisDate!.toIso8601String().split('T').first}',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey),
+                            ),
+                          if (c.treatment != null)
+                            Text(c.treatment!,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey)),
+                        ],
                       ),
+                      const SizedBox(height: 6),
+                      VerificationBadge(
+                          status: c.verificationStatus),
                     ],
                   ),
                 ),
