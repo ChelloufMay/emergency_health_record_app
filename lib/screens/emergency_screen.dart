@@ -38,11 +38,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       return;
     }
 
-    final row = await _patientService._supabase
-        .from('patient_profiles')
-        .select()
-        .eq('id', identity.patientId)
-        .maybeSingle();
+    final row = await _patientService.fetchPatientProfile(identity.patientId);
 
     if (row != null) {
       _name = '${row['first_name'] ?? ''} ${row['family_name'] ?? ''}'.trim();
