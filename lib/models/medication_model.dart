@@ -11,6 +11,7 @@ class MedicationModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // used only in the UI
   String? verificationStatus;
 
   MedicationModel({
@@ -25,6 +26,7 @@ class MedicationModel {
     required this.source,
     required this.createdAt,
     required this.updatedAt,
+    this.verificationStatus,
   });
 
   factory MedicationModel.fromMap(Map<String, dynamic> map) {

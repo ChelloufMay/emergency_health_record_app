@@ -9,7 +9,7 @@ class AllergyModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // loaded separately from verification_labels
+  // used only in the UI
   String? verificationStatus;
 
   AllergyModel({
@@ -22,6 +22,7 @@ class AllergyModel {
     required this.source,
     required this.createdAt,
     required this.updatedAt,
+    this.verificationStatus,
   });
 
   factory AllergyModel.fromMap(Map<String, dynamic> map) {

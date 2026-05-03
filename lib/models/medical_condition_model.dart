@@ -2,7 +2,7 @@ class MedicalConditionModel {
   final String id;
   final String patientId;
   final String conditionName;
-  final String type; // chronic or acute
+  final String type; // chronic, acute
   final DateTime? diagnosisDate;
   final String? diagnosisPlace;
   final String? followUpDoctor;
@@ -11,6 +11,7 @@ class MedicalConditionModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // used only in the UI
   String? verificationStatus;
 
   MedicalConditionModel({
