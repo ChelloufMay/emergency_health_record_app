@@ -104,7 +104,7 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selectedPermission,
+                  initialValue: selectedPermission,
                   decoration:
                   const InputDecoration(labelText: 'Permission Level'),
                   items: const [

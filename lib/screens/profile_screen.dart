@@ -392,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // sex is medically relevant so we only show the two real options. the DB stores 'unknown' if the user never picks one.
             DropdownButtonFormField<String>(
-              value: _selectedSex,
+              initialValue: _selectedSex,
               decoration: const InputDecoration(labelText: 'Sex'),
               hint: const Text('Select'),
               items: const [
@@ -501,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // dropdown listing the vaccines distributed in Tunisia. leaving it empty means not vaccinated or not recorded.
             DropdownButtonFormField<String>(
-              value: _selectedCovidVaccine,
+              initialValue: _selectedCovidVaccine,
               decoration: const InputDecoration(labelText: 'COVID-19 Vaccine'),
               hint: const Text('Not vaccinated / Not recorded'),
               isExpanded: true,
