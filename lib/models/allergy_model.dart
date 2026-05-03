@@ -9,6 +9,9 @@ class AllergyModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // loaded separately from verification_labels
+  String? verificationStatus;
+
   AllergyModel({
     required this.id,
     required this.patientId,
