@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,6 +28,8 @@ import 'screens/surgeries_screen.dart';
 import 'screens/vaccinations_screen.dart';
 import 'screens/welcome_screen.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -36,12 +41,114 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToAuthChanges();
+    _listenToDeepLinks();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _syncUserRowIfNeeded();
+    });
+  }
+
+  void _listenToAuthChanges() {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
+          (data) async {
+        if (data.session != null) {
+          await _syncUserRowIfNeeded();
+          _goHome();
+        }
+      },
+      onError: (error, stackTrace) {
+        _goLogin();
+      },
+    );
+  }
+
+  void _listenToDeepLinks() {
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+          (uri) async {
+        if (uri.scheme == 'healthapp' && uri.host == 'auth-callback') {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          await _syncUserRowIfNeeded();
+
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null) {
+            _goHome();
+          } else {
+            _goLogin();
+          }
+        }
+      },
+      onError: (error) {
+        _goLogin();
+      },
+    );
+  }
+
+  Future<void> _syncUserRowIfNeeded() async {
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) return;
+
+    final existing = await client
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+
+    if (existing != null) return;
+
+    final fullName = user.userMetadata?['full_name']?.toString().trim();
+    final safeFullName =
+    (fullName == null || fullName.isEmpty) ? 'User' : fullName;
+
+    await client.from('users').insert({
+      'auth_user_id': user.id,
+      'full_name': safeFullName,
+      'email': user.email,
+      'role': 'owner',
+    });
+  }
+
+  void _goHome() {
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/home',
+          (route) => false,
+    );
+  }
+
+  void _goLogin() {
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/login',
+          (route) => false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Health Record App',
       theme: ThemeData(
