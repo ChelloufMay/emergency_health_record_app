@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'config/supabase_config.dart';
 import 'screens/allergies_screen.dart';
 import 'screens/attachments_screen.dart';
@@ -26,10 +27,12 @@ import 'screens/welcome_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+
   runApp(const MyApp());
 }
 
