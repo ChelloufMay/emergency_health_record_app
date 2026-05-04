@@ -1,4 +1,3 @@
-// creates a new account
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -24,7 +23,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // basic check before even hitting the network
     if (fullName.isEmpty) {
       setState(() => _errorMessage = 'Please enter your full name.');
       return;
@@ -46,10 +44,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // create the auth account
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: 'healthapp://auth-callback',
         data: {
           'full_name': fullName,
         },
@@ -57,13 +55,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final authUser = response.user;
 
-      // when we didn't get a user back
       if (authUser == null) {
         setState(() => _errorMessage = 'Sign up failed. Please try again.');
         return;
       }
 
-      // insert the matching row in public.users: the schema has full_name as NOT NULL and the RLS policies rely on this table existing for the user
       if (response.session != null) {
         await _supabase.from('users').insert({
           'auth_user_id': authUser.id,
@@ -73,29 +69,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         if (!mounted) return;
-
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/home',
               (route) => false,
         );
       } else {
-        // If this happens, check for email confirmation
         setState(() {
           _errorMessage =
-          'Account created, but no session was returned. Turn OFF email confirmation in Supabase for development.';
+          'Check your email and click the confirmation link to activate your account.';
         });
       }
-
     } on AuthException catch (e) {
       setState(() => _errorMessage = 'Auth error: ${e.message}');
-
     } on PostgrestException catch (e) {
       setState(() => _errorMessage = 'Database error: ${e.message}');
-
     } catch (e) {
       setState(() => _errorMessage = 'Unexpected error: $e');
-
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -123,21 +113,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               decoration: const InputDecoration(labelText: 'Full Name'),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Password'),
             ),
             const SizedBox(height: 24),
-
             if (_errorMessage != null) ...[
               Text(
                 _errorMessage!,
@@ -146,7 +133,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 12),
             ],
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
