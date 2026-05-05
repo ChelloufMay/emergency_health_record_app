@@ -10,6 +10,7 @@ import 'screens/attachments_screen.dart';
 import 'screens/audit_log_screen.dart';
 import 'screens/caregiver_screen.dart';
 import 'screens/conditions_screen.dart';
+import 'screens/debug_link_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/family_doctor_screen.dart';
 import 'screens/family_history_screen.dart';
@@ -52,51 +53,102 @@ class _MyAppState extends State<MyApp> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<AuthState>? _authSubscription;
+  bool _handlingLink = false;
 
   @override
   void initState() {
     super.initState();
-    _listenToAuthChanges();
-    _listenToDeepLinks();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _syncUserRowIfNeeded();
-    });
+    _setupAuthListener();
+    _setupDeepLinkHandling();
   }
 
-  void _listenToAuthChanges() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-          (data) async {
-        if (data.session != null) {
-          await _syncUserRowIfNeeded();
-          _goHome();
-        }
-      },
-      onError: (error, stackTrace) {
-        _goLogin();
-      },
-    );
+  void _setupAuthListener() {
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+          if (data.session != null) {
+            await _syncUserRowIfNeeded();
+          }
+        });
   }
 
-  void _listenToDeepLinks() {
+  Future<void> _setupDeepLinkHandling() async {
+    final initialUri = await _appLinks.getInitialLink();
+    if (initialUri != null) {
+      await _handleIncomingUri(initialUri);
+    }
+
     _linkSubscription = _appLinks.uriLinkStream.listen(
           (uri) async {
-        if (uri.scheme == 'healthapp' && uri.host == 'auth-callback') {
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-          await _syncUserRowIfNeeded();
-
-          final session = Supabase.instance.client.auth.currentSession;
-          if (session != null) {
-            _goHome();
-          } else {
-            _goLogin();
-          }
-        }
+        await _handleIncomingUri(uri);
       },
-      onError: (error) {
+      onError: (_) {
         _goLogin();
       },
     );
+  }
+
+  Map<String, String> _extractParams(Uri uri) {
+    final params = <String, String>{};
+
+    params.addAll(uri.queryParameters);
+
+    if (uri.fragment.isNotEmpty) {
+      params.addAll(Uri.splitQueryString(uri.fragment));
+    }
+
+    return params;
+  }
+
+  Future<void> _handleIncomingUri(Uri uri) async {
+    if (_handlingLink) return;
+    _handlingLink = true;
+
+    try {
+      final isAuthCallback =
+          uri.scheme == 'healthapp' && uri.host == 'auth-callback';
+
+      if (!isAuthCallback) {
+        return;
+      }
+
+      final client = Supabase.instance.client;
+      final params = _extractParams(uri);
+
+      final tokenHash = params['token_hash'];
+      final type = params['type'];
+      final accessToken = params['access_token'];
+      final refreshToken = params['refresh_token'];
+
+      if (tokenHash != null && type == 'email') {
+        await client.auth.verifyOTP(
+          type: OtpType.email,
+          tokenHash: tokenHash,
+          redirectTo: 'healthapp://auth-callback',
+        );
+      } else if (accessToken != null && refreshToken != null) {
+        await client.auth.setSession(
+          refreshToken,
+          accessToken: accessToken,
+        );
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await _syncUserRowIfNeeded();
+
+      _goDebugLink(
+        uri: uri.toString(),
+        status: client.auth.currentSession != null
+            ? 'Session ready'
+            : 'No session yet',
+      );
+    } catch (e) {
+      _goDebugLink(
+        uri: uri.toString(),
+        status: 'Callback error: $e',
+      );
+    } finally {
+      _handlingLink = false;
+    }
   }
 
   Future<void> _syncUserRowIfNeeded() async {
@@ -135,6 +187,20 @@ class _MyAppState extends State<MyApp> {
     navigatorKey.currentState?.pushNamedAndRemoveUntil(
       '/login',
           (route) => false,
+    );
+  }
+
+  void _goDebugLink({
+    required String uri,
+    required String status,
+  }) {
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/debug-link',
+          (route) => false,
+      arguments: {
+        'uri': uri,
+        'status': status,
+      },
     );
   }
 
@@ -182,6 +248,7 @@ class _MyAppState extends State<MyApp> {
         '/reproductive_health': (context) => const ReproductiveHealthScreen(),
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
+        '/debug-link': (context) => const DebugLinkScreen(),
       },
     );
   }
