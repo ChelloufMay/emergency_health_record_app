@@ -67,12 +67,14 @@ class _MyAppState extends State<MyApp> {
         Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
           if (data.session != null) {
             await _syncUserRowIfNeeded();
+            debugPrint('Auth session detected');
           }
         });
   }
 
   Future<void> _setupDeepLinkHandling() async {
     final initialUri = await _appLinks.getInitialLink();
+    debugPrint('Initial link: $initialUri');
     if (initialUri != null) {
       await _handleIncomingUri(initialUri);
     }
@@ -104,15 +106,20 @@ class _MyAppState extends State<MyApp> {
     _handlingLink = true;
 
     try {
+      debugPrint('Incoming link: $uri');
+
       final isAuthCallback =
           uri.scheme == 'healthapp' && uri.host == 'auth-callback';
 
       if (!isAuthCallback) {
+        debugPrint('Not an auth callback');
         return;
       }
 
       final client = Supabase.instance.client;
       final params = _extractParams(uri);
+
+      debugPrint('Auth callback params: $params');
 
       final tokenHash = params['token_hash'];
       final type = params['type'];
