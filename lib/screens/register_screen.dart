@@ -77,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else {
         setState(() {
           _errorMessage =
-          'Check your email and click the confirmation link to activate your account.';
+          'Check your email and click the newest confirmation link immediately.';
         });
       }
     } on AuthException catch (e) {
