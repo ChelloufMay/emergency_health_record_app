@@ -164,9 +164,12 @@ class _MyAppState extends State<MyApp> {
         .eq('auth_user_id', user.id)
         .maybeSingle();
 
-    if (existing != null) return;
+    if (existing != null) return; // row already exists, nothing to do
 
-    final fullName = user.userMetadata?['full_name']?.toString().trim();
+    final meta = user.userMetadata ?? {};
+    final fullName = meta['full_name']?.toString().trim();
+    final phone = meta['phone']?.toString().trim();
+
     final safeFullName =
     (fullName == null || fullName.isEmpty) ? 'User' : fullName;
 
@@ -174,6 +177,7 @@ class _MyAppState extends State<MyApp> {
       'auth_user_id': user.id,
       'full_name': safeFullName,
       'email': user.email,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
       'role': 'owner',
     });
   }
