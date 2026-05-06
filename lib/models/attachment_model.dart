@@ -2,7 +2,7 @@ class AttachmentModel {
   final String id;
   final String patientId;
   final String fileName;
-  final String fileKind; // lab_result, xray, scan, pdf, image, other
+  final String fileKind;
   final String? fileType;
   final String storagePath;
   final DateTime? documentDate;
@@ -38,8 +38,10 @@ class AttachmentModel {
           : null,
       description: map['description'] as String?,
       uploadedByUserId: map['uploaded_by_user_id'] as String?,
-      createdAt: DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      createdAt:
+      DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
+      updatedAt:
+      DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
     );
   }
 
