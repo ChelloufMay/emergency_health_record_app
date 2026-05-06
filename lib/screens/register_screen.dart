@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,83 +9,59 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _authService = AuthService();
+
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
-  String? _errorMessage;
-
-  final _supabase = Supabase.instance.client;
+  String? _message;
+  bool _isSuccess = false;
 
   Future<void> _signUp() async {
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
 
     if (fullName.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your full name.');
+      setState(() { _message = 'Please enter your full name.'; _isSuccess = false; });
       return;
     }
-
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your email.');
+      setState(() { _message = 'Please enter your email.'; _isSuccess = false; });
       return;
     }
-
     if (password.length < 6) {
-      setState(() => _errorMessage = 'Password must be at least 6 characters.');
+      setState(() { _message = 'Password must be at least 6 characters.'; _isSuccess = false; });
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _message = null; });
 
     try {
-      final response = await _supabase.auth.signUp(
+      await _authService.signUp(
         email: email,
         password: password,
-        emailRedirectTo: 'healthapp://auth-callback',
-        data: {
-          'full_name': fullName,
-        },
+        fullName: fullName,
+        phone: phone.isEmpty ? null : phone,
       );
 
-      final authUser = response.user;
-
-      if (authUser == null) {
-        setState(() => _errorMessage = 'Sign up failed. Please try again.');
-        return;
-      }
-
-      if (response.session != null) {
-        await _supabase.from('users').insert({
-          'auth_user_id': authUser.id,
-          'full_name': fullName,
-          'email': email,
-          'role': 'owner',
-        });
-
-        if (!mounted) return;
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/home',
-              (route) => false,
-        );
-      } else {
-        setState(() {
-          _errorMessage =
-          'Check your email and click the newest confirmation link immediately.';
-        });
-      }
-    } on AuthException catch (e) {
-      setState(() => _errorMessage = 'Auth error: ${e.message}');
-    } on PostgrestException catch (e) {
-      setState(() => _errorMessage = 'Database error: ${e.message}');
-    } catch (e) {
-      setState(() => _errorMessage = 'Unexpected error: $e');
+      // If email confirmation is OFF in Supabase, the auth listener in
+      // main.dart will fire and navigate to /home automatically.
+      // If email confirmation is ON, we just tell the user to check their inbox.
+      if (!mounted) return;
+      setState(() {
+        _isSuccess = true;
+        _message = 'Account created! Check your email and tap the confirmation link to continue.';
+      });
+    } on Exception catch (e) {
+      setState(() {
+        _isSuccess = false;
+        _message = e.toString().replaceFirst('Exception: ', '');
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -95,6 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -105,7 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(title: const Text('Register')),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
+        child: ListView(
           children: [
             TextField(
               controller: _fullNameController,
@@ -120,15 +97,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone (optional)',
+                hintText: '+216 XX XXX XXX',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
               controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Password'),
             ),
             const SizedBox(height: 24),
-            if (_errorMessage != null) ...[
+            if (_message != null) ...[
               Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
+                _message!,
+                style: TextStyle(
+                  color: _isSuccess ? Colors.green.shade700 : Colors.red,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -136,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _signUp,
+                onPressed: _isLoading || _isSuccess ? null : _signUp,
                 child: _isLoading
                     ? const SizedBox(
                   height: 20,
@@ -145,6 +133,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 )
                     : const Text('Create Account'),
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+              child: const Text('Already have an account? Sign in'),
             ),
           ],
         ),
