@@ -63,12 +63,50 @@ class _MyAppState extends State<MyApp> {
 
   void _setupAuthListener() {
     _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-          if (data.session != null) {
-            await _syncUserRowIfNeeded();
-            _goHome();
-          }
-        });
+        Supabase.instance.client.auth.onAuthStateChange.listen(
+              (data) async {
+            debugPrint('Auth event: ${data.event}');
+
+            switch (data.event) {
+            // ── User just signed in (password login or deep-link callback) ──
+              case AuthChangeEvent.signedIn:
+                if (data.session != null) {
+                  await _syncUserRowIfNeeded();
+                  _goHome();
+                }
+
+            // ── Token refreshed in background — keep the user where they are ──
+              case AuthChangeEvent.tokenRefreshed:
+              // Nothing to do: user is already on the correct screen.
+                break;
+
+            // ── App started and found a saved session ──
+              case AuthChangeEvent.initialSession:
+                if (data.session != null) {
+                  // Valid saved session: go straight to home.
+                  await _syncUserRowIfNeeded();
+                  _goHome();
+                }
+            // Null session means no saved login — stay on the welcome screen.
+
+            // ── User signed out explicitly ──
+              case AuthChangeEvent.signedOut:
+                _goLogin();
+
+              default:
+                break;
+            }
+          },
+          onError: (Object error) {
+            // This catches "Refresh Token Not Found" and similar auth errors that
+            // come from a stale cached session.  Treat them as a sign-out so the
+            // user lands on the login screen instead of crashing.
+            debugPrint('Auth stream error (treating as sign-out): $error');
+            // Clear the broken session so it is not retried on next launch.
+            Supabase.instance.client.auth.signOut().ignore();
+            _goLogin();
+          },
+        );
   }
 
   Future<void> _setupDeepLinkHandling() async {
@@ -90,11 +128,9 @@ class _MyAppState extends State<MyApp> {
   Map<String, String> _extractParams(Uri uri) {
     final params = <String, String>{};
     params.addAll(uri.queryParameters);
-
     if (uri.fragment.isNotEmpty) {
       params.addAll(Uri.splitQueryString(uri.fragment));
     }
-
     return params;
   }
 
@@ -105,7 +141,6 @@ class _MyAppState extends State<MyApp> {
     try {
       final isAuthCallback =
           uri.scheme == 'healthapp' && uri.host == 'auth-callback';
-
       if (!isAuthCallback) return;
 
       final params = _extractParams(uri);
@@ -133,8 +168,6 @@ class _MyAppState extends State<MyApp> {
           redirectTo: 'healthapp://auth-callback',
         );
       } else if (type == 'signup') {
-        // Some confirmation links return through the app without tokens visible here.
-        // The auth listener will move the user to home if a session becomes available.
         await Future<void>.delayed(const Duration(milliseconds: 400));
       }
 
@@ -156,30 +189,38 @@ class _MyAppState extends State<MyApp> {
   Future<void> _syncUserRowIfNeeded() async {
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
-    if (user == null) return;
+    final session = client.auth.currentSession;
 
-    final existing = await client
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
+    // Do not attempt a DB write without a confirmed valid session.
+    if (user == null || session == null) return;
 
-    if (existing != null) return; // row already exists, nothing to do
+    try {
+      final existing = await client
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
 
-    final meta = user.userMetadata ?? {};
-    final fullName = meta['full_name']?.toString().trim();
-    final phone = meta['phone']?.toString().trim();
+      if (existing != null) return;
 
-    final safeFullName =
-    (fullName == null || fullName.isEmpty) ? 'User' : fullName;
+      final meta = user.userMetadata ?? {};
+      final fullName = meta['full_name']?.toString().trim();
+      final phone = meta['phone']?.toString().trim();
+      final safeFullName =
+      (fullName == null || fullName.isEmpty) ? 'User' : fullName;
 
-    await client.from('users').insert({
-      'auth_user_id': user.id,
-      'full_name': safeFullName,
-      'email': user.email,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
-      'role': 'owner',
-    });
+      await client.from('users').insert({
+        'auth_user_id': user.id,
+        'full_name': safeFullName,
+        'email': user.email,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        'role': 'owner',
+      });
+    } catch (e) {
+      // Log but do not rethrow — a sync failure should not crash the app or
+      // block navigation.  The row can be created on the next successful call.
+      debugPrint('_syncUserRowIfNeeded error (non-fatal): $e');
+    }
   }
 
   void _goHome() {
@@ -188,7 +229,6 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goHome());
       return;
     }
-
     nav.pushNamedAndRemoveUntil('/home', (route) => false);
   }
 
@@ -198,7 +238,6 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goLogin());
       return;
     }
-
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
