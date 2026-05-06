@@ -187,11 +187,13 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _syncUserRowIfNeeded() async {
+    // The database trigger handle_new_user() creates the public.users row
+    // automatically when a new auth account is created.
+    // This function is kept only as a fallback for edge cases
+    // (e.g. the trigger was added after the account already existed).
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
     final session = client.auth.currentSession;
-
-    // Do not attempt a DB write without a confirmed valid session.
     if (user == null || session == null) return;
 
     try {
@@ -201,25 +203,21 @@ class _MyAppState extends State<MyApp> {
           .eq('auth_user_id', user.id)
           .maybeSingle();
 
-      if (existing != null) return;
+      if (existing != null) return; // trigger already did the job
 
       final meta = user.userMetadata ?? {};
       final fullName = meta['full_name']?.toString().trim();
       final phone = meta['phone']?.toString().trim();
-      final safeFullName =
-      (fullName == null || fullName.isEmpty) ? 'User' : fullName;
 
       await client.from('users').insert({
         'auth_user_id': user.id,
-        'full_name': safeFullName,
+        'full_name': (fullName == null || fullName.isEmpty) ? 'User' : fullName,
         'email': user.email,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         'role': 'owner',
       });
     } catch (e) {
-      // Log but do not rethrow — a sync failure should not crash the app or
-      // block navigation.  The row can be created on the next successful call.
-      debugPrint('_syncUserRowIfNeeded error (non-fatal): $e');
+      debugPrint('_syncUserRowIfNeeded (non-fatal): $e');
     }
   }
 

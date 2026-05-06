@@ -15,18 +15,65 @@ class PatientIdentity {
 class PatientService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<String?> getAppUserId() async {
-    final authId = _supabase.auth.currentUser?.id;
-    if (authId == null) return null;
+  /// Returns the app user id from public.users.
+  /// If the row is missing, it creates it first.
+  Future<String?> ensureAppUserId({
+    String? fullName,
+    String? phone,
+  }) async {
+    final authUser = _supabase.auth.currentUser;
+    if (authUser == null) return null;
 
-    final row = await _supabase
+    // 1) Try to read the existing app user row
+    final existing = await _supabase
         .from('users')
         .select('id')
-        .eq('auth_user_id', authId)
+        .eq('auth_user_id', authUser.id)
         .maybeSingle();
 
-    if (row == null) return null;
-    return row['id'] as String;
+    if (existing != null) {
+      return existing['id'] as String;
+    }
+
+    // 2) Create it if missing
+    final meta = authUser.userMetadata ?? {};
+
+    final resolvedName = (fullName ??
+        meta['full_name']?.toString() ??
+        meta['name']?.toString() ??
+        authUser.email?.split('@').first ??
+        'User')
+        .trim();
+
+    final resolvedPhone = (phone ?? meta['phone']?.toString())?.trim();
+
+    try {
+      final inserted = await _supabase.from('users').insert({
+        'auth_user_id': authUser.id,
+        'full_name': resolvedName.isEmpty ? 'User' : resolvedName,
+        'email': authUser.email,
+        if (resolvedPhone != null && resolvedPhone.isNotEmpty) 'phone': resolvedPhone,
+        'role': 'owner',
+      }).select('id').single();
+
+      return inserted['id'] as String;
+    } on PostgrestException catch (e) {
+      // If another flow created it at the same time, fetch again.
+      if (e.code == '23505') {
+        final retry = await _supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', authUser.id)
+            .maybeSingle();
+
+        return retry?['id'] as String?;
+      }
+      rethrow;
+    }
+  }
+
+  Future<String?> getAppUserId() async {
+    return ensureAppUserId();
   }
 
   Future<String?> getPatientId() async {
@@ -35,18 +82,8 @@ class PatientService {
   }
 
   Future<PatientIdentity?> resolveIdentity() async {
-    final authId = _supabase.auth.currentUser?.id;
-    if (authId == null) return null;
-
-    final userRow = await _supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', authId)
-        .maybeSingle();
-
-    if (userRow == null) return null;
-
-    final appUserId = userRow['id'] as String;
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return null;
 
     final profileRow = await _supabase
         .from('patient_profiles')
