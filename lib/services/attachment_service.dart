@@ -24,8 +24,6 @@ class AttachmentService {
         .toList();
   }
 
-  /// Keeps your old metadata-only workflow available if needed.
-  /// This does NOT upload a file to Storage.
   Future<String> saveAttachment({
     required AttachmentModel attachment,
     required String uploadedByUserId,
@@ -71,9 +69,6 @@ class AttachmentService {
     }
   }
 
-  /// New preferred method:
-  /// 1) uploads the binary file to Supabase Storage
-  /// 2) saves the metadata row in public.attachments
   Future<String> uploadAttachment({
     required String patientId,
     required String uploadedByUserId,
@@ -81,7 +76,6 @@ class AttachmentService {
     required String fileKind,
     String? fileName,
     String? description,
-    DateTime? documentDate,
   }) async {
     final bytes = file.bytes;
     if (bytes == null) {
@@ -98,6 +92,7 @@ class AttachmentService {
         '$patientId/${DateTime.now().microsecondsSinceEpoch}_$safeFileName';
 
     final mimeType = _guessContentType(safeFileName);
+    final today = DateTime.now().toIso8601String().split('T').first;
 
     try {
       await _supabase.storage.from(_bucketName).uploadBinary(
@@ -117,8 +112,7 @@ class AttachmentService {
         'file_kind': fileKind,
         'file_type': mimeType,
         'storage_path': storagePath,
-        'document_date':
-        documentDate?.toIso8601String().split('T').first,
+        'document_date': today,
         'description':
         (description != null && description.trim().isNotEmpty)
             ? description.trim()
@@ -142,7 +136,6 @@ class AttachmentService {
 
       return newId;
     } catch (e) {
-      // Best effort cleanup if metadata insert fails after upload.
       try {
         await _supabase.storage.from(_bucketName).remove([storagePath]);
       } catch (_) {
@@ -152,6 +145,12 @@ class AttachmentService {
     }
   }
 
+  Future<String> getAttachmentSignedUrl(String storagePath) async {
+    return _supabase.storage
+        .from(_bucketName)
+        .createSignedUrl(storagePath, 60 * 10);
+  }
+
   Future<void> deleteAttachment({
     required String id,
     required String patientId,
@@ -159,7 +158,6 @@ class AttachmentService {
     required String fileName,
     required String storagePath,
   }) async {
-    // Delete file first, then delete metadata row.
     await _supabase.storage.from(_bucketName).remove([storagePath]);
 
     await _supabase.from('attachments').delete().eq('id', id);

@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/attachment_model.dart';
 import '../services/attachment_service.dart';
@@ -44,13 +45,36 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     setState(() => _loading = false);
   }
 
+  Future<void> _openAttachment(AttachmentModel item) async {
+    try {
+      final signedUrl = await _service.getAttachmentSignedUrl(item.storagePath);
+      final uri = Uri.parse(signedUrl);
+
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the file')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open attachment: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _addAttachment() async {
     final fileNameController = TextEditingController();
     final descriptionController = TextEditingController();
 
     String fileKind = 'other';
     PlatformFile? selectedFile;
-    DateTime? documentDate;
 
     final save = await showDialog<bool>(
       context: context,
@@ -102,7 +126,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: fileKind,
+                      value: fileKind,
                       decoration: const InputDecoration(labelText: 'File kind'),
                       items: const [
                         DropdownMenuItem(
@@ -145,28 +169,6 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                       ),
                       maxLines: 3,
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () async {
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: documentDate ?? DateTime.now(),
-                          firstDate: DateTime(1900),
-                          lastDate: DateTime.now(),
-                        );
-
-                        if (pickedDate != null) {
-                          setDialogState(() {
-                            documentDate = pickedDate;
-                          });
-                        }
-                      },
-                      child: Text(
-                        documentDate == null
-                            ? 'Select document date (optional)'
-                            : 'Document date: ${documentDate!.toIso8601String().split('T').first}',
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -206,7 +208,6 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
         description: descriptionController.text.trim().isEmpty
             ? null
             : descriptionController.text.trim(),
-        documentDate: documentDate,
       );
 
       await _load();
@@ -263,6 +264,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
           return Card(
             child: ListTile(
+              onTap: () => _openAttachment(item),
               title: Text(item.fileName),
               subtitle: Text(
                 [
@@ -274,9 +276,19 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                 ].join('\n'),
               ),
               isThreeLine: true,
-              trailing: IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _deleteAttachment(item),
+              leading: const Icon(Icons.insert_drive_file_outlined),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.open_in_new),
+                    onPressed: () => _openAttachment(item),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _deleteAttachment(item),
+                  ),
+                ],
               ),
             ),
           );
