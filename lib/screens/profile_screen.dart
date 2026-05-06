@@ -22,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _emergencyPhoneController = TextEditingController();
 
   bool _loading = true;
+  bool _saving = false;
   String? _profileId;
   String? _patientId;
   String? _appUserId;
@@ -32,26 +33,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _insurancePlan;
   String? _covidVaccineType;
 
-  final List<String> _sexOptions = const ['male', 'female'];
-
-  final List<String> _bloodTypeOptions = const [
-    'O-',
-    'O+',
-    'B-',
-    'B+',
-    'A-',
-    'A+',
-    'AB-',
-    'AB+',
+  static const List<String> _sexOptions = ['male', 'female'];
+  static const List<String> _bloodTypeOptions = [
+    'O-', 'O+', 'B-', 'B+', 'A-', 'A+', 'AB-', 'AB+',
   ];
-
-  final List<String> _insurancePlanOptions = const [
-    'NAM',
-    'CNSS',
-    'CNRPS',
-  ];
-
-  final List<String> _covidVaccineOptions = const [
+  static const List<String> _insurancePlanOptions = ['NAM', 'CNSS', 'CNRPS'];
+  static const List<String> _covidVaccineOptions = [
     'Pfizer-BioNTech (Comirnaty)',
     'Moderna (Spikevax / mRNA-1273)',
     'AstraZeneca/Oxford (Vaxzevria)',
@@ -68,61 +55,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final identity = await _patientService.resolveIdentity();
-    _appUserId = identity?.appUserId ?? await _patientService.getAppUserId();
+    try {
+      final identity = await _patientService.resolveIdentity();
+      _appUserId = identity?.appUserId ?? await _patientService.getAppUserId();
 
-    if (_appUserId == null) {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-      return;
-    }
-
-    final row = await _supabase
-        .from('patient_profiles')
-        .select()
-        .eq('user_id', _appUserId!)
-        .maybeSingle();
-
-    if (row != null) {
-      _profileId = row['id'] as String;
-      _patientId = _profileId;
-
-      _firstNameController.text = row['first_name']?.toString() ?? '';
-      _familyNameController.text = row['family_name']?.toString() ?? '';
-
-      final sexValue = row['sex']?.toString();
-      _sex = sexValue == 'female' ? 'female' : 'male';
-
-      final dobValue = row['date_of_birth']?.toString();
-      if (dobValue != null && dobValue.isNotEmpty) {
-        _selectedDob = DateTime.tryParse(dobValue);
+      if (_appUserId == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
       }
 
-      final bloodTypeValue = row['blood_type']?.toString();
-      if (_bloodTypeOptions.contains(bloodTypeValue)) {
-        _bloodType = bloodTypeValue;
+      final row = await _supabase
+          .from('patient_profiles')
+          .select()
+          .eq('user_id', _appUserId!)
+          .maybeSingle();
+
+      if (row != null) {
+        _profileId = row['id'] as String;
+        _patientId = _profileId;
+
+        _firstNameController.text = row['first_name']?.toString() ?? '';
+        _familyNameController.text = row['family_name']?.toString() ?? '';
+
+        final sexValue = row['sex']?.toString();
+        _sex = sexValue == 'female' ? 'female' : 'male';
+
+        final dobValue = row['date_of_birth']?.toString();
+        if (dobValue != null && dobValue.isNotEmpty) {
+          _selectedDob = DateTime.tryParse(dobValue);
+        }
+
+        final bloodTypeValue = row['blood_type']?.toString();
+        if (_bloodTypeOptions.contains(bloodTypeValue)) {
+          _bloodType = bloodTypeValue;
+        }
+
+        _phoneController.text = row['phone']?.toString() ?? '';
+        _emergencyNameController.text =
+            row['emergency_contact_name']?.toString() ?? '';
+        _emergencyPhoneController.text =
+            row['emergency_contact_phone']?.toString() ?? '';
+
+        final insuranceValue = row['insurance_plan']?.toString();
+        if (_insurancePlanOptions.contains(insuranceValue)) {
+          _insurancePlan = insuranceValue;
+        }
+
+        final covidValue = row['covid_vaccine_type']?.toString();
+        if (_covidVaccineOptions.contains(covidValue)) {
+          _covidVaccineType = covidValue;
+        }
       }
-
-      _phoneController.text = row['phone']?.toString() ?? '';
-      _emergencyNameController.text =
-          row['emergency_contact_name']?.toString() ?? '';
-      _emergencyPhoneController.text =
-          row['emergency_contact_phone']?.toString() ?? '';
-
-      final insuranceValue = row['insurance_plan']?.toString();
-      if (_insurancePlanOptions.contains(insuranceValue)) {
-        _insurancePlan = insuranceValue;
-      }
-
-      final covidValue = row['covid_vaccine_type']?.toString();
-      if (_covidVaccineOptions.contains(covidValue)) {
-        _covidVaccineType = covidValue;
-      }
-    }
-
-    if (mounted) {
-      setState(() => _loading = false);
+    } catch (e) {
+      debugPrint('_loadProfile error: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -135,13 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickDateOfBirth() async {
     final now = DateTime.now();
-    final initialDate = _selectedDob ??
-        DateTime(
-          now.year - 30,
-          now.month,
-          now.day,
-        );
-
+    final initialDate = _selectedDob ?? DateTime(now.year - 30, now.month, now.day);
     final firstDate = DateTime(1900);
     final lastDate = DateTime(now.year, now.month, now.day);
 
@@ -154,67 +135,103 @@ class _ProfileScreenState extends State<ProfileScreen> {
       lastDate: lastDate,
     );
 
-    if (picked != null) {
-      setState(() {
-        _selectedDob = picked;
-      });
+    if (picked != null && mounted) {
+      setState(() => _selectedDob = picked);
     }
   }
 
   Future<void> _saveProfile() async {
-    if (_appUserId == null) return;
+    // Refresh _appUserId in case sync hadn't finished when the screen loaded
+    _appUserId ??= await _patientService.getAppUserId();
 
-    final payload = {
-      'user_id': _appUserId,
-      'first_name': _firstNameController.text.trim(),
-      'family_name': _familyNameController.text.trim(),
-      'sex': _sex,
-      'date_of_birth': _selectedDob == null ? null : _formatDate(_selectedDob!),
-      'blood_type': _bloodType,
-      'phone': _phoneController.text.trim(),
-      'emergency_contact_name': _emergencyNameController.text.trim(),
-      'emergency_contact_phone': _emergencyPhoneController.text.trim(),
-      'insurance_plan': _insurancePlan,
-      'covid_vaccine_type': _covidVaccineType,
-    };
-
-    if (_profileId == null) {
-      final inserted = await _supabase
-          .from('patient_profiles')
-          .insert(payload)
-          .select('id')
-          .single();
-
-      _profileId = inserted['id'] as String;
-      _patientId = _profileId;
-
-      await _audit.log(
-        patientId: _patientId!,
-        performedByUserId: _appUserId!,
-        action: 'create',
-        entityType: 'patient_profiles',
-        entityId: _profileId,
-        fieldName: 'first_name',
-        newValue: _firstNameController.text.trim(),
+    if (_appUserId == null) {
+      _showMessage(
+        'Your account is not fully set up yet. Please sign out and sign in again.',
+        isError: true,
       );
-    } else {
-      await _supabase.from('patient_profiles').update(payload).eq('id', _profileId!);
-
-      await _audit.log(
-        patientId: _profileId!,
-        performedByUserId: _appUserId!,
-        action: 'update',
-        entityType: 'patient_profiles',
-        entityId: _profileId,
-        fieldName: 'first_name',
-        newValue: _firstNameController.text.trim(),
-      );
+      return;
     }
 
-    if (!mounted) return;
+    setState(() => _saving = true);
 
+    try {
+      final payload = {
+        'user_id': _appUserId,
+        'first_name': _firstNameController.text.trim(),
+        'family_name': _familyNameController.text.trim(),
+        'sex': _sex,
+        'date_of_birth':
+        _selectedDob == null ? null : _formatDate(_selectedDob!),
+        'blood_type': _bloodType,
+        'phone': _phoneController.text.trim(),
+        'emergency_contact_name': _emergencyNameController.text.trim(),
+        'emergency_contact_phone': _emergencyPhoneController.text.trim(),
+        'insurance_plan': _insurancePlan,
+        'covid_vaccine_type': _covidVaccineType,
+      };
+
+      if (_profileId == null) {
+        final inserted = await _supabase
+            .from('patient_profiles')
+            .insert(payload)
+            .select('id')
+            .single();
+
+        _profileId = inserted['id'] as String;
+        _patientId = _profileId;
+
+        await _audit.log(
+          patientId: _patientId!,
+          performedByUserId: _appUserId!,
+          action: 'create',
+          entityType: 'patient_profiles',
+          entityId: _profileId,
+          fieldName: 'first_name',
+          newValue: _firstNameController.text.trim(),
+        );
+      } else {
+        await _supabase
+            .from('patient_profiles')
+            .update(payload)
+            .eq('id', _profileId!);
+
+        await _audit.log(
+          patientId: _profileId!,
+          performedByUserId: _appUserId!,
+          action: 'update',
+          entityType: 'patient_profiles',
+          entityId: _profileId,
+          fieldName: 'first_name',
+          newValue: _firstNameController.text.trim(),
+        );
+      }
+
+      _showMessage('Profile saved');
+    } on PostgrestException catch (e) {
+      debugPrint('Profile save PostgrestException: ${e.message} code:${e.code}');
+      if (e.code == '42501') {
+        _showMessage(
+          'Permission denied. Please sign out and sign in again, then try saving.',
+          isError: true,
+        );
+      } else {
+        _showMessage('Database error: ${e.message}', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Profile save error: $e');
+      _showMessage('Unexpected error: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _showMessage(String text, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile saved')),
+      SnackBar(
+        content: Text(text),
+        backgroundColor: isError ? Colors.red.shade700 : null,
+      ),
     );
   }
 
@@ -228,16 +245,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,6 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ── name ──────────────────────────────────────────────
           TextField(
             controller: _firstNameController,
             decoration: const InputDecoration(labelText: 'First name'),
@@ -258,24 +266,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
 
+          // ── sex ───────────────────────────────────────────────
           DropdownButtonFormField<String>(
             initialValue: _sex,
             decoration: const InputDecoration(labelText: 'Sex'),
             items: _sexOptions
-                .map(
-                  (value) => DropdownMenuItem(
-                value: value,
-                child: Text(value[0].toUpperCase() + value.substring(1)),
-              ),
-            )
+                .map((v) => DropdownMenuItem(
+              value: v,
+              child: Text(
+                  v[0].toUpperCase() + v.substring(1)),
+            ))
                 .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _sex = value);
+            onChanged: (v) {
+              if (v != null) setState(() => _sex = v);
             },
           ),
           const SizedBox(height: 12),
 
+          // ── date of birth ──────────────────────────────────────
           InputDecorator(
             decoration: const InputDecoration(
               labelText: 'Date of birth',
@@ -298,84 +306,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
 
+          // ── blood type ─────────────────────────────────────────
           DropdownButtonFormField<String>(
             initialValue: _bloodType,
-            decoration: const InputDecoration(labelText: 'Blood type'),
+            decoration:
+            const InputDecoration(labelText: 'Blood type'),
             hint: const Text('Select blood type'),
             items: _bloodTypeOptions
-                .map(
-                  (value) => DropdownMenuItem(
-                value: value,
-                child: Text(value),
-              ),
-            )
+                .map((v) =>
+                DropdownMenuItem(value: v, child: Text(v)))
                 .toList(),
-            onChanged: (value) {
-              setState(() => _bloodType = value);
-            },
+            onChanged: (v) => setState(() => _bloodType = v),
           ),
           const SizedBox(height: 12),
 
+          // ── phone ──────────────────────────────────────────────
           TextField(
             controller: _phoneController,
+            keyboardType: TextInputType.phone,
             decoration: const InputDecoration(labelText: 'Phone'),
           ),
           const SizedBox(height: 12),
+
+          // ── emergency contact ──────────────────────────────────
           TextField(
             controller: _emergencyNameController,
-            decoration:
-            const InputDecoration(labelText: 'Emergency contact name'),
+            decoration: const InputDecoration(
+                labelText: 'Emergency contact name'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _emergencyPhoneController,
+            keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Emergency contact phone',
-            ),
+                labelText: 'Emergency contact phone'),
           ),
           const SizedBox(height: 12),
 
+          // ── insurance ──────────────────────────────────────────
           DropdownButtonFormField<String>(
             initialValue: _insurancePlan,
-            decoration: const InputDecoration(labelText: 'Insurance plan'),
+            decoration:
+            const InputDecoration(labelText: 'Insurance plan'),
             hint: const Text('Select insurance plan'),
             items: _insurancePlanOptions
-                .map(
-                  (value) => DropdownMenuItem(
-                value: value,
-                child: Text(value),
-              ),
-            )
+                .map((v) =>
+                DropdownMenuItem(value: v, child: Text(v)))
                 .toList(),
-            onChanged: (value) {
-              setState(() => _insurancePlan = value);
-            },
+            onChanged: (v) => setState(() => _insurancePlan = v),
           ),
           const SizedBox(height: 12),
 
+          // ── covid vaccine ──────────────────────────────────────
           DropdownButtonFormField<String>(
             initialValue: _covidVaccineType,
             decoration: const InputDecoration(
-              labelText: 'COVID vaccine type',
-            ),
+                labelText: 'COVID vaccine type'),
             hint: const Text('Select vaccine type'),
             items: _covidVaccineOptions
-                .map(
-                  (value) => DropdownMenuItem(
-                value: value,
-                child: Text(value),
-              ),
-            )
+                .map((v) =>
+                DropdownMenuItem(value: v, child: Text(v)))
                 .toList(),
-            onChanged: (value) {
-              setState(() => _covidVaccineType = value);
-            },
+            onChanged: (v) => setState(() => _covidVaccineType = v),
           ),
           const SizedBox(height: 20),
 
+          // ── save button ────────────────────────────────────────
           ElevatedButton(
-            onPressed: _saveProfile,
-            child: const Text('Save profile'),
+            onPressed: _saving ? null : _saveProfile,
+            child: _saving
+                ? const SizedBox(
+              height: 20,
+              width: 20,
+              child:
+              CircularProgressIndicator(strokeWidth: 2),
+            )
+                : const Text('Save profile'),
           ),
         ],
       ),
