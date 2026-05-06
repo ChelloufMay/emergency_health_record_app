@@ -74,10 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       _appUserId = await _patientService.ensureAppUserId();
-
-      if (_appUserId == null) {
-        return;
-      }
+      if (_appUserId == null) return;
 
       final row = await _supabase
           .from('patient_profiles')
@@ -87,7 +84,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (row != null) {
         _profileId = row['id']?.toString();
-
         _legalIdController.text = row['legal_id']?.toString() ?? '';
         _firstNameController.text = row['first_name']?.toString() ?? '';
         _familyNameController.text = row['family_name']?.toString() ?? '';
@@ -98,11 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             row['emergency_contact_phone']?.toString() ?? '';
 
         final sexValue = row['sex']?.toString();
-        if (sexValue == 'male' || sexValue == 'female') {
-          _sex = sexValue!;
-        } else {
-          _sex = 'unknown';
-        }
+        _sex = ((sexValue == 'male' || sexValue == 'female') ? sexValue : 'unknown')!;
 
         _selectedDob = _parseDate(row['date_of_birth']);
 
@@ -124,16 +116,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       debugPrint('_loadProfile error: $e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _pickDateOfBirth() async {
     final now = DateTime.now();
-    final initialDate =
-        _selectedDob ?? DateTime(now.year - 30, now.month, now.day);
+    final initialDate = _selectedDob ?? DateTime(now.year - 30, now.month, now.day);
     final firstDate = DateTime(1900);
     final lastDate = DateTime(now.year, now.month, now.day);
 
@@ -166,50 +155,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _saving = true);
 
     try {
-      _appUserId = await _patientService.ensureAppUserId(
-        fullName: '$firstName $familyName',
-        phone: _phoneController.text.trim(),
+      final patientId = await _supabase.rpc(
+        'save_my_patient_profile',
+        params: {
+          '_legal_id': _legalIdController.text.trim(),
+          '_first_name': firstName,
+          '_family_name': familyName,
+          '_sex': _sex,
+          '_date_of_birth': _selectedDob == null ? null : _formatDate(_selectedDob!),
+          '_blood_type': _bloodType,
+          '_phone': _phoneController.text.trim(),
+          '_emergency_contact_name': _emergencyNameController.text.trim(),
+          '_emergency_contact_phone': _emergencyPhoneController.text.trim(),
+          '_insurance_plan': _insurancePlan,
+          '_covid_vaccine_type': _covidVaccineType,
+        },
       );
 
-      if (_appUserId == null) {
-        _showMessage(
-          'No linked app user row was found. Please sign out and sign in again.',
-          isError: true,
-        );
+      _profileId = patientId?.toString();
+      _appUserId = await _patientService.ensureAppUserId();
+
+      if (_profileId == null || _appUserId == null) {
+        _showMessage('Profile saved, but identity could not be resolved.', isError: true);
         return;
       }
-
-      final payload = <String, dynamic>{
-        'user_id': _appUserId,
-        'legal_id': _legalIdController.text.trim().isEmpty
-            ? null
-            : _legalIdController.text.trim(),
-        'first_name': firstName,
-        'family_name': familyName,
-        'sex': _sex == 'male' || _sex == 'female' ? _sex : 'unknown',
-        'date_of_birth': _selectedDob == null ? null : _formatDate(_selectedDob!),
-        'blood_type': _bloodType,
-        'phone': _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
-        'emergency_contact_name': _emergencyNameController.text.trim().isEmpty
-            ? null
-            : _emergencyNameController.text.trim(),
-        'emergency_contact_phone': _emergencyPhoneController.text.trim().isEmpty
-            ? null
-            : _emergencyPhoneController.text.trim(),
-        'insurance_plan': _insurancePlan,
-        'covid_vaccine_type': _covidVaccineType,
-      };
-
-      // One path for both create and update
-      final saved = await _supabase
-          .from('patient_profiles')
-          .upsert(payload, onConflict: 'user_id')
-          .select('id')
-          .single();
-
-      _profileId = saved['id']?.toString();
 
       await _audit.log(
         patientId: _profileId!,
@@ -225,18 +194,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } on PostgrestException catch (e) {
       debugPrint('Profile save PostgrestException: ${e.message} code:${e.code}');
       _showMessage(
-        e.code == '42501'
-            ? 'Permission denied. The linked app user row is missing or not matching.'
-            : 'Database error: ${e.message}',
+        'Database error: ${e.message}',
         isError: true,
       );
     } catch (e) {
       debugPrint('Profile save error: $e');
       _showMessage('Unexpected error: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -263,8 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dobText =
-    _selectedDob == null ? 'Select date' : _formatDate(_selectedDob!);
+    final dobText = _selectedDob == null ? 'Select date' : _formatDate(_selectedDob!);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -281,22 +245,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _firstNameController,
             decoration: const InputDecoration(labelText: 'First name'),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _familyNameController,
             decoration: const InputDecoration(labelText: 'Family name'),
           ),
           const SizedBox(height: 12),
-
           DropdownButtonFormField<String>(
-            initialValue:
-            _sex == 'male' || _sex == 'female' ? _sex : null,
+            initialValue: _sex == 'male' || _sex == 'female' ? _sex : null,
             decoration: const InputDecoration(labelText: 'Sex'),
             hint: const Text('Select sex'),
             items: _sexOptions
@@ -308,13 +268,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
                 .toList(),
             onChanged: (v) {
-              if (v != null) {
-                setState(() => _sex = v);
-              }
+              if (v != null) setState(() => _sex = v);
             },
           ),
           const SizedBox(height: 12),
-
           InputDecorator(
             decoration: const InputDecoration(
               labelText: 'Date of birth',
@@ -332,7 +289,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           DropdownButtonFormField<String>(
             initialValue: _bloodType,
             decoration: const InputDecoration(labelText: 'Blood type'),
@@ -343,14 +299,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (v) => setState(() => _bloodType = v),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(labelText: 'Phone'),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _emergencyNameController,
             decoration: const InputDecoration(
@@ -358,7 +312,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _emergencyPhoneController,
             keyboardType: TextInputType.phone,
@@ -367,11 +320,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           DropdownButtonFormField<String>(
             initialValue: _insurancePlan,
-            decoration:
-            const InputDecoration(labelText: 'Insurance plan'),
+            decoration: const InputDecoration(labelText: 'Insurance plan'),
             hint: const Text('Select insurance plan'),
             items: _insurancePlanOptions
                 .map((v) => DropdownMenuItem(value: v, child: Text(v)))
@@ -379,11 +330,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (v) => setState(() => _insurancePlan = v),
           ),
           const SizedBox(height: 12),
-
           DropdownButtonFormField<String>(
             initialValue: _covidVaccineType,
-            decoration:
-            const InputDecoration(labelText: 'COVID vaccine type'),
+            decoration: const InputDecoration(labelText: 'COVID vaccine type'),
             hint: const Text('Select vaccine type'),
             items: _covidVaccineOptions
                 .map((v) => DropdownMenuItem(value: v, child: Text(v)))
@@ -391,7 +340,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (v) => setState(() => _covidVaccineType = v),
           ),
           const SizedBox(height: 20),
-
           ElevatedButton(
             onPressed: _saving ? null : _saveProfile,
             child: _saving

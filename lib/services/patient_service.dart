@@ -15,8 +15,6 @@ class PatientIdentity {
 class PatientService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Returns the app user id from public.users.
-  /// If the row is missing, it creates it first.
   Future<String?> ensureAppUserId({
     String? fullName,
     String? phone,
@@ -24,7 +22,6 @@ class PatientService {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
 
-    // 1) Try to read the existing app user row
     final existing = await _supabase
         .from('users')
         .select('id')
@@ -35,17 +32,14 @@ class PatientService {
       return existing['id'] as String;
     }
 
-    // 2) Create it if missing
-    final meta = authUser.userMetadata ?? {};
-
     final resolvedName = (fullName ??
-        meta['full_name']?.toString() ??
-        meta['name']?.toString() ??
+        authUser.userMetadata?['full_name']?.toString() ??
+        authUser.userMetadata?['name']?.toString() ??
         authUser.email?.split('@').first ??
         'User')
         .trim();
 
-    final resolvedPhone = (phone ?? meta['phone']?.toString())?.trim();
+    final resolvedPhone = phone?.trim();
 
     try {
       final inserted = await _supabase.from('users').insert({
@@ -58,14 +52,12 @@ class PatientService {
 
       return inserted['id'] as String;
     } on PostgrestException catch (e) {
-      // If another flow created it at the same time, fetch again.
       if (e.code == '23505') {
         final retry = await _supabase
             .from('users')
             .select('id')
             .eq('auth_user_id', authUser.id)
             .maybeSingle();
-
         return retry?['id'] as String?;
       }
       rethrow;
@@ -74,11 +66,6 @@ class PatientService {
 
   Future<String?> getAppUserId() async {
     return ensureAppUserId();
-  }
-
-  Future<String?> getPatientId() async {
-    final identity = await resolveIdentity();
-    return identity?.patientId;
   }
 
   Future<PatientIdentity?> resolveIdentity() async {
@@ -101,12 +88,10 @@ class PatientService {
   }
 
   Future<Map<String, dynamic>?> fetchPatientProfile(String patientId) async {
-    final row = await _supabase
+    return _supabase
         .from('patient_profiles')
         .select()
         .eq('id', patientId)
         .maybeSingle();
-
-    return row;
   }
 }

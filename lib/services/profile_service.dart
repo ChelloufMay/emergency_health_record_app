@@ -49,25 +49,39 @@ class ProfileService {
       familyDoctorId: profile.familyDoctorId,
     );
 
-    final saved = await _supabase
-        .from('patient_profiles')
-        .upsert(safeProfile.toInsertMap(), onConflict: 'user_id')
-        .select('id')
-        .single();
+    final patientId = await _supabase.rpc(
+      'save_my_patient_profile',
+      params: {
+        '_legal_id': safeProfile.legalId,
+        '_first_name': safeProfile.firstName,
+        '_family_name': safeProfile.familyName,
+        '_sex': safeProfile.sex,
+        '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
+        '_blood_type': safeProfile.bloodType,
+        '_phone': safeProfile.phone,
+        '_emergency_contact_name': safeProfile.emergencyContactName,
+        '_emergency_contact_phone': safeProfile.emergencyContactPhone,
+        '_insurance_plan': safeProfile.insurancePlan,
+        '_covid_vaccine_type': safeProfile.covidVaccineType,
+      },
+    );
 
-    final patientId = saved['id'] as String;
+    final savedId = patientId?.toString();
+    if (savedId == null) {
+      throw Exception('Profile save failed.');
+    }
 
     await _audit.log(
-      patientId: patientId,
+      patientId: savedId,
       performedByUserId: performedByUserId,
       action: 'update',
       entityType: 'patient_profiles',
-      entityId: patientId,
+      entityId: savedId,
       fieldName: 'first_name',
       newValue: '${safeProfile.firstName} ${safeProfile.familyName}',
     );
 
-    return patientId;
+    return savedId;
   }
 
   Future<String?> ensureProfileExists({
