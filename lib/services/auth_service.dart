@@ -3,33 +3,27 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<void> signUp({
+  /// Creates the Supabase Auth user and stores name + phone in metadata.
+  /// Does NOT insert into public.users here — _syncUserRowIfNeeded in
+  /// main.dart handles that once the confirmed session is available.
+  Future<AuthResponse> signUp({
     required String email,
     required String password,
     String fullName = '',
     String? phone,
-    String role = 'owner',
   }) async {
-    final response = await _supabase.auth.signUp(
-      email: email,
-      password: password,
-    );
-
-    final authUser = response.user;
-    if (authUser == null) {
-      throw Exception('Account creation failed.');
-    }
-
     final safeFullName =
     fullName.trim().isEmpty ? email.split('@').first : fullName.trim();
 
-    await _supabase.from('users').insert({
-      'auth_user_id': authUser.id,
-      'full_name': safeFullName,
-      'phone': phone,
-      'email': email,
-      'role': role,
-    });
+    return _supabase.auth.signUp(
+      email: email,
+      password: password,
+      emailRedirectTo: 'healthapp://auth-callback',
+      data: {
+        'full_name': safeFullName,
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      },
+    );
   }
 
   Future<void> signIn({
