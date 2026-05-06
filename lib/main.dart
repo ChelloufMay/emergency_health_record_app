@@ -19,7 +19,6 @@ import 'screens/lifestyle_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/medical_summary_screen.dart';
 import 'screens/medications_screen.dart';
-import 'screens/password_reset_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
@@ -54,7 +53,6 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   bool _handlingLink = false;
-  bool _pendingPasswordRecovery = false;
 
   @override
   void initState() {
@@ -72,18 +70,7 @@ class _MyAppState extends State<MyApp> {
           case AuthChangeEvent.signedIn:
             if (data.session != null) {
               await _syncUserRowIfNeeded();
-              if (_pendingPasswordRecovery) {
-                _goPasswordReset();
-              } else {
-                _goHome();
-              }
-            }
-            break;
-
-          case AuthChangeEvent.passwordRecovery:
-            _pendingPasswordRecovery = true;
-            if (data.session != null) {
-              _goPasswordReset();
+              _goHome();
             }
             break;
 
@@ -93,16 +80,11 @@ class _MyAppState extends State<MyApp> {
           case AuthChangeEvent.initialSession:
             if (data.session != null) {
               await _syncUserRowIfNeeded();
-              if (_pendingPasswordRecovery) {
-                _goPasswordReset();
-              } else {
-                _goHome();
-              }
+              _goHome();
             }
             break;
 
           case AuthChangeEvent.signedOut:
-            _pendingPasswordRecovery = false;
             _goLogin();
             break;
 
@@ -113,7 +95,6 @@ class _MyAppState extends State<MyApp> {
       onError: (Object error) {
         debugPrint('Auth stream error (treating as sign-out): $error');
         Supabase.instance.client.auth.signOut().ignore();
-        _pendingPasswordRecovery = false;
         _goLogin();
       },
     );
@@ -150,16 +131,13 @@ class _MyAppState extends State<MyApp> {
 
     try {
       final isAuthCallback =
-          uri.scheme == 'healthapp' &&
-              (uri.host == 'auth-callback' || uri.host == 'reset-password');
-
+          uri.scheme == 'healthapp' && uri.host == 'auth-callback';
       if (!isAuthCallback) return;
 
       final params = _extractParams(uri);
 
       if (params.containsKey('error') || params.containsKey('error_code')) {
         debugPrint('Auth error callback: $params');
-        _pendingPasswordRecovery = false;
         _goLogin();
         return;
       }
@@ -169,13 +147,6 @@ class _MyAppState extends State<MyApp> {
       final tokenHash = params['token_hash'];
       final type = params['type'];
 
-      final isRecoveryFlow =
-          uri.host == 'reset-password' || type == 'recovery';
-
-      if (isRecoveryFlow) {
-        _pendingPasswordRecovery = true;
-      }
-
       if (accessToken != null && refreshToken != null) {
         await Supabase.instance.client.auth.setSession(
           refreshToken,
@@ -183,7 +154,7 @@ class _MyAppState extends State<MyApp> {
         );
       } else if (tokenHash != null) {
         await Supabase.instance.client.auth.verifyOTP(
-          type: isRecoveryFlow ? OtpType.recovery : OtpType.email,
+          type: OtpType.email,
           tokenHash: tokenHash,
           redirectTo: 'healthapp://auth-callback',
         );
@@ -194,11 +165,7 @@ class _MyAppState extends State<MyApp> {
       await _syncUserRowIfNeeded();
 
       if (Supabase.instance.client.auth.currentSession != null) {
-        if (_pendingPasswordRecovery) {
-          _goPasswordReset();
-        } else {
-          _goHome();
-        }
+        _goHome();
       } else {
         _goLogin();
       }
@@ -259,15 +226,6 @@ class _MyAppState extends State<MyApp> {
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
-  void _goPasswordReset() {
-    final nav = navigatorKey.currentState;
-    if (nav == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goPasswordReset());
-      return;
-    }
-    nav.pushNamedAndRemoveUntil('/reset-password', (route) => false);
-  }
-
   @override
   void dispose() {
     _linkSubscription?.cancel();
@@ -312,7 +270,6 @@ class _MyAppState extends State<MyApp> {
         '/reproductive_health': (context) => const ReproductiveHealthScreen(),
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
-        '/reset-password': (context) => const PasswordResetScreen(),
       },
     );
   }

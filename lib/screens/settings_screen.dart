@@ -18,9 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _role;
   bool _loading = true;
 
-  static const String _passwordResetRedirect =
-      'ehrapp://reset-password';
-
   @override
   void initState() {
     super.initState();
@@ -52,35 +49,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _requestPasswordReset() async {
-    final emailForReset = _email ?? _supabase.auth.currentUser?.email;
-    if (emailForReset == null || emailForReset.isEmpty) {
-      _showSnack('No email address found for this account.', error: true);
-      return;
-    }
+  Future<void> _showChangePasswordDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
 
-    final confirmed = await _confirm(
-      title: 'Change password',
-      message:
-      'We will send a password reset email to:\n\n$emailForReset\n\n'
-          'Open the link on your phone to set a new password.',
-      confirmLabel: 'Send link',
-      destructive: false,
+    bool obscurePassword = true;
+    bool obscureConfirm = true;
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !saving,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> submit() async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+
+              setDialogState(() => saving = true);
+
+              try {
+                await _supabase.auth.updateUser(
+                  UserAttributes(
+                    password: passwordController.text.trim(),
+                  ),
+                );
+
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop();
+
+                _showSnack(
+                  'Password updated successfully. A security email may be sent if Password changed notifications are enabled in Supabase Auth.',
+                );
+              } on AuthException catch (e) {
+                if (!mounted) return;
+                setDialogState(() => saving = false);
+                _showSnack(e.message, error: true);
+              } catch (e) {
+                if (!mounted) return;
+                setDialogState(() => saving = false);
+                _showSnack('Could not update password: $e', error: true);
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Change password'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'New password',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return 'Enter a new password';
+                          if (v.length < 8) {
+                            return 'Use at least 8 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: confirmController,
+                        obscureText: obscureConfirm,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm new password',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                obscureConfirm = !obscureConfirm;
+                              });
+                            },
+                            icon: Icon(
+                              obscureConfirm
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return 'Confirm your password';
+                          if (v != passwordController.text.trim()) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: saving ? null : submit,
+                  child: saving
+                      ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Text('Update password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-    if (!confirmed) return;
 
-    try {
-      await _supabase.auth.resetPasswordForEmail(
-        emailForReset,
-        redirectTo: _passwordResetRedirect,
-      );
-
-      if (!mounted) return;
-      _showSnack('Password reset email sent. Check your inbox.');
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('Failed to send reset email: $e', error: true);
-    }
+    passwordController.dispose();
+    confirmController.dispose();
   }
 
   Future<void> _signOut() async {
@@ -152,7 +257,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-// ── build helpers ────────────────────────────────────────
+
   Widget _sectionHeader(String label) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
     child: Text(
@@ -182,7 +287,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         title: Text(title, style: TextStyle(color: titleColor)),
         subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
+        trailing:
+        trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
       );
 
@@ -294,7 +400,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(
@@ -347,8 +454,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _tile(
                   icon: Icons.lock_reset_outlined,
                   title: 'Change password',
-                  subtitle: 'Send a reset link to your email',
-                  onTap: _requestPasswordReset,
+                  subtitle: 'Open a dialog and update your password now',
+                  onTap: _showChangePasswordDialog,
                 ),
                 _divider(),
                 _tile(
