@@ -19,6 +19,7 @@ import 'screens/lifestyle_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/medical_summary_screen.dart';
 import 'screens/medications_screen.dart';
+import 'screens/password_reset_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
@@ -53,6 +54,7 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   bool _handlingLink = false;
+  bool _pendingPasswordRecovery = false;
 
   @override
   void initState() {
@@ -62,51 +64,59 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _setupAuthListener() {
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen(
-              (data) async {
-            debugPrint('Auth event: ${data.event}');
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
+          (data) async {
+        debugPrint('Auth event: ${data.event}');
 
-            switch (data.event) {
-            // ── User just signed in (password login or deep-link callback) ──
-              case AuthChangeEvent.signedIn:
-                if (data.session != null) {
-                  await _syncUserRowIfNeeded();
-                  _goHome();
-                }
-
-            // ── Token refreshed in background — keep the user where they are ──
-              case AuthChangeEvent.tokenRefreshed:
-              // Nothing to do: user is already on the correct screen.
-                break;
-
-            // ── App started and found a saved session ──
-              case AuthChangeEvent.initialSession:
-                if (data.session != null) {
-                  // Valid saved session: go straight to home.
-                  await _syncUserRowIfNeeded();
-                  _goHome();
-                }
-            // Null session means no saved login — stay on the welcome screen.
-
-            // ── User signed out explicitly ──
-              case AuthChangeEvent.signedOut:
-                _goLogin();
-
-              default:
-                break;
+        switch (data.event) {
+          case AuthChangeEvent.signedIn:
+            if (data.session != null) {
+              await _syncUserRowIfNeeded();
+              if (_pendingPasswordRecovery) {
+                _goPasswordReset();
+              } else {
+                _goHome();
+              }
             }
-          },
-          onError: (Object error) {
-            // This catches "Refresh Token Not Found" and similar auth errors that
-            // come from a stale cached session.  Treat them as a sign-out so the
-            // user lands on the login screen instead of crashing.
-            debugPrint('Auth stream error (treating as sign-out): $error');
-            // Clear the broken session so it is not retried on next launch.
-            Supabase.instance.client.auth.signOut().ignore();
+            break;
+
+          case AuthChangeEvent.passwordRecovery:
+            _pendingPasswordRecovery = true;
+            if (data.session != null) {
+              _goPasswordReset();
+            }
+            break;
+
+          case AuthChangeEvent.tokenRefreshed:
+            break;
+
+          case AuthChangeEvent.initialSession:
+            if (data.session != null) {
+              await _syncUserRowIfNeeded();
+              if (_pendingPasswordRecovery) {
+                _goPasswordReset();
+              } else {
+                _goHome();
+              }
+            }
+            break;
+
+          case AuthChangeEvent.signedOut:
+            _pendingPasswordRecovery = false;
             _goLogin();
-          },
-        );
+            break;
+
+          default:
+            break;
+        }
+      },
+      onError: (Object error) {
+        debugPrint('Auth stream error (treating as sign-out): $error');
+        Supabase.instance.client.auth.signOut().ignore();
+        _pendingPasswordRecovery = false;
+        _goLogin();
+      },
+    );
   }
 
   Future<void> _setupDeepLinkHandling() async {
@@ -140,13 +150,16 @@ class _MyAppState extends State<MyApp> {
 
     try {
       final isAuthCallback =
-          uri.scheme == 'healthapp' && uri.host == 'auth-callback';
+          uri.scheme == 'healthapp' &&
+              (uri.host == 'auth-callback' || uri.host == 'reset-password');
+
       if (!isAuthCallback) return;
 
       final params = _extractParams(uri);
 
       if (params.containsKey('error') || params.containsKey('error_code')) {
         debugPrint('Auth error callback: $params');
+        _pendingPasswordRecovery = false;
         _goLogin();
         return;
       }
@@ -156,6 +169,13 @@ class _MyAppState extends State<MyApp> {
       final tokenHash = params['token_hash'];
       final type = params['type'];
 
+      final isRecoveryFlow =
+          uri.host == 'reset-password' || type == 'recovery';
+
+      if (isRecoveryFlow) {
+        _pendingPasswordRecovery = true;
+      }
+
       if (accessToken != null && refreshToken != null) {
         await Supabase.instance.client.auth.setSession(
           refreshToken,
@@ -163,7 +183,7 @@ class _MyAppState extends State<MyApp> {
         );
       } else if (tokenHash != null) {
         await Supabase.instance.client.auth.verifyOTP(
-          type: OtpType.email,
+          type: isRecoveryFlow ? OtpType.recovery : OtpType.email,
           tokenHash: tokenHash,
           redirectTo: 'healthapp://auth-callback',
         );
@@ -174,7 +194,11 @@ class _MyAppState extends State<MyApp> {
       await _syncUserRowIfNeeded();
 
       if (Supabase.instance.client.auth.currentSession != null) {
-        _goHome();
+        if (_pendingPasswordRecovery) {
+          _goPasswordReset();
+        } else {
+          _goHome();
+        }
       } else {
         _goLogin();
       }
@@ -187,10 +211,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _syncUserRowIfNeeded() async {
-    // The database trigger handle_new_user() creates the public.users row
-    // automatically when a new auth account is created.
-    // This function is kept only as a fallback for edge cases
-    // (e.g. the trigger was added after the account already existed).
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
     final session = client.auth.currentSession;
@@ -203,7 +223,7 @@ class _MyAppState extends State<MyApp> {
           .eq('auth_user_id', user.id)
           .maybeSingle();
 
-      if (existing != null) return; // trigger already did the job
+      if (existing != null) return;
 
       final meta = user.userMetadata ?? {};
       final fullName = meta['full_name']?.toString().trim();
@@ -237,6 +257,15 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  void _goPasswordReset() {
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _goPasswordReset());
+      return;
+    }
+    nav.pushNamedAndRemoveUntil('/reset-password', (route) => false);
   }
 
   @override
@@ -283,6 +312,7 @@ class _MyAppState extends State<MyApp> {
         '/reproductive_health': (context) => const ReproductiveHealthScreen(),
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
+        '/reset-password': (context) => const PasswordResetScreen(),
       },
     );
   }

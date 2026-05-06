@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,12 +11,15 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   String? _fullName;
   String? _email;
   String? _role;
   bool _loading = true;
+
+  static const String _passwordResetRedirect =
+      'ehrapp://reset-password';
 
   @override
   void initState() {
@@ -48,6 +52,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _requestPasswordReset() async {
+    final emailForReset = _email ?? _supabase.auth.currentUser?.email;
+    if (emailForReset == null || emailForReset.isEmpty) {
+      _showSnack('No email address found for this account.', error: true);
+      return;
+    }
+
+    final confirmed = await _confirm(
+      title: 'Change password',
+      message:
+      'We will send a password reset email to:\n\n$emailForReset\n\n'
+          'Open the link on your phone to set a new password.',
+      confirmLabel: 'Send link',
+      destructive: false,
+    );
+    if (!confirmed) return;
+
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        emailForReset,
+        redirectTo: _passwordResetRedirect,
+      );
+
+      if (!mounted) return;
+      _showSnack('Password reset email sent. Check your inbox.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Failed to send reset email: $e', error: true);
+    }
+  }
+
   Future<void> _signOut() async {
     final confirmed = await _confirm(
       title: 'Sign out',
@@ -56,32 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       destructive: false,
     );
     if (!confirmed) return;
+
     await AuthService().signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-    }
-  }
-
-  Future<void> _changePassword() async {
-    final emailForReset = _email ?? _supabase.auth.currentUser?.email;
-    if (emailForReset == null) return;
-
-    final confirmed = await _confirm(
-      title: 'Reset password',
-      message:
-      'A password reset link will be sent to\n$emailForReset.\n\nYou will be signed out after requesting the reset.',
-      confirmLabel: 'Send link',
-      destructive: false,
-    );
-    if (!confirmed) return;
-
-    try {
-      await _supabase.auth.resetPasswordForEmail(emailForReset);
-      if (!mounted) return;
-      _showSnack('Reset link sent — check your email.');
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('Failed to send reset link: $e', error: true);
     }
   }
 
@@ -95,8 +108,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       destructive: true,
     );
     if (!confirmed) return;
+
     _showSnack(
-        'To delete your account please contact the app administrator.');
+      'To delete your account please contact the app administrator.',
+    );
   }
 
   Future<bool> _confirm({
@@ -130,14 +145,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showSnack(String msg, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: error ? Colors.red.shade700 : null,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Colors.red.shade700 : null,
+      ),
+    );
   }
-
-  // ── build helpers ────────────────────────────────────────
-
+// ── build helpers ────────────────────────────────────────
   Widget _sectionHeader(String label) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
     child: Text(
@@ -161,7 +176,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
   }) =>
       ListTile(
-        leading: Icon(icon, color: iconColor ?? Theme.of(context).colorScheme.primary),
+        leading: Icon(
+          icon,
+          color: iconColor ?? Theme.of(context).colorScheme.primary,
+        ),
         title: Text(title, style: TextStyle(color: titleColor)),
         subtitle: subtitle != null ? Text(subtitle) : null,
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
@@ -180,7 +198,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
         children: [
-          // ── Account card ───────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
             child: Card(
@@ -221,8 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             _email ?? '',
                             style: TextStyle(
-                              color: cs.onPrimaryContainer
-                                  .withOpacity(0.7),
+                              color: cs.onPrimaryContainer.withOpacity(0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -230,7 +246,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: cs.primary.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(20),
@@ -255,7 +273,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // ── Profile ────────────────────────────────────────
           _sectionHeader('Profile'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -277,8 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(
@@ -291,7 +307,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // ── Access & Caregivers ────────────────────────────
           _sectionHeader('Access & Caregivers'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -306,22 +321,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.people_outline,
                   title: 'Caregivers',
                   subtitle: 'Manage who can view or edit your record',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/caregivers'),
+                  onTap: () => Navigator.pushNamed(context, '/caregivers'),
                 ),
                 _divider(),
                 _tile(
                   icon: Icons.history_outlined,
                   title: 'Audit log',
                   subtitle: 'See all access and edit events',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/audit_log'),
+                  onTap: () => Navigator.pushNamed(context, '/audit_log'),
                 ),
               ],
             ),
           ),
 
-          // ── Security ───────────────────────────────────────
           _sectionHeader('Security'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -336,21 +348,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.lock_reset_outlined,
                   title: 'Change password',
                   subtitle: 'Send a reset link to your email',
-                  onTap: _changePassword,
+                  onTap: _requestPasswordReset,
                 ),
                 _divider(),
                 _tile(
                   icon: Icons.shield_outlined,
-                  title: 'Data encryption',
-                  subtitle: 'Your records are encrypted end-to-end',
-                  trailing: Icon(Icons.check_circle,
-                      color: Colors.green.shade600, size: 20),
+                  title: 'Data protection',
+                  subtitle: 'Protected by Supabase Auth + RLS',
+                  trailing: Icon(
+                    Icons.check_circle,
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
                 ),
               ],
             ),
           ),
 
-          // ── About ──────────────────────────────────────────
           _sectionHeader('About'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -373,7 +387,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Privacy policy',
                   subtitle: 'How your data is protected',
                   onTap: () => _showSnack(
-                      'Privacy policy — coming in a future version.'),
+                    'Privacy policy — coming in a future version.',
+                  ),
                 ),
                 _divider(),
                 _tile(
@@ -382,13 +397,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle:
                   'This app supplements but does not replace clinical records',
                   onTap: () => _showSnack(
-                      'Terms of use — coming in a future version.'),
+                    'Terms of use — coming in a future version.',
+                  ),
                 ),
               ],
             ),
           ),
 
-          // ── Danger zone ────────────────────────────────────
           _sectionHeader('Account'),
           Card(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
