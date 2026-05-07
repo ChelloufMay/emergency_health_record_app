@@ -7,6 +7,7 @@ class HospitalizationModel {
   final String? reason;
   final String? notes;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   HospitalizationModel({
     required this.id,
@@ -17,23 +18,25 @@ class HospitalizationModel {
     this.reason,
     this.notes,
     required this.createdAt,
+    required this.updatedAt,
   });
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
 
   factory HospitalizationModel.fromMap(Map<String, dynamic> map) {
     return HospitalizationModel(
       id: map['id'] as String,
       patientId: map['patient_id'] as String,
       hospitalName: map['hospital_name'] as String?,
-      admissionDate: map['admission_date'] != null
-          ? DateTime.tryParse(map['admission_date'].toString())
-          : null,
-      dischargeDate: map['discharge_date'] != null
-          ? DateTime.tryParse(map['discharge_date'].toString())
-          : null,
+      admissionDate: _parseDate(map['admission_date']),
+      dischargeDate: _parseDate(map['discharge_date']),
       reason: map['reason'] as String?,
       notes: map['notes'] as String?,
-      createdAt:
-      DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
+      createdAt: _parseDate(map['created_at']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updated_at']) ?? DateTime.now(),
     );
   }
 

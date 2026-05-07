@@ -9,7 +9,7 @@ class HospitalizationService {
   Future<List<HospitalizationModel>> fetchHospitalizations(String patientId) async {
     final rows = await _supabase
         .from('hospitalizations')
-        .select()
+        .select('*')
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
