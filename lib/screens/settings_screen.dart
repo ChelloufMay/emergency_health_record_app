@@ -80,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.of(dialogContext).pop();
 
                 _showSnack(
-                  'Password updated successfully. A security email may be sent if Password changed notifications are enabled in Supabase Auth.',
+                  'Password updated successfully.',
                 );
               } on AuthException catch (e) {
                 if (!mounted) return;

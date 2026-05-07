@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -49,16 +48,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final AppLinks _appLinks = AppLinks();
-  StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<AuthState>? _authSubscription;
-  bool _handlingLink = false;
 
   @override
   void initState() {
     super.initState();
     _setupAuthListener();
-    _setupDeepLinkHandling();
   }
 
   void _setupAuthListener() {
@@ -98,83 +93,6 @@ class _MyAppState extends State<MyApp> {
         _goLogin();
       },
     );
-  }
-
-  Future<void> _setupDeepLinkHandling() async {
-    final initialUri = await _appLinks.getInitialLink();
-    if (initialUri != null) {
-      await _handleIncomingUri(initialUri);
-    }
-
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-          (uri) async {
-        await _handleIncomingUri(uri);
-      },
-      onError: (_) {
-        _goLogin();
-      },
-    );
-  }
-
-  Map<String, String> _extractParams(Uri uri) {
-    final params = <String, String>{};
-    params.addAll(uri.queryParameters);
-    if (uri.fragment.isNotEmpty) {
-      params.addAll(Uri.splitQueryString(uri.fragment));
-    }
-    return params;
-  }
-
-  Future<void> _handleIncomingUri(Uri uri) async {
-    if (_handlingLink) return;
-    _handlingLink = true;
-
-    try {
-      final isAuthCallback =
-          uri.scheme == 'healthapp' && uri.host == 'auth-callback';
-      if (!isAuthCallback) return;
-
-      final params = _extractParams(uri);
-
-      if (params.containsKey('error') || params.containsKey('error_code')) {
-        debugPrint('Auth error callback: $params');
-        _goLogin();
-        return;
-      }
-
-      final accessToken = params['access_token'];
-      final refreshToken = params['refresh_token'];
-      final tokenHash = params['token_hash'];
-      final type = params['type'];
-
-      if (accessToken != null && refreshToken != null) {
-        await Supabase.instance.client.auth.setSession(
-          refreshToken,
-          accessToken: accessToken,
-        );
-      } else if (tokenHash != null) {
-        await Supabase.instance.client.auth.verifyOTP(
-          type: OtpType.email,
-          tokenHash: tokenHash,
-          redirectTo: 'healthapp://auth-callback',
-        );
-      } else if (type == 'signup') {
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-      }
-
-      await _syncUserRowIfNeeded();
-
-      if (Supabase.instance.client.auth.currentSession != null) {
-        _goHome();
-      } else {
-        _goLogin();
-      }
-    } catch (e) {
-      debugPrint('Callback error: $e');
-      _goLogin();
-    } finally {
-      _handlingLink = false;
-    }
   }
 
   Future<void> _syncUserRowIfNeeded() async {
@@ -228,7 +146,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    _linkSubscription?.cancel();
     _authSubscription?.cancel();
     super.dispose();
   }
