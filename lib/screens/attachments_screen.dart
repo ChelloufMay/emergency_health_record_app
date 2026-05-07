@@ -126,7 +126,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: fileKind,
+                      initialValue: fileKind,
                       decoration: const InputDecoration(labelText: 'File kind'),
                       items: const [
                         DropdownMenuItem(

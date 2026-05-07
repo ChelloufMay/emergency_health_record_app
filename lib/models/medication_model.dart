@@ -29,6 +29,11 @@ class MedicationModel {
     this.verificationStatus,
   });
 
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
   factory MedicationModel.fromMap(Map<String, dynamic> map) {
     return MedicationModel(
       id: map['id'] as String,
@@ -37,15 +42,11 @@ class MedicationModel {
       dosage: map['dosage'] as String?,
       frequency: map['frequency'] as String?,
       purpose: map['purpose'] as String?,
-      startDate: map['start_date'] != null
-          ? DateTime.tryParse(map['start_date'].toString())
-          : null,
-      endDate: map['end_date'] != null
-          ? DateTime.tryParse(map['end_date'].toString())
-          : null,
+      startDate: _parseDate(map['start_date']),
+      endDate: _parseDate(map['end_date']),
       source: map['source'] as String? ?? 'user',
-      createdAt: DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      createdAt: _parseDate(map['created_at']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updated_at']) ?? DateTime.now(),
     );
   }
 
