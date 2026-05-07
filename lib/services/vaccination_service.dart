@@ -9,7 +9,7 @@ class VaccinationService {
   Future<List<VaccinationModel>> fetchVaccinations(String patientId) async {
     final rows = await _supabase
         .from('vaccinations')
-        .select()
+        .select('*')
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
@@ -23,10 +23,15 @@ class VaccinationService {
     required String performedByUserId,
     String? existingId,
   }) async {
+    final payload = vaccination.toMap();
+
     if (existingId != null) {
       await _supabase
           .from('vaccinations')
-          .update(vaccination.toMap())
+          .update({
+        ...payload,
+        'updated_at': DateTime.now().toIso8601String(),
+      })
           .eq('id', existingId);
 
       await _audit.log(
@@ -43,7 +48,11 @@ class VaccinationService {
     } else {
       final result = await _supabase
           .from('vaccinations')
-          .insert(vaccination.toMap())
+          .insert({
+        ...payload,
+        'created_at': vaccination.createdAt.toIso8601String(),
+        'updated_at': vaccination.updatedAt.toIso8601String(),
+      })
           .select('id')
           .single();
 
