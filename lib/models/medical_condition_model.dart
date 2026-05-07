@@ -29,21 +29,24 @@ class MedicalConditionModel {
     this.verificationStatus,
   });
 
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
   factory MedicalConditionModel.fromMap(Map<String, dynamic> map) {
     return MedicalConditionModel(
       id: map['id'] as String,
       patientId: map['patient_id'] as String,
       conditionName: map['condition_name'] as String,
       type: map['type'] as String? ?? 'chronic',
-      diagnosisDate: map['diagnosis_date'] != null
-          ? DateTime.tryParse(map['diagnosis_date'].toString())
-          : null,
+      diagnosisDate: _parseDate(map['diagnosis_date']),
       diagnosisPlace: map['diagnosis_place'] as String?,
       followUpDoctor: map['follow_up_doctor'] as String?,
       treatment: map['treatment'] as String?,
       notes: map['notes'] as String?,
-      createdAt: DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      createdAt: _parseDate(map['created_at']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updated_at']) ?? DateTime.now(),
     );
   }
 

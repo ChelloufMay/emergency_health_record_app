@@ -9,7 +9,7 @@ class MedicalConditionService {
   Future<List<MedicalConditionModel>> fetchConditions(String patientId) async {
     final rows = await _supabase
         .from('medical_conditions')
-        .select()
+        .select('*')
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
