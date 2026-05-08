@@ -28,7 +28,6 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   final _alcoholController = TextEditingController();
   final _foodController = TextEditingController();
   final _milkController = TextEditingController();
-  final _waterController = TextEditingController();
 
   bool? livesAlone;
   bool? hasCaregiver;
@@ -38,10 +37,33 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   bool? drugs;
   bool? chicha;
 
+  final List<String> _waterTypeOptions = const [
+    'tap water',
+    'bottled water',
+    'filtered water',
+    'mineral water',
+    'spring water',
+    'well water',
+    'boiled water',
+    'other',
+  ];
+
+  String _waterType = 'tap water';
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  String _normalizeWaterType(String? value) {
+    if (value == null || value.trim().isEmpty) return 'tap water';
+    final lower = value.trim().toLowerCase();
+
+    for (final option in _waterTypeOptions) {
+      if (option.toLowerCase() == lower) return option;
+    }
+    return 'other';
   }
 
   Future<void> _load() async {
@@ -73,7 +95,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
       _alcoholController.text = _item!.alcoholFrequency ?? '';
       _foodController.text = _item!.foodQuality ?? '';
       _milkController.text = _item!.milkType ?? '';
-      _waterController.text = _item!.waterType ?? '';
+      _waterType = _normalizeWaterType(_item!.waterType);
     }
 
     setState(() => _loading = false);
@@ -101,7 +123,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
       alcoholFrequency: _alcoholController.text.trim(),
       foodQuality: _foodController.text.trim(),
       milkType: _milkController.text.trim(),
-      waterType: _waterController.text.trim(),
+      waterType: _waterType,
     );
 
     await _service.saveLifestyle(
@@ -126,7 +148,6 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
     _alcoholController.dispose();
     _foodController.dispose();
     _milkController.dispose();
-    _waterController.dispose();
     super.dispose();
   }
 
@@ -163,44 +184,119 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
               DropdownMenuItem(value: 'high', child: Text('High')),
               DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
             ],
-            onChanged: (v) => setState(() => socioeconomicClass = v ?? 'unknown'),
-            decoration: const InputDecoration(labelText: 'Socioeconomic class'),
+            onChanged: (v) =>
+                setState(() => socioeconomicClass = v ?? 'unknown'),
+            decoration: const InputDecoration(
+              labelText: 'Socioeconomic class',
+            ),
           ),
           const SizedBox(height: 12),
-          TextField(controller: _workController, decoration: const InputDecoration(labelText: 'Work status')),
+          TextField(
+            controller: _workController,
+            decoration: const InputDecoration(
+              labelText: 'Work status',
+            ),
+          ),
           const SizedBox(height: 12),
           SwitchListTile(
             value: smoking ?? false,
             onChanged: (v) => setState(() => smoking = v),
             title: const Text('Smoking'),
           ),
-          TextField(controller: _packsController, decoration: const InputDecoration(labelText: 'Packs/day')),
+          TextField(
+            controller: _packsController,
+            keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Packs/day',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _yearsController, decoration: const InputDecoration(labelText: 'Smoking years')),
+          TextField(
+            controller: _yearsController,
+            keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Smoking years',
+            ),
+          ),
           const SizedBox(height: 12),
           SwitchListTile(
             value: drugs ?? false,
             onChanged: (v) => setState(() => drugs = v),
             title: const Text('Drugs'),
           ),
-          TextField(controller: _drugTypeController, decoration: const InputDecoration(labelText: 'Drug type')),
+          TextField(
+            controller: _drugTypeController,
+            decoration: const InputDecoration(
+              labelText: 'Drug type',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _drugQuantityController, decoration: const InputDecoration(labelText: 'Drug quantity')),
+          TextField(
+            controller: _drugQuantityController,
+            decoration: const InputDecoration(
+              labelText: 'Drug quantity',
+            ),
+          ),
           const SizedBox(height: 12),
           SwitchListTile(
             value: chicha ?? false,
             onChanged: (v) => setState(() => chicha = v),
             title: const Text('Chicha'),
           ),
-          TextField(controller: _chichaYearsController, decoration: const InputDecoration(labelText: 'Chicha years')),
+          TextField(
+            controller: _chichaYearsController,
+            keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Chicha years',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _alcoholController, decoration: const InputDecoration(labelText: 'Alcohol frequency')),
+          TextField(
+            controller: _alcoholController,
+            decoration: const InputDecoration(
+              labelText: 'Alcohol frequency',
+              hintText:
+              'If yes, how many days/week. If not, write "Does not consume".',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _foodController, decoration: const InputDecoration(labelText: 'Food quality')),
+          TextField(
+            controller: _foodController,
+            decoration: const InputDecoration(
+              labelText: 'Food quality',
+              hintText:
+              'How much junk food is consumed per week.',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _milkController, decoration: const InputDecoration(labelText: 'Milk type')),
+          TextField(
+            controller: _milkController,
+            decoration: const InputDecoration(
+              labelText: 'Milk type',
+              hintText:
+              'Example: pasteurised cow milk, non-pasteurised goat milk, etc.',
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _waterController, decoration: const InputDecoration(labelText: 'Water type')),
+          DropdownButtonFormField<String>(
+            initialValue: _waterType,
+            items: _waterTypeOptions
+                .map(
+                  (type) => DropdownMenuItem(
+                value: type,
+                child: Text(type),
+              ),
+            )
+                .toList(),
+            onChanged: (v) => setState(() => _waterType = v ?? 'other'),
+            decoration: const InputDecoration(
+              labelText: 'Water type',
+              hintText: 'Select the type of water consumed',
+            ),
+          ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _save,

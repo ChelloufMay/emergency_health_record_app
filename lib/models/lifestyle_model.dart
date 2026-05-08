@@ -20,6 +20,10 @@ class LifestyleModel {
   final String? milkType;
   final String? waterType;
 
+  // Database timestamps
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
   LifestyleModel({
     this.id,
     required this.patientId,
@@ -40,7 +44,15 @@ class LifestyleModel {
     this.foodQuality,
     this.milkType,
     this.waterType,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
 
   factory LifestyleModel.fromMap(Map<String, dynamic> map) {
     return LifestyleModel(
@@ -69,9 +81,12 @@ class LifestyleModel {
       foodQuality: map['food_quality'] as String?,
       milkType: map['milk_type'] as String?,
       waterType: map['water_type'] as String?,
+      createdAt: _parseDateTime(map['created_at']),
+      updatedAt: _parseDateTime(map['updated_at']),
     );
   }
 
+  /// For inserts/updates: timestamps are managed by the database.
   Map<String, dynamic> toMap() {
     return {
       'patient_id': patientId,
