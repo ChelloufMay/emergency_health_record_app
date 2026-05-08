@@ -6,6 +6,12 @@ class FamilyDoctorService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final AuditService _audit = AuditService();
 
+  String? _trimToNull(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
+
   Future<FamilyDoctorModel?> fetchForPatient(String patientId) async {
     final profileRow = await _supabase
         .from('patient_profiles')
@@ -25,7 +31,22 @@ class FamilyDoctorService {
         .maybeSingle();
 
     if (doctorRow == null) return null;
-    return FamilyDoctorModel.fromMap(doctorRow);
+
+    final addressId = doctorRow['address_id'] as String?;
+    Map<String, dynamic>? addressRow;
+
+    if (addressId != null) {
+      addressRow = await _supabase
+          .from('addresses')
+          .select()
+          .eq('id', addressId)
+          .maybeSingle();
+    }
+
+    return FamilyDoctorModel.fromMap({
+      ...doctorRow,
+      if (addressRow != null) ...addressRow,
+    });
   }
 
   Future<String> saveForPatient({
@@ -33,16 +54,60 @@ class FamilyDoctorService {
     required FamilyDoctorModel doctor,
     required String performedByUserId,
   }) async {
-    String doctorId;
+    final profileRow = await _supabase
+        .from('patient_profiles')
+        .select('family_doctor_id')
+        .eq('id', patientId)
+        .maybeSingle();
 
-    if (doctor.id == null) {
-      final inserted = await _supabase
-          .from('family_doctors')
-          .insert(doctor.toMap())
+    final currentDoctorId =
+        doctor.id ?? profileRow?['family_doctor_id'] as String?;
+
+    final country = _trimToNull(doctor.country);
+    if (country == null) {
+      throw Exception('Doctor office country is required.');
+    }
+
+    final addressPayload = {
+      'country': country,
+      'governorate': _trimToNull(doctor.governorate),
+      'city': _trimToNull(doctor.city),
+      'avenue': _trimToNull(doctor.avenue),
+      'street': _trimToNull(doctor.street),
+      'postal_code': _trimToNull(doctor.postalCode),
+      'extra_details': _trimToNull(doctor.extraDetails),
+    };
+
+    String addressId;
+
+    if (doctor.addressId == null) {
+      final insertedAddress = await _supabase
+          .from('addresses')
+          .insert(addressPayload)
           .select('id')
           .single();
 
-      doctorId = inserted['id'] as String;
+      addressId = insertedAddress['id'] as String;
+    } else {
+      await _supabase
+          .from('addresses')
+          .update(addressPayload)
+          .eq('id', doctor.addressId!);
+
+      addressId = doctor.addressId!;
+    }
+
+    final doctorPayload = doctor.toDoctorMap(addressIdOverride: addressId);
+    String doctorId;
+
+    if (currentDoctorId == null) {
+      final insertedDoctor = await _supabase
+          .from('family_doctors')
+          .insert(doctorPayload)
+          .select('id')
+          .single();
+
+      doctorId = insertedDoctor['id'] as String;
 
       await _audit.log(
         patientId: patientId,
@@ -54,11 +119,11 @@ class FamilyDoctorService {
         newValue: doctor.fullName,
       );
     } else {
-      doctorId = doctor.id!;
+      doctorId = currentDoctorId;
 
       await _supabase
           .from('family_doctors')
-          .update(doctor.toMap())
+          .update(doctorPayload)
           .eq('id', doctorId);
 
       await _audit.log(
@@ -85,12 +150,27 @@ class FamilyDoctorService {
     required String doctorId,
     required String performedByUserId,
   }) async {
+    final doctorRow = await _supabase
+        .from('family_doctors')
+        .select('address_id, full_name')
+        .eq('id', doctorId)
+        .maybeSingle();
+
+    if (doctorRow == null) return;
+
+    final addressId = doctorRow['address_id'] as String?;
+    final doctorName = doctorRow['full_name'] as String? ?? '';
+
     await _supabase.from('family_doctors').delete().eq('id', doctorId);
 
     await _supabase
         .from('patient_profiles')
         .update({'family_doctor_id': null})
         .eq('id', patientId);
+
+    if (addressId != null) {
+      await _supabase.from('addresses').delete().eq('id', addressId);
+    }
 
     await _audit.log(
       patientId: patientId,
@@ -99,6 +179,7 @@ class FamilyDoctorService {
       entityType: 'family_doctors',
       entityId: doctorId,
       fieldName: 'full_name',
+      oldValue: doctorName,
     );
   }
 }
