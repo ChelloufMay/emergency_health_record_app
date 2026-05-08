@@ -1,4 +1,3 @@
-// single row per patient --> only relevant when sex == 'female'
 class ReproductiveHealthModel {
   final String? id;
   final String patientId;
@@ -18,6 +17,8 @@ class ReproductiveHealthModel {
   final String? pregnancyHistory;
   final String? birthHistory;
   final String? abortionHistory;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ReproductiveHealthModel({
     this.id,
@@ -38,7 +39,15 @@ class ReproductiveHealthModel {
     this.pregnancyHistory,
     this.birthHistory,
     this.abortionHistory,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
 
   factory ReproductiveHealthModel.fromMap(Map<String, dynamic> map) {
     return ReproductiveHealthModel(
@@ -48,12 +57,8 @@ class ReproductiveHealthModel {
       cycleRegular: map['cycle_regular'] as bool?,
       cyclePainful: map['cycle_painful'] as bool?,
       painLevel: map['pain_level'] as String?,
-      lastPeriodStart: map['last_period_start'] != null
-          ? DateTime.tryParse(map['last_period_start'].toString())
-          : null,
-      lastPeriodEnd: map['last_period_end'] != null
-          ? DateTime.tryParse(map['last_period_end'].toString())
-          : null,
+      lastPeriodStart: _parseDateTime(map['last_period_start']),
+      lastPeriodEnd: _parseDateTime(map['last_period_end']),
       currentlyPregnant: map['currently_pregnant'] as bool?,
       pregnancyTermWeeks: map['pregnancy_term_weeks'] as int?,
       gestity: map['gestity'] as int?,
@@ -64,9 +69,12 @@ class ReproductiveHealthModel {
       pregnancyHistory: map['pregnancy_history'] as String?,
       birthHistory: map['birth_history'] as String?,
       abortionHistory: map['abortion_history'] as String?,
+      createdAt: _parseDateTime(map['created_at']),
+      updatedAt: _parseDateTime(map['updated_at']),
     );
   }
 
+  /// Timestamps are handled by the database trigger.
   Map<String, dynamic> toMap() {
     return {
       'patient_id': patientId,
@@ -74,8 +82,10 @@ class ReproductiveHealthModel {
       'cycle_regular': cycleRegular,
       'cycle_painful': cyclePainful,
       'pain_level': painLevel,
-      'last_period_start': lastPeriodStart?.toIso8601String().split('T').first,
-      'last_period_end': lastPeriodEnd?.toIso8601String().split('T').first,
+      'last_period_start':
+      lastPeriodStart?.toIso8601String().split('T').first,
+      'last_period_end':
+      lastPeriodEnd?.toIso8601String().split('T').first,
       'currently_pregnant': currentlyPregnant,
       'pregnancy_term_weeks': pregnancyTermWeeks,
       'gestity': gestity,

@@ -6,7 +6,9 @@ class ReproductiveHealthService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final AuditService _audit = AuditService();
 
-  Future<ReproductiveHealthModel?> fetchReproductiveHealth(String patientId) async {
+  Future<ReproductiveHealthModel?> fetchReproductiveHealth(
+      String patientId,
+      ) async {
     final row = await _supabase
         .from('reproductive_health')
         .select()
@@ -40,8 +42,8 @@ class ReproductiveHealthService {
         action: 'create',
         entityType: 'reproductive_health',
         entityId: inserted['id'] as String,
-        fieldName: 'pregnancy_history',
-        newValue: item.pregnancyHistory,
+        fieldName: 'has_menstrual_cycle',
+        newValue: item.hasMenstrualCycle?.toString(),
       );
     } else {
       await _supabase
@@ -55,8 +57,8 @@ class ReproductiveHealthService {
         action: 'update',
         entityType: 'reproductive_health',
         entityId: existing['id'] as String,
-        fieldName: 'pregnancy_history',
-        newValue: item.pregnancyHistory,
+        fieldName: 'has_menstrual_cycle',
+        newValue: item.hasMenstrualCycle?.toString(),
       );
     }
   }
