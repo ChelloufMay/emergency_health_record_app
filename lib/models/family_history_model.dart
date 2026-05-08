@@ -7,6 +7,7 @@ class FamilyHistoryModel {
   final bool? isGenetic;
   final String? notes;
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   FamilyHistoryModel({
     required this.id,
@@ -17,7 +18,14 @@ class FamilyHistoryModel {
     this.isGenetic,
     this.notes,
     required this.createdAt,
+    this.updatedAt,
   });
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString()) ?? DateTime.now();
+  }
 
   factory FamilyHistoryModel.fromMap(Map<String, dynamic> map) {
     return FamilyHistoryModel(
@@ -28,11 +36,12 @@ class FamilyHistoryModel {
       category: map['category'] as String?,
       isGenetic: map['is_genetic'] as bool?,
       notes: map['notes'] as String?,
-      createdAt:
-      DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
+      createdAt: _parseDateTime(map['created_at']),
+      updatedAt: map['updated_at'] != null ? _parseDateTime(map['updated_at']) : null,
     );
   }
 
+  /// Timestamps are handled by the database.
   Map<String, dynamic> toMap() {
     return {
       'patient_id': patientId,
