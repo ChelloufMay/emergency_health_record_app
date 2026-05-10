@@ -13,6 +13,7 @@ class FamilyDoctorService {
   }
 
   Future<FamilyDoctorModel?> fetchForPatient(String patientId) async {
+    // Start from the patient profile because the doctor is linked there.
     final profileRow = await _supabase
         .from('patient_profiles')
         .select('family_doctor_id')
@@ -32,6 +33,7 @@ class FamilyDoctorService {
 
     if (doctorRow == null) return null;
 
+    // The doctor row stores address_id, and the address row lives separately.
     final addressId = doctorRow['address_id'] as String?;
     Map<String, dynamic>? addressRow;
 
@@ -43,6 +45,7 @@ class FamilyDoctorService {
           .maybeSingle();
     }
 
+    // Merge doctor row + address row into one model object.
     return FamilyDoctorModel.fromMap({
       ...doctorRow,
       if (addressRow != null) ...addressRow,
@@ -54,6 +57,7 @@ class FamilyDoctorService {
     required FamilyDoctorModel doctor,
     required String performedByUserId,
   }) async {
+    // Read the current patient profile link first.
     final profileRow = await _supabase
         .from('patient_profiles')
         .select('family_doctor_id')
@@ -62,25 +66,17 @@ class FamilyDoctorService {
 
     final currentDoctorId =
         doctor.id ?? profileRow?['family_doctor_id'] as String?;
-
     final country = _trimToNull(doctor.country);
     if (country == null) {
       throw Exception('Doctor office country is required.');
     }
 
-    final addressPayload = {
-      'country': country,
-      'governorate': _trimToNull(doctor.governorate),
-      'city': _trimToNull(doctor.city),
-      'avenue': _trimToNull(doctor.avenue),
-      'street': _trimToNull(doctor.street),
-      'postal_code': _trimToNull(doctor.postalCode),
-      'extra_details': _trimToNull(doctor.extraDetails),
-    };
+    final addressPayload = doctor.toAddressMap();
+    addressPayload['country'] = country;
 
+    // 1) Save address row.
     String addressId;
-
-    if (doctor.addressId == null) {
+    if (doctor.addressId == null || doctor.addressId!.isEmpty) {
       final insertedAddress = await _supabase
           .from('addresses')
           .insert(addressPayload)
@@ -97,9 +93,10 @@ class FamilyDoctorService {
       addressId = doctor.addressId!;
     }
 
+    // 2) Save doctor row with address_id.
     final doctorPayload = doctor.toDoctorMap(addressIdOverride: addressId);
-    String doctorId;
 
+    String doctorId;
     if (currentDoctorId == null) {
       final insertedDoctor = await _supabase
           .from('family_doctors')
@@ -137,6 +134,7 @@ class FamilyDoctorService {
       );
     }
 
+    // 3) Link family_doctors.id back into patient_profiles.family_doctor_id.
     await _supabase
         .from('patient_profiles')
         .update({'family_doctor_id': doctorId})
@@ -161,13 +159,16 @@ class FamilyDoctorService {
     final addressId = doctorRow['address_id'] as String?;
     final doctorName = doctorRow['full_name'] as String? ?? '';
 
+    // Delete the doctor row first.
     await _supabase.from('family_doctors').delete().eq('id', doctorId);
 
+    // Then unlink it from the patient profile.
     await _supabase
         .from('patient_profiles')
         .update({'family_doctor_id': null})
         .eq('id', patientId);
 
+    // Clean up the linked address if it exists.
     if (addressId != null) {
       await _supabase.from('addresses').delete().eq('id', addressId);
     }

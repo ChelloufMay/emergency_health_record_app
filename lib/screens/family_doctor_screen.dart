@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/family_doctor_model.dart';
 import '../services/family_doctor_service.dart';
 import '../services/patient_service.dart';
@@ -16,6 +17,9 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+
+  // Address fields belong to the separate public.addresses table,
+  // but the form keeps them together so the user can save them in one flow.
   final _countryController = TextEditingController();
   final _governorateController = TextEditingController();
   final _cityController = TextEditingController();
@@ -23,6 +27,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   final _streetController = TextEditingController();
   final _postalCodeController = TextEditingController();
   final _extraDetailsController = TextEditingController();
+
   final _licenseController = TextEditingController();
   final _firstSeenController = TextEditingController();
   final _notesController = TextEditingController();
@@ -119,7 +124,10 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
       phone: _phoneController.text.trim().isEmpty
           ? null
           : _phoneController.text.trim(),
+
+      // Keep the current linked address id so the service can update it.
       addressId: _doctor?.addressId,
+
       country: _countryController.text.trim(),
       governorate: _governorateController.text.trim().isEmpty
           ? null
@@ -146,6 +154,9 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
+
+      // These are not required for the current save, but they remain in the
+      // model so fetch/edit cycles keep the full doctor record intact.
       createdAt: _doctor?.createdAt,
       updatedAt: _doctor?.updatedAt,
     );
@@ -266,7 +277,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Address is stored in the separate addresses table.
+          // Address is saved separately in public.addresses.
           _buildAddressSection(),
           const SizedBox(height: 12),
 
@@ -290,14 +301,12 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           TextField(
             controller: _notesController,
             decoration: const InputDecoration(labelText: 'Notes'),
             maxLines: 3,
           ),
           const SizedBox(height: 20),
-
           ElevatedButton(
             onPressed: _save,
             child: const Text('Save family doctor'),

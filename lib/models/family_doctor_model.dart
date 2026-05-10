@@ -2,10 +2,9 @@ class FamilyDoctorModel {
   final String? id;
   final String fullName;
   final String? phone;
-
   final String? addressId;
 
-  // Address fields come from the separate addresses table.
+  // The actual address fields from public.addresses.
   final String? country;
   final String? governorate;
   final String? city;
@@ -53,10 +52,13 @@ class FamilyDoctorModel {
 
   factory FamilyDoctorModel.fromMap(Map<String, dynamic> map) {
     return FamilyDoctorModel(
-      id: map['id'] as String?,
-      fullName: map['full_name'] as String,
+      id: map['id']?.toString(),
+      fullName: map['full_name']?.toString() ?? '',
       phone: _clean(map['phone']),
-      addressId: map['address_id'] as String?,
+
+      // The service merges the doctor row + address row before calling fromMap,
+      // so address fields can be read here as one combined model.
+      addressId: map['address_id']?.toString(),
       country: _clean(map['country']),
       governorate: _clean(map['governorate']),
       city: _clean(map['city']),
@@ -64,6 +66,7 @@ class FamilyDoctorModel {
       street: _clean(map['street']),
       postalCode: _clean(map['postal_code']),
       extraDetails: _clean(map['extra_details']),
+
       medicalLicenseNumber: _clean(map['medical_license_number']),
       firstSeenDate: map['first_seen_date'] != null
           ? DateTime.tryParse(map['first_seen_date'].toString())
@@ -74,28 +77,30 @@ class FamilyDoctorModel {
     );
   }
 
-  /// For public.family_doctors
+  // Payload for public.family_doctors.
+  // The address row is created/updated separately in public.addresses.
   Map<String, dynamic> toDoctorMap({String? addressIdOverride}) {
     return {
-      'full_name': fullName,
-      'phone': phone,
+      'full_name': fullName.trim(),
+      'phone': _clean(phone),
       'address_id': addressIdOverride ?? addressId,
-      'medical_license_number': medicalLicenseNumber,
+      'medical_license_number': _clean(medicalLicenseNumber),
       'first_seen_date': firstSeenDate?.toIso8601String().split('T').first,
-      'notes': notes,
+      'notes': _clean(notes),
     };
   }
 
-  /// For public.addresses
+  // Payload for public.addresses.
+  // This stays separate because the database stores doctor office address in the addresses table, not inside family_doctors.
   Map<String, dynamic> toAddressMap() {
     return {
-      'country': country?.trim(),
-      'governorate': governorate?.trim(),
-      'city': city?.trim(),
-      'avenue': avenue?.trim(),
-      'street': street?.trim(),
-      'postal_code': postalCode?.trim(),
-      'extra_details': extraDetails?.trim(),
+      'country': _clean(country),
+      'governorate': _clean(governorate),
+      'city': _clean(city),
+      'avenue': _clean(avenue),
+      'street': _clean(street),
+      'postal_code': _clean(postalCode),
+      'extra_details': _clean(extraDetails),
     };
   }
 }
