@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -24,46 +25,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
     if (fullName.isEmpty) {
-      setState(() { _message = 'Please enter your full name.'; _isSuccess = false; });
-      return;
-    }
-    if (email.isEmpty) {
-      setState(() { _message = 'Please enter your email.'; _isSuccess = false; });
-      return;
-    }
-    if (password.length < 6) {
-      setState(() { _message = 'Password must be at least 6 characters.'; _isSuccess = false; });
+      setState(() {
+        _message = 'Please enter your full name.';
+        _isSuccess = false;
+      });
       return;
     }
 
-    setState(() { _isLoading = true; _message = null; });
+    if (email.isEmpty) {
+      setState(() {
+        _message = 'Please enter your email.';
+        _isSuccess = false;
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _message = 'Password must be at least 6 characters.';
+        _isSuccess = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _message = null;
+    });
 
     try {
-      await _authService.signUp(
+      final response = await _authService.signUp(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone.isEmpty ? null : phone,
       );
 
-      // If email confirmation is OFF in Supabase, the auth listener in
-      // main.dart will fire and navigate to /home automatically.
-      // If email confirmation is ON, we just tell the user to check their inbox.
       if (!mounted) return;
+
+      // If email confirmation is disabled in Supabase, a session may exist
+      // immediately and the auth listener in main.dart will send the user home.
+      // If confirmation is enabled, the user must open the email link first.
+      final hasSession = response.session != null;
+
       setState(() {
         _isSuccess = true;
-        _message = 'Account created! Check your email and tap the confirmation link to continue.';
+        _message = hasSession
+            ? 'Account created. You are signed in and will be redirected.'
+            : 'Account created! Check your email and tap the confirmation link to continue.';
       });
-    } on Exception catch (e) {
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSuccess = false;
+        _message = e.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSuccess = false;
         _message = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -136,7 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, '/login'),
               child: const Text('Already have an account? Sign in'),
             ),
           ],
