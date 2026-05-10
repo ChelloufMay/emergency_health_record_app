@@ -57,30 +57,35 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _setupAuthListener() {
+    // The database now creates public.users automatically through the trigger.
+    // The app no longer needs to manually insert a users row here.
+    // Only use auth state changes to route the user to the correct screen.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
           (data) async {
         debugPrint('Auth event: ${data.event}');
 
         switch (data.event) {
           case AuthChangeEvent.signedIn:
+          // After sign-in or email confirmation, go straight to the app.
             if (data.session != null) {
-              await _syncUserRowIfNeeded();
               _goHome();
             }
             break;
 
-          case AuthChangeEvent.tokenRefreshed:
-            break;
-
           case AuthChangeEvent.initialSession:
+          // When the app starts and there is already a session, go home.
             if (data.session != null) {
-              await _syncUserRowIfNeeded();
               _goHome();
             }
             break;
 
           case AuthChangeEvent.signedOut:
+          // Clear route stack so the user cannot go back into protected pages.
             _goLogin();
+            break;
+
+          case AuthChangeEvent.tokenRefreshed:
+          // No navigation needed.
             break;
 
           default:
@@ -88,42 +93,12 @@ class _MyAppState extends State<MyApp> {
         }
       },
       onError: (Object error) {
+        // If the auth stream fails, fall back to a safe signed-out state.
         debugPrint('Auth stream error (treating as sign-out): $error');
         Supabase.instance.client.auth.signOut().ignore();
         _goLogin();
       },
     );
-  }
-
-  Future<void> _syncUserRowIfNeeded() async {
-    final client = Supabase.instance.client;
-    final user = client.auth.currentUser;
-    final session = client.auth.currentSession;
-    if (user == null || session == null) return;
-
-    try {
-      final existing = await client
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-      if (existing != null) return;
-
-      final meta = user.userMetadata ?? {};
-      final fullName = meta['full_name']?.toString().trim();
-      final phone = meta['phone']?.toString().trim();
-
-      await client.from('users').insert({
-        'auth_user_id': user.id,
-        'full_name': (fullName == null || fullName.isEmpty) ? 'User' : fullName,
-        'email': user.email,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-        'role': 'owner',
-      });
-    } catch (e) {
-      debugPrint('_syncUserRowIfNeeded (non-fatal): $e');
-    }
   }
 
   void _goHome() {
@@ -132,6 +107,7 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goHome());
       return;
     }
+
     nav.pushNamedAndRemoveUntil('/home', (route) => false);
   }
 
@@ -141,6 +117,7 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goLogin());
       return;
     }
+
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
@@ -163,11 +140,15 @@ class _MyAppState extends State<MyApp> {
           border: OutlineInputBorder(),
         ),
       ),
+      // Keep "/" as the public landing page.
+      // The auth callback route is added separately so the email link can
+      // return into the app instead of landing on a blank page.
       initialRoute: '/',
       routes: {
         '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/auth-callback': (context) => const AuthCallbackScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/medical_summary': (context) => const MedicalSummaryScreen(),
@@ -188,6 +169,68 @@ class _MyAppState extends State<MyApp> {
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
       },
+      // This fallback helps if the app is opened directly from the email link.
+      // The route name must match the path part of your callback URI.
+      onGenerateRoute: (settings) {
+        if (settings.name == '/auth-callback') {
+          return MaterialPageRoute(
+            builder: (_) => const AuthCallbackScreen(),
+            settings: settings,
+          );
+        }
+        return null;
+      },
+    );
+  }
+}
+
+class AuthCallbackScreen extends StatefulWidget {
+  const AuthCallbackScreen({super.key});
+
+  @override
+  State<AuthCallbackScreen> createState() => _AuthCallbackScreenState();
+}
+
+class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _finishAuthFlow();
+  }
+
+  Future<void> _finishAuthFlow() async {
+    // The email confirmation link is handled by Supabase/Auth and the OS.
+    // Once the app opens, we simply wait for the auth session to exist and
+    // then route the user into the app.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+    } else {
+      // If the session is not available yet, send the user back to login.
+      // This is safer than leaving them on a blank callback page.
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        // Keep this screen minimal: it is only a bridge between the email link
+        // and the authenticated part of the app.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Finishing sign-in...'),
+          ],
+        ),
+      ),
     );
   }
 }
