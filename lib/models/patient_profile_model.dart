@@ -8,6 +8,10 @@ class PatientProfileModel {
   final DateTime? dateOfBirth;
   final String? bloodType;
   final String? phone;
+
+  // This links the patient profile to the row in public.addresses.
+  final String? addressId;
+
   final String? emergencyContactName;
   final String? emergencyContactPhone;
   final String? insurancePlan;
@@ -24,6 +28,7 @@ class PatientProfileModel {
     this.dateOfBirth,
     this.bloodType,
     this.phone,
+    this.addressId,
     this.emergencyContactName,
     this.emergencyContactPhone,
     this.insurancePlan,
@@ -44,6 +49,10 @@ class PatientProfileModel {
           : DateTime.tryParse(map['date_of_birth'].toString()),
       bloodType: map['blood_type']?.toString(),
       phone: map['phone']?.toString(),
+
+      //keep the patient-address relation in the model.
+      addressId: map['address_id']?.toString(),
+
       emergencyContactName: map['emergency_contact_name']?.toString(),
       emergencyContactPhone: map['emergency_contact_phone']?.toString(),
       insurancePlan: map['insurance_plan']?.toString(),
@@ -62,6 +71,7 @@ class PatientProfileModel {
       'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
       'blood_type': bloodType,
       'phone': phone,
+      'address_id': addressId,
       'emergency_contact_name': emergencyContactName,
       'emergency_contact_phone': emergencyContactPhone,
       'insurance_plan': insurancePlan,
@@ -70,5 +80,7 @@ class PatientProfileModel {
     };
   }
 
+  // Keep update payload identical to insert payload.
+  // This helps the RPC/service layer treat profile save as an upsert.
   Map<String, dynamic> toUpdateMap() => toInsertMap();
 }
