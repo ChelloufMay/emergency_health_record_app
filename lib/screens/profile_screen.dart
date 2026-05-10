@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/audit_service.dart';
+import '../models/patient_profile_model.dart';
 import '../services/patient_service.dart';
+import '../services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,20 +15,33 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final PatientService _patientService = PatientService();
-  final AuditService _audit = AuditService();
+  final ProfileService _profileService = ProfileService();
 
   final TextEditingController _legalIdController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _familyNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emergencyNameController = TextEditingController();
-  final TextEditingController _emergencyPhoneController = TextEditingController();
+  final TextEditingController _emergencyPhoneController =
+  TextEditingController();
+
+  // Address fields are now part of the profile flow.
+  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _governorateController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _avenueController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _postalCodeController = TextEditingController();
+  final TextEditingController _extraDetailsController =
+  TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
 
   String? _profileId;
   String? _appUserId;
+  String? _addressId;
+  String? _familyDoctorId;
 
   String _sex = 'unknown';
   DateTime? _selectedDob;
@@ -37,7 +51,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const List<String> _sexOptions = ['male', 'female'];
   static const List<String> _bloodTypeOptions = [
-    'O-', 'O+', 'B-', 'B+', 'A-', 'A+', 'AB-', 'AB+',
+    'O-',
+    'O+',
+    'B-',
+    'B+',
+    'A-',
+    'A+',
+    'AB-',
+    'AB+',
   ];
   static const List<String> _insurancePlanOptions = ['CNAM', 'CNSS', 'CNRPS'];
   static const List<String> _covidVaccineOptions = [
@@ -71,6 +92,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return DateTime.tryParse(text);
   }
 
+  Future<void> _loadAddress(String? addressId) async {
+    if (addressId == null || addressId.isEmpty) return;
+
+    try {
+      final addressRow = await _supabase
+          .from('addresses')
+          .select()
+          .eq('id', addressId)
+          .maybeSingle();
+
+      if (addressRow == null) return;
+
+      _countryController.text = addressRow['country']?.toString() ?? '';
+      _governorateController.text =
+          addressRow['governorate']?.toString() ?? '';
+      _cityController.text = addressRow['city']?.toString() ?? '';
+      _avenueController.text = addressRow['avenue']?.toString() ?? '';
+      _streetController.text = addressRow['street']?.toString() ?? '';
+      _postalCodeController.text = addressRow['postal_code']?.toString() ?? '';
+      _extraDetailsController.text =
+          addressRow['extra_details']?.toString() ?? '';
+    } catch (e) {
+      debugPrint('_loadAddress error: $e');
+    }
+  }
+
   Future<void> _loadProfile() async {
     try {
       _appUserId = await _patientService.ensureAppUserId();
@@ -84,6 +131,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (row != null) {
         _profileId = row['id']?.toString();
+        _addressId = row['address_id']?.toString();
+        _familyDoctorId = row['family_doctor_id']?.toString();
+
         _legalIdController.text = row['legal_id']?.toString() ?? '';
         _firstNameController.text = row['first_name']?.toString() ?? '';
         _familyNameController.text = row['family_name']?.toString() ?? '';
@@ -94,7 +144,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             row['emergency_contact_phone']?.toString() ?? '';
 
         final sexValue = row['sex']?.toString();
-        _sex = ((sexValue == 'male' || sexValue == 'female') ? sexValue : 'unknown')!;
+        _sex = ((sexValue == 'male' || sexValue == 'female')
+            ? sexValue
+            : 'unknown')!;
 
         _selectedDob = _parseDate(row['date_of_birth']);
 
@@ -112,6 +164,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_covidVaccineOptions.contains(covidValue)) {
           _covidVaccineType = covidValue;
         }
+
+        // Load the linked address row into the new address fields.
+        await _loadAddress(_addressId);
       }
     } catch (e) {
       debugPrint('_loadProfile error: $e');
@@ -122,7 +177,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickDateOfBirth() async {
     final now = DateTime.now();
-    final initialDate = _selectedDob ?? DateTime(now.year - 30, now.month, now.day);
+    final initialDate =
+        _selectedDob ?? DateTime(now.year - 30, now.month, now.day);
     final firstDate = DateTime(1900);
     final lastDate = DateTime(now.year, now.month, now.day);
 
@@ -140,6 +196,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  bool _hasAnyAddressInput() {
+    return [
+      _countryController.text,
+      _governorateController.text,
+      _cityController.text,
+      _avenueController.text,
+      _streetController.text,
+      _postalCodeController.text,
+      _extraDetailsController.text,
+    ].any((value) => value.trim().isNotEmpty);
+  }
+
   Future<void> _saveProfile() async {
     final firstName = _firstNameController.text.trim();
     final familyName = _familyNameController.text.trim();
@@ -152,43 +220,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    // If the user starts filling address fields, country should not be blank.
+    if (_hasAnyAddressInput() && _countryController.text.trim().isEmpty) {
+      _showMessage(
+        'Country is required when entering address information.',
+        isError: true,
+      );
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
-      final patientId = await _supabase.rpc(
-        'save_my_patient_profile',
-        params: {
-          '_legal_id': _legalIdController.text.trim(),
-          '_first_name': firstName,
-          '_family_name': familyName,
-          '_sex': _sex,
-          '_date_of_birth': _selectedDob == null ? null : _formatDate(_selectedDob!),
-          '_blood_type': _bloodType,
-          '_phone': _phoneController.text.trim(),
-          '_emergency_contact_name': _emergencyNameController.text.trim(),
-          '_emergency_contact_phone': _emergencyPhoneController.text.trim(),
-          '_insurance_plan': _insurancePlan,
-          '_covid_vaccine_type': _covidVaccineType,
-        },
-      );
+      if (_appUserId == null) {
+        _appUserId = await _patientService.ensureAppUserId();
+      }
 
-      _profileId = patientId?.toString();
-      _appUserId = await _patientService.ensureAppUserId();
-
-      if (_profileId == null || _appUserId == null) {
-        _showMessage('Profile saved, but identity could not be resolved.', isError: true);
+      if (_appUserId == null) {
+        _showMessage(
+          'Could not resolve the current user.',
+          isError: true,
+        );
         return;
       }
 
-      await _audit.log(
-        patientId: _profileId!,
+      final patientId = await _profileService.saveProfile(
+        profile: PatientProfileModel(
+          id: _profileId,
+          userId: _appUserId!,
+          legalId: _legalIdController.text.trim(),
+          firstName: firstName,
+          familyName: familyName,
+          sex: _sex,
+          dateOfBirth: _selectedDob,
+          bloodType: _bloodType,
+          phone: _phoneController.text.trim(),
+          addressId: _addressId,
+          emergencyContactName: _emergencyNameController.text.trim(),
+          emergencyContactPhone: _emergencyPhoneController.text.trim(),
+          insurancePlan: _insurancePlan,
+          covidVaccineType: _covidVaccineType,
+          familyDoctorId: _familyDoctorId,
+        ),
         performedByUserId: _appUserId!,
-        action: 'update',
-        entityType: 'patient_profiles',
-        entityId: _profileId,
-        fieldName: 'first_name',
-        newValue: '$firstName $familyName',
+        addressFields: {
+          'country': _countryController.text.trim(),
+          'governorate': _governorateController.text.trim(),
+          'city': _cityController.text.trim(),
+          'avenue': _avenueController.text.trim(),
+          'street': _streetController.text.trim(),
+          'postal_code': _postalCodeController.text.trim(),
+          'extra_details': _extraDetailsController.text.trim(),
+        },
       );
+
+      _profileId = patientId;
+      await _loadProfile();
 
       _showMessage('Profile saved successfully.');
     } on PostgrestException catch (e) {
@@ -223,12 +310,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
+
+    // Dispose the new address controllers too.
+    _countryController.dispose();
+    _governorateController.dispose();
+    _cityController.dispose();
+    _avenueController.dispose();
+    _streetController.dispose();
+    _postalCodeController.dispose();
+    _extraDetailsController.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final dobText = _selectedDob == null ? 'Select date' : _formatDate(_selectedDob!);
+    final dobText =
+    _selectedDob == null ? 'Select date' : _formatDate(_selectedDob!);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -256,7 +354,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            initialValue: _sex == 'male' || _sex == 'female' ? _sex : null,
+            initialValue:
+            _sex == 'male' || _sex == 'female' ? _sex : null,
             decoration: const InputDecoration(labelText: 'Sex'),
             hint: const Text('Select sex'),
             items: _sexOptions
@@ -304,7 +403,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(labelText: 'Phone'),
           ),
+          const SizedBox(height: 20),
+
+          // New: patient address section.
+          const Text(
+            'Address',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
+          TextField(
+            controller: _countryController,
+            decoration: const InputDecoration(
+              labelText: 'Country',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _governorateController,
+            decoration: const InputDecoration(
+              labelText: 'Governorate / State',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _cityController,
+            decoration: const InputDecoration(
+              labelText: 'City',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _avenueController,
+            decoration: const InputDecoration(
+              labelText: 'Avenue / Road',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _streetController,
+            decoration: const InputDecoration(
+              labelText: 'Street',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _postalCodeController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Postal code',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _extraDetailsController,
+            decoration: const InputDecoration(
+              labelText: 'Extra details',
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 20),
+
           TextField(
             controller: _emergencyNameController,
             decoration: const InputDecoration(
@@ -332,7 +490,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _covidVaccineType,
-            decoration: const InputDecoration(labelText: 'COVID vaccine type'),
+            decoration: const InputDecoration(
+              labelText: 'COVID vaccine type',
+            ),
             hint: const Text('Select vaccine type'),
             items: _covidVaccineOptions
                 .map((v) => DropdownMenuItem(value: v, child: Text(v)))
