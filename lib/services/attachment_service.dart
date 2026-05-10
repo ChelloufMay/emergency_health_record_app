@@ -28,6 +28,7 @@ class AttachmentService {
     String? existingId,
   }) async {
     if (existingId != null) {
+      // Update the DB row only; the storage object itself is separate.
       await _supabase
           .from('attachments')
           .update(attachment.toMap(uploadedByUserId: uploadedByUserId))
@@ -82,10 +83,15 @@ class AttachmentService {
       );
     }
 
+    // Keep the saved filename safe for both Storage and DB text fields.
     final safeFileName = _sanitizeFileName(
       (fileName ?? file.name).trim().isEmpty ? file.name : (fileName ?? file.name),
     );
 
+    // This path is important:
+    // - it starts with the patient id
+    // - it matches the storage policy
+    // - it is stored in the attachments table as-is
     final storagePath =
         '$patientId/${DateTime.now().microsecondsSinceEpoch}_$safeFileName';
 
@@ -93,6 +99,7 @@ class AttachmentService {
     final today = DateTime.now().toIso8601String().split('T').first;
 
     try {
+      // Upload the actual file bytes first.
       await _supabase.storage.from(_bucketName).uploadBinary(
         storagePath,
         bytes,
@@ -102,9 +109,8 @@ class AttachmentService {
         ),
       );
 
-      final result = await _supabase
-          .from('attachments')
-          .insert({
+      // Then insert the metadata row that points to that storage object.
+      final result = await _supabase.from('attachments').insert({
         'patient_id': patientId,
         'file_name': safeFileName,
         'file_kind': fileKind,
@@ -116,9 +122,7 @@ class AttachmentService {
             ? description.trim()
             : null,
         'uploaded_by_user_id': uploadedByUserId,
-      })
-          .select('id')
-          .single();
+      }).select('id').single();
 
       final newId = result['id'] as String;
 
@@ -134,6 +138,7 @@ class AttachmentService {
 
       return newId;
     } catch (e) {
+      // If the DB insert fails after upload, remove the uploaded file so Storage and the table do not drift out of sync.
       try {
         await _supabase.storage.from(_bucketName).remove([storagePath]);
       } catch (_) {
@@ -144,6 +149,7 @@ class AttachmentService {
   }
 
   Future<String> getAttachmentSignedUrl(String storagePath) async {
+    // The DB storage_path must be the same value used here.
     return _supabase.storage
         .from(_bucketName)
         .createSignedUrl(storagePath, 60 * 10);
@@ -156,6 +162,8 @@ class AttachmentService {
     required String fileName,
     required String storagePath,
   }) async {
+    // Delete the Storage object first, then the DB row.
+    // This keeps the file and metadata in sync.
     await _supabase.storage.from(_bucketName).remove([storagePath]);
 
     await _supabase.from('attachments').delete().eq('id', id);

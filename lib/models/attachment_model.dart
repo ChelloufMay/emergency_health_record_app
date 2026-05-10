@@ -1,10 +1,19 @@
 class AttachmentModel {
+  // Keep the DB id here so fetched rows map cleanly.
   final String id;
+
   final String patientId;
   final String fileName;
+
+  // Must match the DB enum-like values: lab_result, xray, scan, pdf, image, other
   final String fileKind;
+
   final String? fileType;
+
+  // This must match the Supabase Storage object path exactly.
+  // The storage policy expects the path to start with patientId/.
   final String storagePath;
+
   final DateTime? documentDate;
   final String? description;
   final String? uploadedByUserId;
@@ -27,24 +36,29 @@ class AttachmentModel {
 
   factory AttachmentModel.fromMap(Map<String, dynamic> map) {
     return AttachmentModel(
-      id: map['id'] as String,
-      patientId: map['patient_id'] as String,
-      fileName: map['file_name'] as String,
-      fileKind: map['file_kind'] as String? ?? 'other',
-      fileType: map['file_type'] as String?,
-      storagePath: map['storage_path'] as String,
+      id: map['id']?.toString() ?? '',
+      patientId: map['patient_id']?.toString() ?? '',
+      fileName: map['file_name']?.toString() ?? '',
+      fileKind: map['file_kind']?.toString() ?? 'other',
+      fileType: map['file_type']?.toString(),
+      storagePath: map['storage_path']?.toString() ?? '',
       documentDate: map['document_date'] != null
           ? DateTime.tryParse(map['document_date'].toString())
           : null,
-      description: map['description'] as String?,
-      uploadedByUserId: map['uploaded_by_user_id'] as String?,
-      createdAt:
-      DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt:
-      DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      description: map['description']?.toString(),
+      uploadedByUserId: map['uploaded_by_user_id']?.toString(),
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null
+          ? DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
+  // Payload for the attachments table.
+  // The uploadedByUserId is passed in explicitly by the service.
+  // id / created_at / updated_at stay database-controlled.
   Map<String, dynamic> toMap({required String uploadedByUserId}) {
     return {
       'patient_id': patientId,

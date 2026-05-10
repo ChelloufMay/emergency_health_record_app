@@ -47,6 +47,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   Future<void> _openAttachment(AttachmentModel item) async {
     try {
+      // The signed URL is generated from the storage_path stored in the DB.
       final signedUrl = await _service.getAttachmentSignedUrl(item.storagePath);
       final uri = Uri.parse(signedUrl);
 
