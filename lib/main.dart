@@ -7,6 +7,9 @@ import 'config/supabase_config.dart';
 import 'screens/allergies_screen.dart';
 import 'screens/attachments_screen.dart';
 import 'screens/audit_log_screen.dart';
+import 'screens/caregiver_choice_screen.dart';
+import 'screens/caregiver_dashboard_screen.dart';
+import 'screens/caregiver_profile_screen.dart';
 import 'screens/caregiver_screen.dart';
 import 'screens/conditions_screen.dart';
 import 'screens/emergency_screen.dart';
@@ -22,6 +25,7 @@ import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/reproductive_health_screen.dart';
+import 'screens/role_router_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/surgeries_screen.dart';
 import 'screens/vaccinations_screen.dart';
@@ -57,35 +61,30 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _setupAuthListener() {
-    // The database now creates public.users automatically through the trigger.
-    // The app no longer needs to manually insert a users row here.
-    // Only use auth state changes to route the user to the correct screen.
+    // Route authenticated users through the role router.
+    // That keeps owners on the normal app and sends caregivers to the caregiver entry flow.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
           (data) async {
         debugPrint('Auth event: ${data.event}');
 
         switch (data.event) {
           case AuthChangeEvent.signedIn:
-          // After sign-in or email confirmation, go straight to the app.
             if (data.session != null) {
-              _goHome();
+              _goEntry();
             }
             break;
 
           case AuthChangeEvent.initialSession:
-          // When the app starts and there is already a session, go home.
             if (data.session != null) {
-              _goHome();
+              _goEntry();
             }
             break;
 
           case AuthChangeEvent.signedOut:
-          // Clear route stack so the user cannot go back into protected pages.
             _goLogin();
             break;
 
           case AuthChangeEvent.tokenRefreshed:
-          // No navigation needed.
             break;
 
           default:
@@ -93,7 +92,6 @@ class _MyAppState extends State<MyApp> {
         }
       },
       onError: (Object error) {
-        // If the auth stream fails, fall back to a safe signed-out state.
         debugPrint('Auth stream error (treating as sign-out): $error');
         Supabase.instance.client.auth.signOut().ignore();
         _goLogin();
@@ -101,14 +99,14 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  void _goHome() {
+  void _goEntry() {
     final nav = navigatorKey.currentState;
     if (nav == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goHome());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _goEntry());
       return;
     }
 
-    nav.pushNamedAndRemoveUntil('/home', (route) => false);
+    nav.pushNamedAndRemoveUntil('/entry', (route) => false);
   }
 
   void _goLogin() {
@@ -140,21 +138,26 @@ class _MyAppState extends State<MyApp> {
           border: OutlineInputBorder(),
         ),
       ),
-      // Keep "/" as the public landing page.
-      // The auth callback route is added separately so the email link can
-      // return into the app instead of landing on a blank page.
       initialRoute: '/',
       routes: {
         '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
+
+        // This is the authenticated entry point.
+        // It decides whether the user sees the owner app or the caregiver flow.
+        '/entry': (context) => const RoleRouterScreen(),
+
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/medical_summary': (context) => const MedicalSummaryScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/qr': (context) => const QrScreen(),
         '/caregivers': (context) => const CaregiverScreen(),
+        '/caregiver_choice': (context) => const CaregiverChoiceScreen(),
+        '/caregiver_dashboard': (context) => const CaregiverDashboardScreen(),
+        '/caregiver_profile': (context) => const CaregiverProfileScreen(),
         '/audit_log': (context) => const AuditLogScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/allergies': (context) => const AllergiesScreen(),
@@ -169,8 +172,6 @@ class _MyAppState extends State<MyApp> {
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
       },
-      // This fallback helps if the app is opened directly from the email link.
-      // The route name must match the path part of your callback URI.
       onGenerateRoute: (settings) {
         if (settings.name == '/auth-callback') {
           return MaterialPageRoute(
@@ -199,19 +200,14 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _finishAuthFlow() async {
-    // The email confirmation link is handled by Supabase/Auth and the OS.
-    // Once the app opens, we simply wait for the auth session to exist and
-    // then route the user into the app.
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil('/entry', (route) => false);
     } else {
-      // If the session is not available yet, send the user back to login.
-      // This is safer than leaving them on a blank callback page.
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     }
   }
@@ -220,8 +216,6 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        // Keep this screen minimal: it is only a bridge between the email link
-        // and the authenticated part of the app.
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
