@@ -61,8 +61,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _setupAuthListener() {
-    // Route authenticated users through the role router.
-    // That keeps owners on the normal app and sends caregivers to the caregiver entry flow.
+    // The app now routes authenticated users through /entry first.
+    // That screen decides whether the user is an owner or a caregiver.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
           (data) async {
         debugPrint('Auth event: ${data.event}');
@@ -145,8 +145,7 @@ class _MyAppState extends State<MyApp> {
         '/register': (context) => const RegisterScreen(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
 
-        // This is the authenticated entry point.
-        // It decides whether the user sees the owner app or the caregiver flow.
+        // Entry point after login.
         '/entry': (context) => const RoleRouterScreen(),
 
         '/home': (context) => const HomeScreen(),

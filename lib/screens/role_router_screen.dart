@@ -21,7 +21,10 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
   @override
   void initState() {
     super.initState();
-    _hasCaregiverAccessFuture = _patientService.hasCaregiverPermissions();
+
+    // Check if this logged-in user has caregiver permissions.
+    _hasCaregiverAccessFuture =
+        _patientService.hasCaregiverPermissions();
   }
 
   @override
@@ -29,31 +32,43 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
     return FutureBuilder<bool>(
       future: _hasCaregiverAccessFuture,
       builder: (context, snapshot) {
+        // Loading state
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
           );
         }
 
+        // If something fails, safely go to home.
         if (snapshot.hasError) {
-          // Safe fallback if the caregiver check fails.
           return const HomeScreen();
         }
 
-        final hasCaregiverAccess = snapshot.data ?? false;
+        // IMPORTANT:
+        // Never access _patientService._supabase here.
+        // _supabase is private inside PatientService.
+        final session =
+            Supabase.instance.client.auth.currentSession;
 
-        // Caregivers go to the choice screen first.
-        if (hasCaregiverAccess) {
-          return const CaregiverChoiceScreen();
-        }
-
-        // If there is no session, show login.
-        final session = Supabase.instance.client.auth.currentSession;
+        // No session -> login
         if (session == null) {
           return const LoginScreen();
         }
 
-        // Otherwise, this is a normal owner account.
+        final hasCaregiverAccess = snapshot.data ?? false;
+
+        // If the user is also a caregiver,
+        // allow them to choose between:
+        // 1. Their normal patient account
+        // 2. Their caregiver profile
+        // 3. Their caregiver dashboard
+        if (hasCaregiverAccess) {
+          return const CaregiverChoiceScreen();
+        }
+
+        // Normal user account
         return const HomeScreen();
       },
     );

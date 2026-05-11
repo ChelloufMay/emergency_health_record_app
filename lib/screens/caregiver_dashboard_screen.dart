@@ -4,15 +4,50 @@ import '../models/caregiver_permission_model.dart';
 import '../services/caregiver_profile_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
+import 'caregiver_patient_detail_screen.dart';
 
-class _CaregiverPatientCard {
-  final CaregiverPermissionModel permission;
+class _CaregiverPatientGroup {
+  final String patientId;
   final Map<String, dynamic>? summary;
+  final List<CaregiverPermissionModel> permissions;
 
-  _CaregiverPatientCard({
-    required this.permission,
+  _CaregiverPatientGroup({
+    required this.patientId,
     required this.summary,
+    required this.permissions,
   });
+
+  String get displayName {
+    final first = summary?['first_name']?.toString().trim() ?? '';
+    final family = summary?['family_name']?.toString().trim() ?? '';
+    final fullName = '$first $family'.trim();
+    return fullName.isEmpty ? 'Unknown patient' : fullName;
+  }
+
+  List<CaregiverPermissionModel> get activePermissions {
+    return permissions.where((p) => _isActive(p)).toList();
+  }
+
+  List<CaregiverPermissionModel> get inactivePermissions {
+    return permissions.where((p) => !_isActive(p)).toList();
+  }
+
+  bool get hasActivePermission => activePermissions.isNotEmpty;
+
+  String get permissionSummary {
+    final items = permissions
+        .map((p) => p.permission)
+        .toSet()
+        .toList()
+      ..sort();
+    return items.isEmpty ? 'No permissions' : items.join(', ');
+  }
+
+  static bool _isActive(CaregiverPermissionModel permission) {
+    if (permission.status != 'active') return false;
+    if (permission.expiresAt == null) return true;
+    return permission.expiresAt!.isAfter(DateTime.now());
+  }
 }
 
 class CaregiverDashboardScreen extends StatefulWidget {
@@ -31,10 +66,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
 
   bool _loading = true;
   String _displayName = 'Caregiver';
-  String? _role;
   String? _profileId;
-  String? _profileStatus;
-  List<_CaregiverPatientCard> _cards = [];
+  List<_CaregiverPatientGroup> _groups = [];
 
   @override
   void initState() {
@@ -50,46 +83,43 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     return '$y-$m-$d';
   }
 
-  bool _isExpired(DateTime? expiresAt) {
-    if (expiresAt == null) return false;
-    return expiresAt.isBefore(DateTime.now());
-  }
-
   Future<void> _load() async {
     try {
       final userRow = await _patientService.fetchCurrentAppUserRow();
-      final currentRole = await _patientService.getCurrentRole();
 
       // This creates a shell profile if the caregiver has no profile row yet.
       // That way the profile screen does not feel empty or broken.
       final profile = await _caregiverProfileService.ensureProfileShell();
 
       final permissions = await _caregiverService.fetchMyPermissions();
-      final cards = <_CaregiverPatientCard>[];
+      final byPatientId = <String, List<CaregiverPermissionModel>>{};
 
       for (final permission in permissions) {
-        final summary = await _caregiverService.fetchPatientSummary(
-          permission.patientId,
-        );
-        cards.add(_CaregiverPatientCard(
-          permission: permission,
-          summary: summary,
-        ));
+        byPatientId.putIfAbsent(permission.patientId, () => []);
+        byPatientId[permission.patientId]!.add(permission);
       }
+
+      final groups = <_CaregiverPatientGroup>[];
+      for (final entry in byPatientId.entries) {
+        final summary = await _caregiverService.fetchPatientSummary(entry.key);
+        groups.add(
+          _CaregiverPatientGroup(
+            patientId: entry.key,
+            summary: summary,
+            permissions: entry.value,
+          ),
+        );
+      }
+
+      groups.sort((a, b) => a.displayName.compareTo(b.displayName));
 
       if (!mounted) return;
       setState(() {
         _displayName = userRow?['full_name']?.toString().trim().isNotEmpty == true
             ? userRow!['full_name'].toString()
             : 'Caregiver';
-        _role = currentRole;
         _profileId = profile.id;
-        _profileStatus = profile.relationshipToPatient == null &&
-            profile.phone == null &&
-            profile.addressId == null
-            ? 'Profile started, but not completed yet'
-            : 'Profile completed or partially filled';
-        _cards = cards;
+        _groups = groups;
         _loading = false;
       });
     } catch (_) {
@@ -102,13 +132,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeCards = _cards
-        .where((c) => c.permission.status == 'active' && !_isExpired(c.permission.expiresAt))
-        .toList();
-
-    final inactiveCards = _cards
-        .where((c) => c.permission.status != 'active' || _isExpired(c.permission.expiresAt))
-        .toList();
+    final activeGroups = _groups.where((g) => g.hasActivePermission).toList();
+    final inactiveGroups = _groups.where((g) => !g.hasActivePermission).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -144,9 +169,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text('Role label in public.users: ${_role ?? '-'}'),
-                    const SizedBox(height: 8),
-                    Text('Profile: $_profileStatus'),
+                    const Text(
+                      'Active means the permission is usable now. Revoked means the owner removed it. Expired means the date has passed.',
+                    ),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () async {
@@ -164,11 +189,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Your active patient access',
+              'Patients you can currently open',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            if (activeCards.isEmpty)
+            if (activeGroups.isEmpty)
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
@@ -178,67 +203,98 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
               )
             else
-              ...activeCards.map((card) {
-                final summary = card.summary;
-                final fullName = summary == null
-                    ? 'Unknown patient'
-                    : '${summary['first_name'] ?? ''} ${summary['family_name'] ?? ''}'
-                    .trim();
+              ...activeGroups.map((group) {
+                final activeLabels = group.activePermissions
+                    .map((p) => p.permission)
+                    .toSet()
+                    .toList()
+                  ..sort();
+
+                final expiresDates = group.activePermissions
+                    .map((p) => p.expiresAt)
+                    .whereType<DateTime>()
+                    .toList();
+
+                DateTime? nextExpiry;
+                if (expiresDates.isNotEmpty) {
+                  expiresDates.sort((a, b) => a.compareTo(b));
+                  nextExpiry = expiresDates.first;
+                }
 
                 return Card(
                   child: ListTile(
                     title: Text(
-                      fullName.isEmpty ? 'Unknown patient' : fullName,
+                      group.displayName,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
                       [
-                        'Permission: ${card.permission.permission}',
-                        'Status: ${card.permission.status}',
-                        'Expires at: ${_formatDate(card.permission.expiresAt)}',
-                        if (summary != null)
-                          'Age: ${summary['age_years'] ?? '-'}',
-                        if (summary != null)
-                          'Blood type: ${summary['blood_type'] ?? '-'}',
-                        if (summary != null)
-                          'City: ${summary['address_city'] ?? '-'}',
+                        'Permissions: ${activeLabels.isEmpty ? 'none' : activeLabels.join(', ')}',
+                        'Active records: ${group.activePermissions.length}',
+                        if (group.inactivePermissions.isNotEmpty)
+                          'Other records: ${group.inactivePermissions.length} inactive/revoked/expired',
+                        'Expires at: ${_formatDate(nextExpiry)}',
                       ].join('\n'),
                     ),
                     isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CaregiverPatientDetailScreen(
+                            patientId: group.patientId,
+                            summary: group.summary,
+                            permissions: group.permissions,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               }),
             const SizedBox(height: 16),
             const Text(
-              'Inactive or expired access',
+              'Revoked or expired access',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            if (inactiveCards.isEmpty)
+            if (inactiveGroups.isEmpty)
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('No expired permissions found.'),
+                  child: Text('No revoked or expired permissions found.'),
                 ),
               )
             else
-              ...inactiveCards.map((card) {
+              ...inactiveGroups.map((group) {
                 return Card(
                   child: ListTile(
                     title: Text(
-                      'Patient ID: ${card.permission.patientId}',
+                      group.displayName,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
                       [
-                        'Permission: ${card.permission.permission}',
-                        'Status: ${card.permission.status}',
-                        'Expires at: ${_formatDate(card.permission.expiresAt)}',
-                        if (_isExpired(card.permission.expiresAt))
-                          'Reason: permission expired',
+                        'Permissions: ${group.permissionSummary}',
+                        'Inactive records: ${group.permissions.length}',
+                        'Status: revoked / expired',
                       ].join('\n'),
                     ),
                     isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CaregiverPatientDetailScreen(
+                            patientId: group.patientId,
+                            summary: group.summary,
+                            permissions: group.permissions,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               }),

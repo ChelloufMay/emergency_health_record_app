@@ -16,7 +16,6 @@ class PatientService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   /// Returns the current row in public.users for the logged-in auth account.
-  /// This is useful for routing and for screens that need the app user id.
   Future<Map<String, dynamic>?> fetchCurrentAppUserRow() async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
@@ -28,9 +27,7 @@ class PatientService {
         .maybeSingle();
   }
 
-  /// Keeps the old helper, but makes it safer.
-  /// If the trigger already created the row, this simply returns the existing id.
-  /// If the trigger failed for some reason, we create a fallback row.
+  /// Returns the current app user id, creating a fallback row only if needed.
   Future<String?> ensureAppUserId({
     String? fullName,
     String? phone,
@@ -53,7 +50,6 @@ class PatientService {
     final resolvedPhone = phone?.trim();
 
     try {
-      // Important:
       // The database trigger normally creates this row automatically.
       // This insert is only a fallback.
       final inserted = await _supabase.from('users').insert({
@@ -84,26 +80,56 @@ class PatientService {
     return row?['role']?.toString();
   }
 
-  /// True when the signed-in user has at least one active caregiver permission.
-  /// This is what sends the user into the caregiver choice screen.
+  /// A caregiver account is any signed-in user who either:
+  /// - already has a caregiver profile row, or
+  /// - already has at least one caregiver permission row.
+  ///
+  /// This is better than relying on public.users.role because the DB trigger
+  /// currently creates new users as role = owner.
+  Future<bool> isCaregiverAccount() async {
+    final hasProfile = await hasCaregiverProfile();
+    if (hasProfile) return true;
+
+    return hasCaregiverPermissions();
+  }
+
+  Future<bool> hasCaregiverProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('caregiver_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  /// Returns true when the signed-in user has at least one active caregiver permission.
+  /// Active means:
+  /// - status = active
+  /// - and expires_at is null or still in the future
   Future<bool> hasCaregiverPermissions() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
 
     final rows = await _supabase
         .from('caregiver_permissions')
-        .select('expires_at')
-        .eq('caregiver_user_id', appUserId)
-        .eq('status', 'active');
+        .select('status, expires_at')
+        .eq('caregiver_user_id', appUserId);
 
     final now = DateTime.now();
 
-    for (final row in rows as List) {
-      final expiresRaw = (row as Map<String, dynamic>)['expires_at'];
+    for (final raw in rows as List) {
+      final row = raw as Map<String, dynamic>;
+      if (row['status']?.toString() != 'active') continue;
+
+      final expiresRaw = row['expires_at'];
       if (expiresRaw == null) return true;
 
       final expiresAt = DateTime.tryParse(expiresRaw.toString());
-      if (expiresAt != null && expiresAt.isAfter(now)) {
+      if (expiresAt == null || expiresAt.isAfter(now)) {
         return true;
       }
     }

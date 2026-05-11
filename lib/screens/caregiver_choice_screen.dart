@@ -16,7 +16,37 @@ class CaregiverChoiceScreen extends StatelessWidget {
             'Choose what you want to open.',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 8),
+          const Text(
+            'This screen appears only for caregiver accounts. The role router sends you here automatically after login.',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 16),
+          Card(
+            child: InkWell(
+              onTap: () => Navigator.pushNamed(context, '/home'),
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.home_outlined, size: 32),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'My home account',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: InkWell(
               onTap: () => Navigator.pushNamed(context, '/caregiver_profile'),
@@ -29,7 +59,7 @@ class CaregiverChoiceScreen extends StatelessWidget {
                     SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'My profile',
+                        'My caregiver profile',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
