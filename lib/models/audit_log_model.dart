@@ -33,25 +33,28 @@ class AuditLogModel {
 
   factory AuditLogModel.fromMap(Map<String, dynamic> map) {
     return AuditLogModel(
-      id: map['id'] as String,
-      patientId: map['patient_id'] as String,
-      performedByUserId: map['performed_by_user_id'] as String?,
-      action: map['action'] as String,
-      entityType: map['entity_type'] as String,
-      entityId: map['entity_id'] as String?,
-      fieldName: map['field_name'] as String?,
-      oldValue: map['old_value'] as String?,
-      newValue: map['new_value'] as String?,
-      deviceId: map['device_id'] as String?,
-      ipAddress: map['ip_address'] as String?,
-      breakGlassReason: map['break_glass_reason'] as String?,
-      eventHash: map['event_hash'] as String?,
-      timestamp: DateTime.tryParse(map['timestamp'].toString()) ?? DateTime.now(),
+      id: map['id']?.toString() ?? '',
+      patientId: map['patient_id']?.toString() ?? '',
+      performedByUserId: map['performed_by_user_id']?.toString(),
+      action: map['action']?.toString() ?? 'view',
+      entityType: map['entity_type']?.toString() ?? '',
+      entityId: map['entity_id']?.toString(),
+      fieldName: map['field_name']?.toString(),
+      oldValue: map['old_value']?.toString(),
+      newValue: map['new_value']?.toString(),
+      deviceId: map['device_id']?.toString(),
+      ipAddress: map['ip_address']?.toString(),
+      breakGlassReason: map['break_glass_reason']?.toString(),
+      eventHash: map['event_hash']?.toString(),
+      timestamp: map['timestamp'] != null
+          ? DateTime.tryParse(map['timestamp'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      // DB fills id automatically.
       'patient_id': patientId,
       'performed_by_user_id': performedByUserId,
       'action': action,
@@ -64,6 +67,8 @@ class AuditLogModel {
       'ip_address': ipAddress,
       'break_glass_reason': breakGlassReason,
       'event_hash': eventHash,
+
+      // Keep the timestamp explicit in case you ever want to import or replay logs.
       'timestamp': timestamp.toIso8601String(),
     };
   }
