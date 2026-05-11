@@ -54,8 +54,6 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
     final emailController = TextEditingController();
     final notesController = TextEditingController();
     String permission = 'read';
-
-    // Optional expiry date. If left empty, the permission stays active until revoked.
     DateTime? expiresAt;
 
     final save = await showDialog<bool>(
@@ -69,7 +67,10 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
               children: [
                 TextField(
                   controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Caregiver email'),
+                  decoration: const InputDecoration(
+                    labelText: 'Caregiver email',
+                    hintText: 'Enter the email used to register',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -102,7 +103,9 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(expiresAt == null ? 'No expiry' : _formatDate(expiresAt)),
+                      Text(expiresAt == null
+                          ? 'No expiry'
+                          : _formatDate(expiresAt)),
                       TextButton(
                         onPressed: () async {
                           final now = DateTime.now();
@@ -140,19 +143,26 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
 
     if (save != true || _patientId == null || _userId == null) return;
 
-    // The caregiver must already exist in public.users.
-    // The current DB FK points caregiver_user_id to users.id.
-    final caregiverRow = await _supabase
-        .from('users')
-        .select('id')
-        .eq('email', emailController.text.trim())
-        .maybeSingle();
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a caregiver email.')),
+      );
+      return;
+    }
 
-    if (caregiverRow == null) {
+    // This uses the secure RPC helper instead of querying public.users directly.
+    // RLS only allows each user to read their own row, so direct lookup by email
+    // is the reason the old code said "No user found with that email".
+    final caregiverUserId = await _service.findUserIdByEmail(email);
+
+    if (caregiverUserId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No user found with that email. They must register first.'),
+        SnackBar(
+          content: Text(
+            'No registered user found for "$email". Ask them to sign in once, or verify the email spelling.',
+          ),
         ),
       );
       return;
@@ -160,7 +170,7 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
 
     final permissionRow = CaregiverPermissionModel(
       patientId: _patientId!,
-      caregiverUserId: caregiverRow['id'] as String,
+      caregiverUserId: caregiverUserId,
       permission: permission,
       status: 'active',
       grantedByUserId: _userId,
@@ -194,7 +204,9 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Caregivers')),
+      appBar: AppBar(
+        title: const Text('Caregiver access'),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addPermission,
         child: const Icon(Icons.add),
@@ -203,7 +215,10 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _permissions.isEmpty
           ? const Center(
-        child: Text('No caregiver permissions yet.'),
+        child: Text(
+          'No caregiver permissions yet.\nThis screen is for the patient owner.',
+          textAlign: TextAlign.center,
+        ),
       )
           : ListView.builder(
         itemCount: _permissions.length,
