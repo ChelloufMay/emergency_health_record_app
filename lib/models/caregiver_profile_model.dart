@@ -6,17 +6,20 @@ class CaregiverProfileModel {
   final String? phone;
 
   // Links the caregiver profile to public.addresses.
+  // This is the field your caregiver profile form should bind to
+  // when you want to save an address for the caregiver.
   final String? addressId;
 
-  // Must match the DB enum values: cohabitant, near, far
+  // DB enum values: cohabitant, near, far
   final String? proximity;
 
-  // Must match the DB enum values: daily, doctor_visits_only, phone_checkups, long_periods_between_visits
+  // DB enum values:
+  // daily, doctor_visits_only, phone_checkups, long_periods_between_visits
   final String? attendance;
 
   final bool? canDrive;
 
-  // Must match the DB enum values: independent, cane, wheelchair, needs_help
+  // DB enum values: independent, cane, wheelchair, needs_help
   final String mobility;
 
   final DateTime? createdAt;
@@ -58,8 +61,8 @@ class CaregiverProfileModel {
     );
   }
 
-  // Insert/update payload for the caregiver_profiles table.
-  Map<String, dynamic> toMap() {
+  // Insert payload for public.caregiver_profiles.
+  Map<String, dynamic> toInsertMap() {
     return {
       'user_id': userId,
       'full_name': fullName,
@@ -72,4 +75,22 @@ class CaregiverProfileModel {
       'mobility': mobility,
     };
   }
+
+  // Update payload for public.caregiver_profiles.
+  Map<String, dynamic> toUpdateMap() {
+    return {
+      'user_id': userId,
+      'full_name': fullName,
+      'relationship_to_patient': relationshipToPatient,
+      'phone': phone,
+      'address_id': addressId,
+      'proximity': proximity,
+      'attendance': attendance,
+      'can_drive': canDrive,
+      'mobility': mobility,
+    };
+  }
+
+  // Backward-compatible alias.
+  Map<String, dynamic> toMap() => toInsertMap();
 }
