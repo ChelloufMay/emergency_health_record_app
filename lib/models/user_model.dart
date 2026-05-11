@@ -23,14 +23,18 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      id: map['id'] as String,
-      authUserId: map['auth_user_id'] as String,
-      fullName: map['full_name'] as String,
-      phone: map['phone'] as String?,
-      email: map['email'] as String?,
-      role: map['role'] as String? ?? 'owner',
-      createdAt: DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      id: map['id']?.toString() ?? '',
+      authUserId: map['auth_user_id']?.toString() ?? '',
+      fullName: map['full_name']?.toString() ?? '',
+      phone: map['phone']?.toString(),
+      email: map['email']?.toString(),
+      role: map['role']?.toString() ?? 'owner',
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null
+          ? DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
