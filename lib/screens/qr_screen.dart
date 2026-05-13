@@ -1,7 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../services/emergency_payload_service.dart';
 import '../services/patient_service.dart';
 
 class QrScreen extends StatefulWidget {
@@ -12,11 +13,11 @@ class QrScreen extends StatefulWidget {
 }
 
 class _QrScreenState extends State<QrScreen> {
-  final _patientService = PatientService();
-  final _supabase = Supabase.instance.client;
+  final PatientService _patientService = PatientService();
 
   bool _loading = true;
-  String _data = 'loading...';
+  String _qrData = '';
+  String _displayText = '';
 
   @override
   void initState() {
@@ -24,57 +25,57 @@ class _QrScreenState extends State<QrScreen> {
     _load();
   }
 
+  String _stringify(dynamic value) => value?.toString().trim() ?? '';
+
   Future<void> _load() async {
     final identity = await _patientService.resolveIdentity();
     if (identity == null) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _data = 'No profile found';
+        _displayText = 'No profile found';
       });
       return;
     }
 
-    try {
-      // Use a token-based QR instead of raw patient ID.
-      // This matches the emergency_access_tokens table and makes the QR safer.
-      final existingToken = await _supabase
-          .from('emergency_access_tokens')
-          .select('token')
-          .eq('patient_id', identity.patientId)
-          .eq('is_active', true)
-          .order('created_at', ascending: false)
-          .maybeSingle();
-
-      String token;
-
-      if (existingToken != null && existingToken['token'] != null) {
-        token = existingToken['token'].toString();
-      } else {
-        final inserted = await _supabase
-            .from('emergency_access_tokens')
-            .insert({
-          'patient_id': identity.patientId,
-          'created_by_user_id': identity.appUserId,
-          'is_active': true,
-        }).select('token').single();
-
-        token = inserted['token'].toString();
-      }
-
-      // Keep the custom scheme you already chose.
-      // The deep-link route handler in the native app must map this to the emergency screen.
-      _data = 'healthapp://emergency/$token';
-
-      if (!mounted) return;
-      setState(() => _loading = false);
-    } catch (e) {
+    final summary = await _patientService.fetchEmergencySummary(identity.patientId);
+    if (summary == null) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _data = 'Failed to load QR: $e';
+        _displayText = 'No emergency summary found';
       });
+      return;
     }
+
+    final payload = <String, dynamic>{
+      'version': 1,
+      'patient_id': summary['patient_id'],
+      'first_name': summary['first_name'],
+      'family_name': summary['family_name'],
+      'sex': summary['sex'],
+      'age_years': summary['age_years'],
+      'blood_type': summary['blood_type'],
+      'phone': summary['phone'],
+      'emergency_contact_name': summary['emergency_contact_name'],
+      'emergency_contact_phone': summary['emergency_contact_phone'],
+      'address_country': summary['address_country'],
+      'address_governorate': summary['address_governorate'],
+      'address_city': summary['address_city'],
+      'allergies': summary['allergies'],
+      'medications': summary['medications'],
+      'chronic_conditions': summary['chronic_conditions'],
+    };
+
+    final encoded = EmergencyPayloadService.encodePayload(payload);
+    final link = EmergencyPayloadService.buildQrLink(encoded);
+
+    if (!mounted) return;
+    setState(() {
+      _qrData = link;
+      _displayText = link;
+      _loading = false;
+    });
   }
 
   @override
@@ -84,16 +85,24 @@ class _QrScreenState extends State<QrScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            QrImageView(
-              data: _data,
-              size: 220,
-            ),
-            const SizedBox(height: 20),
-            SelectableText(_data),
-          ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              QrImageView(
+                data: _qrData,
+                size: 230,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'This QR contains the offline emergency payload.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              SelectableText(_displayText),
+            ],
+          ),
         ),
       ),
     );
