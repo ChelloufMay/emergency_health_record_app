@@ -1,5 +1,7 @@
+import 'model_utils.dart';
+
 class GuardianProfileModel {
-  final String id;
+  final String? id;
   final String userId;
   final String fullName;
   final String? relationshipToPatient;
@@ -11,7 +13,7 @@ class GuardianProfileModel {
   final DateTime? updatedAt;
 
   const GuardianProfileModel({
-    required this.id,
+    this.id,
     required this.userId,
     required this.fullName,
     this.relationshipToPatient,
@@ -23,18 +25,30 @@ class GuardianProfileModel {
     this.updatedAt,
   });
 
-  factory GuardianProfileModel.fromJson(Map<String, dynamic> json) {
+  factory GuardianProfileModel.fromMap(Map map) {
     return GuardianProfileModel(
-      id: json['id']?.toString() ?? '',
-      userId: json['user_id']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? '',
-      relationshipToPatient: json['relationship_to_patient']?.toString(),
-      legalAuthorityNote: json['legal_authority_note']?.toString(),
-      phone: json['phone']?.toString(),
-      addressId: json['address_id']?.toString(),
-      notes: json['notes']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      id: map['id']?.toString(),
+      userId: map['user_id']?.toString() ?? '',
+      fullName: map['full_name']?.toString() ?? '',
+      relationshipToPatient: map['relationship_to_patient']?.toString(),
+      legalAuthorityNote: map['legal_authority_note']?.toString(),
+      phone: map['phone']?.toString(),
+      addressId: map['address_id']?.toString(),
+      notes: map['notes']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
+
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'user_id': userId,
+    'full_name': fullName,
+    'relationship_to_patient': relationshipToPatient,
+    'legal_authority_note': legalAuthorityNote,
+    'phone': phone,
+    'address_id': addressId,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toUpdateMap() => toInsertMap();
 }

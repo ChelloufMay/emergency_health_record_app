@@ -1,3 +1,5 @@
+import 'model_utils.dart';
+
 class PatientProfileModel {
   final String? id;
   final String userId;
@@ -8,17 +10,16 @@ class PatientProfileModel {
   final DateTime? dateOfBirth;
   final String? bloodType;
   final String? phone;
-
-  // This links the patient profile to the row in public.addresses.
   final String? addressId;
-
   final String? emergencyContactName;
   final String? emergencyContactPhone;
   final String? insurancePlan;
   final String? covidVaccineType;
   final String? familyDoctorId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  PatientProfileModel({
+  const PatientProfileModel({
     this.id,
     required this.userId,
     this.legalId,
@@ -34,9 +35,11 @@ class PatientProfileModel {
     this.insurancePlan,
     this.covidVaccineType,
     this.familyDoctorId,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  factory PatientProfileModel.fromMap(Map<String, dynamic> map) {
+  factory PatientProfileModel.fromMap(Map map) {
     return PatientProfileModel(
       id: map['id']?.toString(),
       userId: map['user_id']?.toString() ?? '',
@@ -44,43 +47,36 @@ class PatientProfileModel {
       firstName: map['first_name']?.toString() ?? '',
       familyName: map['family_name']?.toString() ?? '',
       sex: map['sex']?.toString() ?? 'unknown',
-      dateOfBirth: map['date_of_birth'] == null
-          ? null
-          : DateTime.tryParse(map['date_of_birth'].toString()),
+      dateOfBirth: asDateTime(map['date_of_birth']),
       bloodType: map['blood_type']?.toString(),
       phone: map['phone']?.toString(),
-
-      //keep the patient-address relation in the model.
       addressId: map['address_id']?.toString(),
-
       emergencyContactName: map['emergency_contact_name']?.toString(),
       emergencyContactPhone: map['emergency_contact_phone']?.toString(),
       insurancePlan: map['insurance_plan']?.toString(),
       covidVaccineType: map['covid_vaccine_type']?.toString(),
       familyDoctorId: map['family_doctor_id']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toInsertMap() {
-    return {
-      'user_id': userId,
-      'legal_id': legalId,
-      'first_name': firstName,
-      'family_name': familyName,
-      'sex': sex,
-      'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
-      'blood_type': bloodType,
-      'phone': phone,
-      'address_id': addressId,
-      'emergency_contact_name': emergencyContactName,
-      'emergency_contact_phone': emergencyContactPhone,
-      'insurance_plan': insurancePlan,
-      'covid_vaccine_type': covidVaccineType,
-      'family_doctor_id': familyDoctorId,
-    };
-  }
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'user_id': userId,
+    'legal_id': legalId,
+    'first_name': firstName,
+    'family_name': familyName,
+    'sex': sex,
+    'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
+    'blood_type': bloodType,
+    'phone': phone,
+    'address_id': addressId,
+    'emergency_contact_name': emergencyContactName,
+    'emergency_contact_phone': emergencyContactPhone,
+    'insurance_plan': insurancePlan,
+    'covid_vaccine_type': covidVaccineType,
+    'family_doctor_id': familyDoctorId,
+  });
 
-  // Keep update payload identical to insert payload.
-  // This helps the RPC/service layer treat profile save as an upsert.
   Map<String, dynamic> toUpdateMap() => toInsertMap();
 }

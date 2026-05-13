@@ -1,21 +1,15 @@
-class CaregiverPermissionModel {
-  // The row id comes from the database on insert so keep it nullable.
-  final String? id;
+import 'model_utils.dart';
 
+class CaregiverPermissionModel {
+  final String? id;
   final String patientId;
   final String caregiverUserId;
-
-  // match the DB enum values exactly: read, edit, emergency_only
   final String permission;
-
-  //match the DB enum values exactly: active, revoked, expired
   final String status;
-
   final String? grantedByUserId;
   final DateTime grantedAt;
   final DateTime? expiresAt;
   final String? notes;
-
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -26,14 +20,14 @@ class CaregiverPermissionModel {
     required this.permission,
     required this.status,
     this.grantedByUserId,
-    required this.grantedAt,
+    DateTime? grantedAt,
     this.expiresAt,
     this.notes,
     this.createdAt,
     this.updatedAt,
-  });
+  }) : grantedAt = grantedAt ?? DateTime.now();
 
-  factory CaregiverPermissionModel.fromMap(Map<String, dynamic> map) {
+  factory CaregiverPermissionModel.fromMap(Map map) {
     return CaregiverPermissionModel(
       id: map['id']?.toString(),
       patientId: map['patient_id']?.toString() ?? '',
@@ -41,49 +35,34 @@ class CaregiverPermissionModel {
       permission: map['permission']?.toString() ?? 'read',
       status: map['status']?.toString() ?? 'active',
       grantedByUserId: map['granted_by_user_id']?.toString(),
-      grantedAt: map['granted_at'] != null
-          ? DateTime.tryParse(map['granted_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      expiresAt: map['expires_at'] != null
-          ? DateTime.tryParse(map['expires_at'].toString())
-          : null,
+      grantedAt: asDateTime(map['granted_at']) ?? DateTime.now(),
+      expiresAt: asDateTime(map['expires_at']),
       notes: map['notes']?.toString(),
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'].toString())
-          : null,
-      updatedAt: map['updated_at'] != null
-          ? DateTime.tryParse(map['updated_at'].toString())
-          : null,
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  // Use this for INSERT. leave id / created_at / updated_at to the database defaults/triggers.
-  Map<String, dynamic> toInsertMap() {
-    return {
-      'patient_id': patientId,
-      'caregiver_user_id': caregiverUserId,
-      'permission': permission,
-      'status': status,
-      'granted_by_user_id': grantedByUserId,
-      'granted_at': grantedAt.toIso8601String(),
-      'expires_at': expiresAt?.toIso8601String(),
-      'notes': notes,
-    };
-  }
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'patient_id': patientId,
+    'caregiver_user_id': caregiverUserId,
+    'permission': permission,
+    'status': status,
+    'granted_by_user_id': grantedByUserId,
+    'granted_at': grantedAt.toIso8601String(),
+    'expires_at': expiresAt?.toIso8601String(),
+    'notes': notes,
+  });
 
-  // Use this for UPDATE. granted_at usually should not change after creation.
-  Map<String, dynamic> toUpdateMap() {
-    return {
-      'patient_id': patientId,
-      'caregiver_user_id': caregiverUserId,
-      'permission': permission,
-      'status': status,
-      'granted_by_user_id': grantedByUserId,
-      'expires_at': expiresAt?.toIso8601String(),
-      'notes': notes,
-    };
-  }
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    'patient_id': patientId,
+    'caregiver_user_id': caregiverUserId,
+    'permission': permission,
+    'status': status,
+    'granted_by_user_id': grantedByUserId,
+    'expires_at': expiresAt?.toIso8601String(),
+    'notes': notes,
+  });
 
-  // Keep a simple alias if any old code still calls toMap().
   Map<String, dynamic> toMap() => toInsertMap();
 }

@@ -1,5 +1,7 @@
+import 'model_utils.dart';
+
 class NotificationEventModel {
-  final String id;
+  final String? id;
   final String patientId;
   final String? actorUserId;
   final String? recipientUserId;
@@ -15,7 +17,7 @@ class NotificationEventModel {
   final DateTime? updatedAt;
 
   const NotificationEventModel({
-    required this.id,
+    this.id,
     required this.patientId,
     this.actorUserId,
     this.recipientUserId,
@@ -24,29 +26,29 @@ class NotificationEventModel {
     this.entityType,
     this.entityId,
     required this.message,
-    required this.deliveryChannel,
-    required this.isSent,
+    this.deliveryChannel = 'email',
+    this.isSent = false,
     this.sentAt,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory NotificationEventModel.fromJson(Map<String, dynamic> json) {
+  factory NotificationEventModel.fromMap(Map map) {
     return NotificationEventModel(
-      id: json['id']?.toString() ?? '',
-      patientId: json['patient_id']?.toString() ?? '',
-      actorUserId: json['actor_user_id']?.toString(),
-      recipientUserId: json['recipient_user_id']?.toString(),
-      recipientEmail: json['recipient_email']?.toString(),
-      eventType: json['event_type']?.toString() ?? '',
-      entityType: json['entity_type']?.toString(),
-      entityId: json['entity_id']?.toString(),
-      message: json['message']?.toString() ?? '',
-      deliveryChannel: json['delivery_channel']?.toString() ?? 'email',
-      isSent: json['is_sent'] == true,
-      sentAt: DateTime.tryParse(json['sent_at']?.toString() ?? ''),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      id: map['id']?.toString(),
+      patientId: map['patient_id']?.toString() ?? '',
+      actorUserId: map['actor_user_id']?.toString(),
+      recipientUserId: map['recipient_user_id']?.toString(),
+      recipientEmail: map['recipient_email']?.toString(),
+      eventType: map['event_type']?.toString() ?? '',
+      entityType: map['entity_type']?.toString(),
+      entityId: map['entity_id']?.toString(),
+      message: map['message']?.toString() ?? '',
+      deliveryChannel: map['delivery_channel']?.toString() ?? 'email',
+      isSent: asBool(map['is_sent']) ?? false,
+      sentAt: asDateTime(map['sent_at']),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 }

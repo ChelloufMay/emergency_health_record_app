@@ -1,3 +1,5 @@
+import 'model_utils.dart';
+
 class AddressModel {
   final String? id;
   final String country;
@@ -10,7 +12,7 @@ class AddressModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  AddressModel({
+  const AddressModel({
     this.id,
     required this.country,
     this.governorate,
@@ -23,34 +25,28 @@ class AddressModel {
     this.updatedAt,
   });
 
-  factory AddressModel.fromMap(Map<String, dynamic> map) {
+  factory AddressModel.fromMap(Map map) {
     return AddressModel(
-      id: map['id'] as String?,
-      country: map['country'] as String,
-      governorate: map['governorate'] as String?,
-      city: map['city'] as String?,
-      avenue: map['avenue'] as String?,
-      street: map['street'] as String?,
-      postalCode: map['postal_code'] as String?,
-      extraDetails: map['extra_details'] as String?,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'].toString())
-          : null,
-      updatedAt: map['updated_at'] != null
-          ? DateTime.tryParse(map['updated_at'].toString())
-          : null,
+      id: map['id']?.toString(),
+      country: map['country']?.toString() ?? '',
+      governorate: map['governorate']?.toString(),
+      city: map['city']?.toString(),
+      avenue: map['avenue']?.toString(),
+      street: map['street']?.toString(),
+      postalCode: map['postal_code']?.toString(),
+      extraDetails: map['extra_details']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'country': country,
-      'governorate': governorate,
-      'city': city,
-      'avenue': avenue,
-      'street': street,
-      'postal_code': postalCode,
-      'extra_details': extraDetails,
-    };
-  }
+  Map<String, dynamic> toMap() => cleanMap({
+    'country': country,
+    'governorate': governorate,
+    'city': city,
+    'avenue': avenue,
+    'street': street,
+    'postal_code': postalCode,
+    'extra_details': extraDetails,
+  });
 }

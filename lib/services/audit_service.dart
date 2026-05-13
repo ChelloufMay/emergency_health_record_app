@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../models/audit_log_model.dart';
 import 'patient_service.dart';
 
@@ -22,9 +21,7 @@ class AuditService {
     String? eventHash,
   }) async {
     try {
-      // If the caller did not pass a user id, fall back to the linked app user.
-      final actorId = performedByUserId ?? await _patientService.getAppUserId();
-
+      final actorId = performedByUserId ?? await _patientService.ensureAppUserId();
       await _supabase.from('audit_logs').insert({
         'patient_id': patientId,
         'performed_by_user_id': actorId,
@@ -39,14 +36,10 @@ class AuditService {
         'break_glass_reason': breakGlassReason,
         'event_hash': eventHash,
       });
-    } catch (_) {
-      // Never block the main flow because audit logging failed.
-    }
+    } catch (_) {}
   }
 
   Future<List<AuditLogModel>> fetchLogs(String patientId) async {
-    // Use the ranked view so the UI can stay limited to recent entries.
-    // The view is security_invoker, so RLS still applies correctly.
     final rows = await _supabase
         .from('audit_logs_ranked')
         .select()
@@ -54,8 +47,6 @@ class AuditService {
         .lte('patient_log_rank', 20)
         .order('timestamp', ascending: false);
 
-    return (rows as List)
-        .map((row) => AuditLogModel.fromMap(row as Map<String, dynamic>))
-        .toList();
+    return (rows as List).map((row) => AuditLogModel.fromMap(row as Map)).toList();
   }
 }

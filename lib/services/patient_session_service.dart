@@ -1,11 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum PatientAccessMode {
-  owner,
-  read,
-  edit,
-  emergencyOnly,
-}
+enum PatientAccessMode { owner, read, edit, emergencyOnly }
 
 class PatientSession {
   final String patientId;
@@ -29,29 +24,26 @@ class PatientSessionService {
 
   static final PatientSessionService instance = PatientSessionService._();
 
-  final ValueNotifier<PatientSession?> notifier = ValueNotifier<PatientSession?>(null);
+  final ValueNotifier<PatientSession?> notifier = ValueNotifier(null);
 
   PatientSession? get current => notifier.value;
+
+  bool get hasSession => notifier.value != null;
 
   void setSession({
     required String patientId,
     String? patientName,
     String? permission,
   }) {
-    final mode = _modeFromPermission(permission);
     notifier.value = PatientSession(
       patientId: patientId,
       patientName: patientName,
       permission: permission,
-      mode: mode,
+      mode: _modeFromPermission(permission),
     );
   }
 
-  void clear() {
-    notifier.value = null;
-  }
-
-  bool get hasSession => notifier.value != null;
+  void clear() => notifier.value = null;
 
   PatientAccessMode _modeFromPermission(String? permission) {
     final p = permission?.toLowerCase().trim();

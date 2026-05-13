@@ -1,15 +1,28 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class PatientIdentity {
+class ResolvedIdentity {
   final String appUserId;
-  final String patientId;
+  final String? role;
+  final String? patientProfileId;
+  final String? caregiverProfileId;
+  final String? guardianProfileId;
+  final String? clinicianProfileId;
   final String? sex;
 
-  const PatientIdentity({
+  const ResolvedIdentity({
     required this.appUserId,
-    required this.patientId,
+    this.role,
+    this.patientProfileId,
+    this.caregiverProfileId,
+    this.guardianProfileId,
+    this.clinicianProfileId,
     this.sex,
   });
+
+  bool get hasPatientProfile => patientProfileId != null;
+  bool get hasCaregiverProfile => caregiverProfileId != null;
+  bool get hasGuardianProfile => guardianProfileId != null;
+  bool get hasClinicianProfile => clinicianProfileId != null;
 }
 
 class PatientService {
@@ -18,7 +31,6 @@ class PatientService {
   Future<Map<String, dynamic>?> fetchCurrentAppUserRow() async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
-
     return _supabase
         .from('users')
         .select()
@@ -26,17 +38,12 @@ class PatientService {
         .maybeSingle();
   }
 
-  Future<String?> ensureAppUserId({
-    String? fullName,
-    String? phone,
-  }) async {
+  Future<String?> ensureAppUserId({String? fullName, String? phone}) async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
 
     final existing = await fetchCurrentAppUserRow();
-    if (existing != null) {
-      return existing['id']?.toString();
-    }
+    if (existing != null) return existing['id']?.toString();
 
     final resolvedName = (fullName ??
         authUser.userMetadata?['full_name']?.toString() ??
@@ -56,7 +63,7 @@ class PatientService {
         'role': 'owner',
       }).select('id').single();
 
-      return inserted['id'] as String;
+      return inserted['id']?.toString();
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         final retry = await fetchCurrentAppUserRow();
@@ -66,117 +73,98 @@ class PatientService {
     }
   }
 
-  Future<String?> getAppUserId() async => ensureAppUserId();
+  Future<ResolvedIdentity?> resolveIdentity() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return null;
 
-  Future<String?> getCurrentRole() async {
-    final row = await fetchCurrentAppUserRow();
-    return row?['role']?.toString();
+    final userRow = await fetchCurrentAppUserRow();
+    final patientRow = await _supabase
+        .from('patient_profiles')
+        .select('id, sex')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    final caregiverRow = await _supabase
+        .from('caregiver_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    final guardianRow = await _supabase
+        .from('guardian_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    final clinicianRow = await _supabase
+        .from('clinician_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return ResolvedIdentity(
+      appUserId: appUserId,
+      role: userRow?['role']?.toString(),
+      patientProfileId: patientRow?['id']?.toString(),
+      caregiverProfileId: caregiverRow?['id']?.toString(),
+      guardianProfileId: guardianRow?['id']?.toString(),
+      clinicianProfileId: clinicianRow?['id']?.toString(),
+      sex: patientRow?['sex']?.toString(),
+    );
   }
 
   Future<bool> hasPatientProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
-
-    final row = await _supabase
-        .from('patient_profiles')
-        .select('id')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
+    final row = await _supabase.from('patient_profiles').select('id').eq('user_id', appUserId).maybeSingle();
     return row != null;
   }
 
   Future<bool> hasCaregiverProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
-
-    final row = await _supabase
-        .from('caregiver_profiles')
-        .select('id')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
+    final row = await _supabase.from('caregiver_profiles').select('id').eq('user_id', appUserId).maybeSingle();
     return row != null;
   }
 
   Future<bool> hasGuardianProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
-
-    final row = await _supabase
-        .from('guardian_profiles')
-        .select('id')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
+    final row = await _supabase.from('guardian_profiles').select('id').eq('user_id', appUserId).maybeSingle();
     return row != null;
   }
 
   Future<bool> hasClinicianProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
-
-    final row = await _supabase
-        .from('clinician_profiles')
-        .select('id')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
+    final row = await _supabase.from('clinician_profiles').select('id').eq('user_id', appUserId).maybeSingle();
     return row != null;
   }
 
-  Future<bool> hasAnyAccessGrant() async {
+  Future<bool> hasAnyAccessGrant(String patientId) async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
 
     final rows = await _supabase
         .from('access_grants')
-        .select('status, expires_at, grantee_user_id')
+        .select('id, status, expires_at, grantee_user_id')
+        .eq('patient_id', patientId)
         .eq('grantee_user_id', appUserId);
 
     final now = DateTime.now();
     for (final raw in rows as List) {
       final row = raw as Map;
       if (row['status']?.toString() != 'active') continue;
-      final expiresRaw = row['expires_at'];
-      if (expiresRaw == null) return true;
-      final expiresAt = DateTime.tryParse(expiresRaw.toString());
-      if (expiresAt == null || expiresAt.isAfter(now)) return true;
+      final expires = DateTime.tryParse(row['expires_at']?.toString() ?? '');
+      if (expires == null || expires.isAfter(now)) return true;
     }
     return false;
-  }
-
-  Future<PatientIdentity?> resolveIdentity() async {
-    final appUserId = await ensureAppUserId();
-    if (appUserId == null) return null;
-
-    final profileRow = await _supabase
-        .from('patient_profiles')
-        .select('id, sex')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
-    if (profileRow == null) return null;
-
-    return PatientIdentity(
-      appUserId: appUserId,
-      patientId: profileRow['id'] as String,
-      sex: profileRow['sex'] as String?,
-    );
-  }
-
-  Future<Map<String, dynamic>?> fetchPatientProfile(String patientId) async {
-    return _supabase.from('patient_profiles').select().eq('id', patientId).maybeSingle();
   }
 
   Future<Map<String, dynamic>?> fetchPatientSummary(String patientId) async {
     return _supabase
         .from('patient_profiles_enriched')
-        .select(
-      'id, first_name, family_name, sex, age_years, blood_type, '
-          'address_country, address_governorate, address_city, '
-          'emergency_contact_name, emergency_contact_phone',
-    )
+        .select('id, user_id, legal_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at')
         .eq('id', patientId)
         .maybeSingle();
   }
@@ -184,7 +172,7 @@ class PatientService {
   Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
     return _supabase
         .from('patient_emergency_summary')
-        .select()
+        .select('*')
         .eq('patient_id', patientId)
         .maybeSingle();
   }

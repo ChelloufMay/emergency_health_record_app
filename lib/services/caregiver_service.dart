@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../models/caregiver_permission_model.dart';
 import 'audit_service.dart';
 import 'patient_service.dart';
@@ -9,22 +8,16 @@ class CaregiverService {
   final AuditService _audit = AuditService();
   final PatientService _patientService = PatientService();
 
-  /// Owner-side: fetch permissions for a specific patient.
-  Future<List<CaregiverPermissionModel>> fetchPermissions(
-      String patientId,
-      ) async {
+  Future<List<CaregiverPermissionModel>> fetchPermissions(String patientId) async {
     final rows = await _supabase
         .from('caregiver_permissions')
         .select()
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map((r) => CaregiverPermissionModel.fromMap(r as Map<String, dynamic>))
-        .toList();
+    return (rows as List).map((r) => CaregiverPermissionModel.fromMap(r as Map)).toList();
   }
 
-  /// Caregiver-side: fetch permissions that belong to the currently logged-in caregiver.
   Future<List<CaregiverPermissionModel>> fetchMyPermissions() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return [];
@@ -35,21 +28,13 @@ class CaregiverService {
         .eq('caregiver_user_id', appUserId)
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map((r) => CaregiverPermissionModel.fromMap(r as Map<String, dynamic>))
-        .toList();
+    return (rows as List).map((r) => CaregiverPermissionModel.fromMap(r as Map)).toList();
   }
 
-  /// Handy for the caregiver dashboard so you can show the patient's name
-  /// instead of only the patient UUID.
   Future<Map<String, dynamic>?> fetchPatientSummary(String patientId) async {
     return _supabase
         .from('patient_profiles_enriched')
-        .select(
-      'id, first_name, family_name, sex, age_years, blood_type, '
-          'address_country, address_governorate, address_city, '
-          'emergency_contact_name, emergency_contact_phone',
-    )
+        .select('id, first_name, family_name, sex, age_years, blood_type, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone')
         .eq('id', patientId)
         .maybeSingle();
   }
@@ -58,15 +43,7 @@ class CaregiverService {
     final trimmed = email.trim();
     if (trimmed.isEmpty) return null;
 
-    // Important:
-    // Do not query public.users directly here.
-    // RLS only allows a user to read their own row, so looking up another
-    // person's email from the client will fail even when that account exists.
-    final result = await _supabase.rpc(
-      'find_user_id_by_email',
-      params: {'_email': trimmed},
-    );
-
+    final result = await _supabase.rpc('find_user_id_by_email', params: {'_email': trimmed});
     if (result == null) return null;
     return result.toString();
   }
@@ -75,12 +52,7 @@ class CaregiverService {
     required CaregiverPermissionModel permission,
     required String performedByUserId,
   }) async {
-    final inserted = await _supabase
-        .from('caregiver_permissions')
-        .insert(permission.toInsertMap())
-        .select('id')
-        .single();
-
+    final inserted = await _supabase.from('caregiver_permissions').insert(permission.toInsertMap()).select('id').single();
     final newId = inserted['id'] as String;
 
     await _audit.log(
@@ -104,10 +76,7 @@ class CaregiverService {
       throw Exception('Cannot update a caregiver permission without an id.');
     }
 
-    await _supabase
-        .from('caregiver_permissions')
-        .update(permission.toUpdateMap())
-        .eq('id', permission.id!);
+    await _supabase.from('caregiver_permissions').update(permission.toUpdateMap()).eq('id', permission.id!);
 
     await _audit.log(
       patientId: permission.patientId,
@@ -125,10 +94,7 @@ class CaregiverService {
     required String patientId,
     required String performedByUserId,
   }) async {
-    await _supabase
-        .from('caregiver_permissions')
-        .update({'status': 'revoked'})
-        .eq('id', id);
+    await _supabase.from('caregiver_permissions').update({'status': 'revoked'}).eq('id', id);
 
     await _audit.log(
       patientId: patientId,

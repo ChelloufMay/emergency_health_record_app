@@ -1,5 +1,7 @@
+import 'model_utils.dart';
+
 class ClinicianProfileModel {
-  final String id;
+  final String? id;
   final String userId;
   final String fullName;
   final String? phone;
@@ -15,7 +17,7 @@ class ClinicianProfileModel {
   final DateTime? updatedAt;
 
   const ClinicianProfileModel({
-    required this.id,
+    this.id,
     required this.userId,
     required this.fullName,
     this.phone,
@@ -24,29 +26,45 @@ class ClinicianProfileModel {
     this.specialization,
     this.facilityName,
     this.workPhone,
-    required this.isVerified,
+    this.isVerified = false,
     this.verificationNote,
     this.notes,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory ClinicianProfileModel.fromJson(Map<String, dynamic> json) {
+  factory ClinicianProfileModel.fromMap(Map map) {
     return ClinicianProfileModel(
-      id: json['id']?.toString() ?? '',
-      userId: json['user_id']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? '',
-      phone: json['phone']?.toString(),
-      addressId: json['address_id']?.toString(),
-      licenseNumber: json['license_number']?.toString(),
-      specialization: json['specialization']?.toString(),
-      facilityName: json['facility_name']?.toString(),
-      workPhone: json['work_phone']?.toString(),
-      isVerified: json['is_verified'] == true,
-      verificationNote: json['verification_note']?.toString(),
-      notes: json['notes']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      id: map['id']?.toString(),
+      userId: map['user_id']?.toString() ?? '',
+      fullName: map['full_name']?.toString() ?? '',
+      phone: map['phone']?.toString(),
+      addressId: map['address_id']?.toString(),
+      licenseNumber: map['license_number']?.toString(),
+      specialization: map['specialization']?.toString(),
+      facilityName: map['facility_name']?.toString(),
+      workPhone: map['work_phone']?.toString(),
+      isVerified: asBool(map['is_verified']) ?? false,
+      verificationNote: map['verification_note']?.toString(),
+      notes: map['notes']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
+
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'user_id': userId,
+    'full_name': fullName,
+    'phone': phone,
+    'address_id': addressId,
+    'license_number': licenseNumber,
+    'specialization': specialization,
+    'facility_name': facilityName,
+    'work_phone': workPhone,
+    'is_verified': isVerified,
+    'verification_note': verificationNote,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toUpdateMap() => toInsertMap();
 }

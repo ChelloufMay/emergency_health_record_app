@@ -1,8 +1,10 @@
+import 'model_utils.dart';
+
 class AuditLogModel {
-  final String id;
+  final String? id;
   final String patientId;
   final String? performedByUserId;
-  final String action; // create, update, delete, view, break_glass
+  final String action;
   final String entityType;
   final String? entityId;
   final String? fieldName;
@@ -12,10 +14,10 @@ class AuditLogModel {
   final String? ipAddress;
   final String? breakGlassReason;
   final String? eventHash;
-  final DateTime timestamp;
+  final DateTime? timestamp;
 
-  AuditLogModel({
-    required this.id,
+  const AuditLogModel({
+    this.id,
     required this.patientId,
     this.performedByUserId,
     required this.action,
@@ -28,12 +30,12 @@ class AuditLogModel {
     this.ipAddress,
     this.breakGlassReason,
     this.eventHash,
-    required this.timestamp,
+    this.timestamp,
   });
 
-  factory AuditLogModel.fromMap(Map<String, dynamic> map) {
+  factory AuditLogModel.fromMap(Map map) {
     return AuditLogModel(
-      id: map['id']?.toString() ?? '',
+      id: map['id']?.toString(),
       patientId: map['patient_id']?.toString() ?? '',
       performedByUserId: map['performed_by_user_id']?.toString(),
       action: map['action']?.toString() ?? 'view',
@@ -46,30 +48,22 @@ class AuditLogModel {
       ipAddress: map['ip_address']?.toString(),
       breakGlassReason: map['break_glass_reason']?.toString(),
       eventHash: map['event_hash']?.toString(),
-      timestamp: map['timestamp'] != null
-          ? DateTime.tryParse(map['timestamp'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      timestamp: asDateTime(map['timestamp']),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      // DB fills id automatically.
-      'patient_id': patientId,
-      'performed_by_user_id': performedByUserId,
-      'action': action,
-      'entity_type': entityType,
-      'entity_id': entityId,
-      'field_name': fieldName,
-      'old_value': oldValue,
-      'new_value': newValue,
-      'device_id': deviceId,
-      'ip_address': ipAddress,
-      'break_glass_reason': breakGlassReason,
-      'event_hash': eventHash,
-
-      // Keep the timestamp explicit in case you ever want to import or replay logs.
-      'timestamp': timestamp.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toMap() => cleanMap({
+    'patient_id': patientId,
+    'performed_by_user_id': performedByUserId,
+    'action': action,
+    'entity_type': entityType,
+    'entity_id': entityId,
+    'field_name': fieldName,
+    'old_value': oldValue,
+    'new_value': newValue,
+    'device_id': deviceId,
+    'ip_address': ipAddress,
+    'break_glass_reason': breakGlassReason,
+    'event_hash': eventHash,
+  });
 }

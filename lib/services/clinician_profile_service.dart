@@ -1,47 +1,36 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/clinician_profile_model.dart';
+import 'patient_service.dart';
 
 class ClinicianProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final PatientService _patientService = PatientService();
 
-  Future<Map<String, dynamic>?> fetchMyProfile(String userId) async {
-    return _supabase
-        .from('clinician_profiles')
-        .select()
-        .eq('user_id', userId)
-        .maybeSingle();
+  Future<ClinicianProfileModel?> fetchMine() async {
+    final appUserId = await _patientService.ensureAppUserId();
+    if (appUserId == null) return null;
+
+    final row = await _supabase.from('clinician_profiles').select().eq('user_id', appUserId).maybeSingle();
+    if (row == null) return null;
+    return ClinicianProfileModel.fromMap(row);
   }
 
-  Future<Map<String, dynamic>> saveMyProfile({
-    required String userId,
-    required String fullName,
-    String? phone,
-    String? addressId,
-    String? licenseNumber,
-    String? specialization,
-    String? facilityName,
-    String? workPhone,
-    bool isVerified = false,
-    String? verificationNote,
-    String? notes,
-  }) async {
-    final payload = <String, dynamic>{
-      'user_id': userId,
-      'full_name': fullName.trim(),
-      'phone': phone?.trim().isEmpty == true ? null : phone?.trim(),
-      'address_id': addressId?.trim().isEmpty == true ? null : addressId?.trim(),
-      'license_number': licenseNumber?.trim().isEmpty == true ? null : licenseNumber?.trim(),
-      'specialization': specialization?.trim().isEmpty == true ? null : specialization?.trim(),
-      'facility_name': facilityName?.trim().isEmpty == true ? null : facilityName?.trim(),
-      'work_phone': workPhone?.trim().isEmpty == true ? null : workPhone?.trim(),
-      'is_verified': isVerified,
-      'verification_note': verificationNote?.trim().isEmpty == true ? null : verificationNote?.trim(),
-      'notes': notes?.trim().isEmpty == true ? null : notes?.trim(),
-    };
+  Future<String> saveMine(ClinicianProfileModel model) async {
+    final appUserId = await _patientService.ensureAppUserId();
+    if (appUserId == null) throw Exception('Not authenticated');
 
-    return _supabase
-        .from('clinician_profiles')
-        .upsert(payload, onConflict: 'user_id')
-        .select()
-        .single();
+    await _supabase.from('clinician_profiles').upsert({
+      ...model.toInsertMap(),
+      'user_id': appUserId,
+    }, onConflict: 'user_id');
+
+    final row = await _supabase.from('clinician_profiles').select('id').eq('user_id', appUserId).single();
+    return row['id'].toString();
+  }
+
+  Future<void> deleteMine() async {
+    final appUserId = await _patientService.ensureAppUserId();
+    if (appUserId == null) return;
+    await _supabase.from('clinician_profiles').delete().eq('user_id', appUserId);
   }
 }
