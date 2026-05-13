@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 
-import '../models/allergy_model.dart';
-import '../models/medication_model.dart';
-import '../services/allergy_service.dart';
-import '../services/medication_service.dart';
+import 'package:flutter/material.dart';
+import '../services/emergency_payload_service.dart';
 import '../services/patient_service.dart';
+import '../services/patient_session_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -15,183 +13,119 @@ class EmergencyScreen extends StatefulWidget {
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  final _patientService = PatientService();
-  final _allergyService = AllergyService();
-  final _medicationService = MedicationService();
-  final _supabase = Supabase.instance.client;
+  final PatientService _patientService = PatientService();
 
   bool _loading = true;
-  String? _name;
-  String? _dob;
-  String? _age;
-  String? _bloodType;
-  String? _emergencyContact;
-  String? _addressSummary;
-  List<AllergyModel> _allergies = [];
-  List<MedicationModel> _medications = [];
+  Map<String, dynamic>? _data;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  String? _formatDobAndAge(DateTime? dob) {
-    if (dob == null) return null;
-    final today = DateTime.now();
-    var age = today.year - dob.year;
-    if (today.month < dob.month ||
-        (today.month == dob.month && today.day < dob.day)) {
-      age--;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loading) {
+      _load();
     }
-    return age.toString();
   }
 
-  String _formatDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+  String _joinParts(List<dynamic> values) {
+    return values.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).join(' • ');
   }
 
-  String? _buildAddressSummary(Map<String, dynamic>? row) {
-    if (row == null) return null;
-
-    final parts = <String>[
-      row['country']?.toString().trim() ?? '',
-      row['governorate']?.toString().trim() ?? '',
-      row['city']?.toString().trim() ?? '',
-      row['avenue']?.toString().trim() ?? '',
-      row['street']?.toString().trim() ?? '',
-      row['postal_code']?.toString().trim() ?? '',
-      row['extra_details']?.toString().trim() ?? '',
-    ].where((part) => part.isNotEmpty).toList();
-
-    if (parts.isEmpty) return null;
-    return parts.join(' • ');
+  String? _fromListOrText(dynamic value) {
+    if (value == null) return null;
+    if (value is List) {
+      final parts = value.map((e) {
+        if (e is Map) {
+          return e['allergen_name']?.toString() ??
+              e['medication_name']?.toString() ??
+              e['condition_name']?.toString() ??
+              e.toString();
+        }
+        return e.toString();
+      }).where((e) => e.trim().isNotEmpty).toList();
+      if (parts.isEmpty) return null;
+      return parts.join('\n');
+    }
+    return value.toString();
   }
 
   Future<void> _load() async {
-    final identity = await _patientService.resolveIdentity();
-    if (identity == null) {
-      if (mounted) setState(() => _loading = false);
-      return;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    Map<String, dynamic>? payload;
+
+    if (args is Map && args['payload'] != null) {
+      payload = EmergencyPayloadService.decodePayload(args['payload'].toString());
     }
 
-    final row = await _patientService.fetchPatientProfile(identity.patientId);
+    if (payload == null) {
+      final session = PatientSessionService.instance.current;
+      final identity = await _patientService.resolveIdentity();
+      final patientId = session?.patientId ?? identity?.patientId;
 
-    if (row != null) {
-      _name = '${row['first_name'] ?? ''} ${row['family_name'] ?? ''}'.trim();
-
-      final dobRaw = row['date_of_birth']?.toString();
-      final dob = dobRaw == null || dobRaw.isEmpty
-          ? null
-          : DateTime.tryParse(dobRaw);
-
-      _dob = dob == null ? null : _formatDate(dob);
-      _age = _formatDobAndAge(dob);
-
-      _bloodType = row['blood_type']?.toString();
-      _emergencyContact =
-          '${row['emergency_contact_name'] ?? ''} ${row['emergency_contact_phone'] ?? ''}'
-              .trim();
-
-      // Address is stored separately in public.addresses, so load it explicitly.
-      final addressId = row['address_id']?.toString();
-      if (addressId != null && addressId.isNotEmpty) {
-        final addressRow = await _supabase
-            .from('addresses')
-            .select()
-            .eq('id', addressId)
-            .maybeSingle();
-
-        _addressSummary = _buildAddressSummary(addressRow);
+      if (patientId != null) {
+        payload = await _patientService.fetchEmergencySummary(patientId);
       }
     }
 
-    _allergies = await _allergyService.fetchAllergies(identity.patientId);
-    _medications = await _medicationService.fetchMedications(identity.patientId);
-
-    if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    setState(() {
+      _data = payload;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final data = _data;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Emergency view')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : data == null
+          ? const Center(child: Text('No emergency data available'))
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            _name ?? 'Unknown',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            '${data['first_name'] ?? ''} ${data['family_name'] ?? ''}'.trim().isEmpty
+                ? 'Unknown'
+                : '${data['first_name'] ?? ''} ${data['family_name'] ?? ''}'.trim(),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text('DOB: ${_dob ?? '-'}'),
-          Text('Age: ${_age ?? '-'}'),
-          Text('Blood type: ${_bloodType ?? '-'}'),
+          Text('Age: ${data['age_years'] ?? '-'}'),
+          Text('Sex: ${data['sex'] ?? '-'}'),
+          Text('Blood type: ${data['blood_type'] ?? '-'}'),
           const SizedBox(height: 12),
           Text(
-            'Address: ${_addressSummary ?? '-'}',
+            'Address: ${_joinParts([
+              data['address_country'],
+              data['address_governorate'],
+              data['address_city'],
+            ])}',
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Allergies',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const Text('Allergies', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(_fromListOrText(data['allergies']) ?? 'No allergies recorded'),
+          const SizedBox(height: 20),
+          const Text('Medications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(_fromListOrText(data['medications']) ?? 'No medications recorded'),
+          const SizedBox(height: 20),
+          const Text('Chronic conditions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(_fromListOrText(data['chronic_conditions']) ?? 'No chronic conditions recorded'),
+          const SizedBox(height: 20),
+          const Text('Emergency contact', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(
+            [
+              data['emergency_contact_name'],
+              data['emergency_contact_phone'],
+            ].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • '),
           ),
-          if (_allergies.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('No allergies recorded'),
-            )
-          else
-            ..._allergies.map(
-                  (a) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(a.allergenName),
-                subtitle: Text(
-                  [
-                    if ((a.reaction ?? '').trim().isNotEmpty) a.reaction!,
-                    if ((a.severity ?? '').trim().isNotEmpty) a.severity!,
-                  ].join(' • '),
-                ),
-              ),
-            ),
-          const SizedBox(height: 12),
-          const Text(
-            'Medications',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          if (_medications.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('No medications recorded'),
-            )
-          else
-            ..._medications.map(
-                  (m) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(m.medicationName),
-                subtitle: Text(
-                  [
-                    if ((m.dosage ?? '').trim().isNotEmpty) m.dosage!,
-                    if ((m.frequency ?? '').trim().isNotEmpty) m.frequency!,
-                  ].join(' • '),
-                ),
-              ),
-            ),
-          const SizedBox(height: 12),
-          const Text(
-            'Emergency contact',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          Text(_emergencyContact ?? '-'),
         ],
       ),
     );

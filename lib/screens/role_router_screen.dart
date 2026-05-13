@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../services/patient_service.dart';
 import 'caregiver_choice_screen.dart';
 import 'home_screen.dart';
@@ -15,62 +14,77 @@ class RoleRouterScreen extends StatefulWidget {
 
 class _RoleRouterScreenState extends State<RoleRouterScreen> {
   final PatientService _patientService = PatientService();
-
-  late Future<bool> _hasCaregiverAccessFuture;
+  late Future<_RouterDecision> _decisionFuture;
 
   @override
   void initState() {
     super.initState();
+    _decisionFuture = _decide();
+  }
 
-    // Check if this logged-in user has caregiver permissions.
-    _hasCaregiverAccessFuture =
-        _patientService.hasCaregiverPermissions();
+  Future<_RouterDecision> _decide() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) return _RouterDecision.login();
+
+    final hasPatient = await _patientService.hasPatientProfile();
+    final hasCaregiver = await _patientService.hasCaregiverProfile();
+    final hasGuardian = await _patientService.hasGuardianProfile();
+    final hasClinician = await _patientService.hasClinicianProfile();
+    final hasAccess = await _patientService.hasAnyAccessGrant();
+
+    final hasMultiplePersonas =
+    [hasCaregiver, hasGuardian, hasClinician, hasAccess].contains(true);
+
+    if (hasMultiplePersonas) {
+      return _RouterDecision.personaChoice();
+    }
+
+    if (hasPatient) {
+      return _RouterDecision.home();
+    }
+
+    return _RouterDecision.home();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _hasCaregiverAccessFuture,
+    return FutureBuilder<_RouterDecision>(
+      future: _decisionFuture,
       builder: (context, snapshot) {
-        // Loading state
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // If something fails, safely go to home.
         if (snapshot.hasError) {
           return const HomeScreen();
         }
 
-        // IMPORTANT:
-        // Never access _patientService._supabase here.
-        // _supabase is private inside PatientService.
-        final session =
-            Supabase.instance.client.auth.currentSession;
+        final decision = snapshot.data ?? _RouterDecision.home();
 
-        // No session -> login
-        if (session == null) {
+        if (decision.type == _RouterDecisionType.login) {
           return const LoginScreen();
         }
 
-        final hasCaregiverAccess = snapshot.data ?? false;
-
-        // If the user is also a caregiver,
-        // allow them to choose between:
-        // 1. Their normal patient account
-        // 2. Their caregiver profile
-        // 3. Their caregiver dashboard
-        if (hasCaregiverAccess) {
+        if (decision.type == _RouterDecisionType.personaChoice) {
           return const CaregiverChoiceScreen();
         }
 
-        // Normal user account
         return const HomeScreen();
       },
     );
   }
+}
+
+enum _RouterDecisionType { login, home, personaChoice }
+
+class _RouterDecision {
+  final _RouterDecisionType type;
+  const _RouterDecision(this.type);
+
+  factory _RouterDecision.login() => const _RouterDecision(_RouterDecisionType.login);
+  factory _RouterDecision.home() => const _RouterDecision(_RouterDecisionType.home);
+  factory _RouterDecision.personaChoice() =>
+      const _RouterDecision(_RouterDecisionType.personaChoice);
 }

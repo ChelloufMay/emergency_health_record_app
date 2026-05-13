@@ -15,7 +15,6 @@ class PatientIdentity {
 class PatientService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Returns the current row in public.users for the logged-in auth account.
   Future<Map<String, dynamic>?> fetchCurrentAppUserRow() async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
@@ -27,7 +26,6 @@ class PatientService {
         .maybeSingle();
   }
 
-  /// Returns the current app user id, creating a fallback row only if needed.
   Future<String?> ensureAppUserId({
     String? fullName,
     String? phone,
@@ -37,7 +35,7 @@ class PatientService {
 
     final existing = await fetchCurrentAppUserRow();
     if (existing != null) {
-      return existing['id'] as String;
+      return existing['id']?.toString();
     }
 
     final resolvedName = (fullName ??
@@ -50,14 +48,11 @@ class PatientService {
     final resolvedPhone = phone?.trim();
 
     try {
-      // The database trigger normally creates this row automatically.
-      // This insert is only a fallback.
       final inserted = await _supabase.from('users').insert({
         'auth_user_id': authUser.id,
         'full_name': resolvedName.isEmpty ? 'User' : resolvedName,
         'email': authUser.email,
-        if (resolvedPhone != null && resolvedPhone.isNotEmpty)
-          'phone': resolvedPhone,
+        if (resolvedPhone != null && resolvedPhone.isNotEmpty) 'phone': resolvedPhone,
         'role': 'owner',
       }).select('id').single();
 
@@ -65,32 +60,30 @@ class PatientService {
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         final retry = await fetchCurrentAppUserRow();
-        return retry?['id'] as String?;
+        return retry?['id']?.toString();
       }
       rethrow;
     }
   }
 
-  Future<String?> getAppUserId() async {
-    return ensureAppUserId();
-  }
+  Future<String?> getAppUserId() async => ensureAppUserId();
 
   Future<String?> getCurrentRole() async {
     final row = await fetchCurrentAppUserRow();
     return row?['role']?.toString();
   }
 
-  /// A caregiver account is any signed-in user who either:
-  /// - already has a caregiver profile row, or
-  /// - already has at least one caregiver permission row.
-  ///
-  /// This is better than relying on public.users.role because the DB trigger
-  /// currently creates new users as role = owner.
-  Future<bool> isCaregiverAccount() async {
-    final hasProfile = await hasCaregiverProfile();
-    if (hasProfile) return true;
+  Future<bool> hasPatientProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
 
-    return hasCaregiverPermissions();
+    final row = await _supabase
+        .from('patient_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
   }
 
   Future<bool> hasCaregiverProfile() async {
@@ -106,34 +99,50 @@ class PatientService {
     return row != null;
   }
 
-  /// Returns true when the signed-in user has at least one active caregiver permission.
-  /// Active means:
-  /// - status = active
-  /// - and expires_at is null or still in the future
-  Future<bool> hasCaregiverPermissions() async {
+  Future<bool> hasGuardianProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('guardian_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> hasClinicianProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('clinician_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> hasAnyAccessGrant() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
 
     final rows = await _supabase
-        .from('caregiver_permissions')
-        .select('status, expires_at')
-        .eq('caregiver_user_id', appUserId);
+        .from('access_grants')
+        .select('status, expires_at, grantee_user_id')
+        .eq('grantee_user_id', appUserId);
 
     final now = DateTime.now();
-
     for (final raw in rows as List) {
-      final row = raw as Map<String, dynamic>;
+      final row = raw as Map;
       if (row['status']?.toString() != 'active') continue;
-
       final expiresRaw = row['expires_at'];
       if (expiresRaw == null) return true;
-
       final expiresAt = DateTime.tryParse(expiresRaw.toString());
-      if (expiresAt == null || expiresAt.isAfter(now)) {
-        return true;
-      }
+      if (expiresAt == null || expiresAt.isAfter(now)) return true;
     }
-
     return false;
   }
 
@@ -156,25 +165,8 @@ class PatientService {
     );
   }
 
-  Future<bool> hasPatientProfile() async {
-    final appUserId = await ensureAppUserId();
-    if (appUserId == null) return false;
-
-    final row = await _supabase
-        .from('patient_profiles')
-        .select('id')
-        .eq('user_id', appUserId)
-        .maybeSingle();
-
-    return row != null;
-  }
-
   Future<Map<String, dynamic>?> fetchPatientProfile(String patientId) async {
-    return _supabase
-        .from('patient_profiles')
-        .select()
-        .eq('id', patientId)
-        .maybeSingle();
+    return _supabase.from('patient_profiles').select().eq('id', patientId).maybeSingle();
   }
 
   Future<Map<String, dynamic>?> fetchPatientSummary(String patientId) async {
@@ -186,6 +178,14 @@ class PatientService {
           'emergency_contact_name, emergency_contact_phone',
     )
         .eq('id', patientId)
+        .maybeSingle();
+  }
+
+  Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
+    return _supabase
+        .from('patient_emergency_summary')
+        .select()
+        .eq('patient_id', patientId)
         .maybeSingle();
   }
 }

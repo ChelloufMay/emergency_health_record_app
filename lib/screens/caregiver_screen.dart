@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../models/caregiver_permission_model.dart';
-import '../services/caregiver_service.dart';
+import '../services/access_service.dart';
 import '../services/patient_service.dart';
 
 class CaregiverScreen extends StatefulWidget {
@@ -13,14 +10,20 @@ class CaregiverScreen extends StatefulWidget {
 }
 
 class _CaregiverScreenState extends State<CaregiverScreen> {
-  final _service = CaregiverService();
-  final _patientService = PatientService();
-  final _supabase = Supabase.instance.client;
+  final PatientService _patientService = PatientService();
+  final AccessService _accessService = AccessService();
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
 
   bool _loading = true;
+  bool _sending = false;
   String? _patientId;
-  String? _userId;
-  List<CaregiverPermissionModel> _permissions = [];
+  List<Map<String, dynamic>> _invites = [];
+  List<Map<String, dynamic>> _grants = [];
+
+  String _selectedRole = 'caregiver';
+  String _selectedPermission = 'read';
 
   @override
   void initState() {
@@ -28,230 +31,145 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
     _load();
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     final identity = await _patientService.resolveIdentity();
     if (identity == null) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
-    _patientId = identity.patientId;
-    _userId = identity.appUserId;
-    _permissions = await _service.fetchPermissions(_patientId!);
-
-    if (mounted) setState(() => _loading = false);
-  }
-
-  Future<void> _addPermission() async {
-    final emailController = TextEditingController();
-    final notesController = TextEditingController();
-    String permission = 'read';
-    DateTime? expiresAt;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Grant caregiver access'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Caregiver email',
-                    hintText: 'Enter the email used to register',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: permission,
-                  items: const [
-                    DropdownMenuItem(value: 'read', child: Text('Read')),
-                    DropdownMenuItem(value: 'edit', child: Text('Edit')),
-                    DropdownMenuItem(
-                      value: 'emergency_only',
-                      child: Text('Emergency only'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    setDialogState(() => permission = v ?? 'read');
-                  },
-                  decoration: const InputDecoration(labelText: 'Permission'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Expires at (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(expiresAt == null
-                          ? 'No expiry'
-                          : _formatDate(expiresAt)),
-                      TextButton(
-                        onPressed: () async {
-                          final now = DateTime.now();
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: now,
-                            firstDate: now,
-                            lastDate: DateTime(now.year + 10),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => expiresAt = picked);
-                          }
-                        },
-                        child: const Text('Choose date'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save != true || _patientId == null || _userId == null) return;
-
-    final email = emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a caregiver email.')),
-      );
-      return;
-    }
-
-    // This uses the secure RPC helper instead of querying public.users directly.
-    // RLS only allows each user to read their own row, so direct lookup by email
-    // is the reason the old code said "No user found with that email".
-    final caregiverUserId = await _service.findUserIdByEmail(email);
-
-    if (caregiverUserId == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No registered user found for "$email". Ask them to sign in once, or verify the email spelling.',
-          ),
-        ),
-      );
+      setState(() => _loading = false);
       return;
     }
 
-    final permissionRow = CaregiverPermissionModel(
-      patientId: _patientId!,
-      caregiverUserId: caregiverUserId,
-      permission: permission,
-      status: 'active',
-      grantedByUserId: _userId,
-      grantedAt: DateTime.now(),
-      expiresAt: expiresAt,
-      notes: notesController.text.trim().isEmpty
-          ? null
-          : notesController.text.trim(),
-    );
+    final invites = await _accessService.fetchPatientInvites(identity.patientId);
+    final grants = await _accessService.fetchPatientGrants(identity.patientId);
 
-    await _service.grantPermission(
-      permission: permissionRow,
-      performedByUserId: _userId!,
-    );
-
-    await _load();
+    if (!mounted) return;
+    setState(() {
+      _patientId = identity.patientId;
+      _invites = invites;
+      _grants = grants;
+      _loading = false;
+    });
   }
 
-  Future<void> _revoke(String id) async {
-    if (_patientId == null || _userId == null) return;
+  Future<void> _sendInvite() async {
+    if (_patientId == null) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
 
-    await _service.revokePermission(
-      id: id,
-      patientId: _patientId!,
-      performedByUserId: _userId!,
-    );
+    setState(() => _sending = true);
+    try {
+      await _accessService.createInvite(
+        patientId: _patientId!,
+        invitedEmail: email,
+        invitedRole: _selectedRole,
+        permission: _selectedPermission,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      );
 
-    await _load();
+      _emailController.clear();
+      _notesController.clear();
+      await _load();
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Caregiver access'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addPermission,
-        child: const Icon(Icons.add),
+        title: const Text('Access management'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _permissions.isEmpty
-          ? const Center(
-        child: Text(
-          'No caregiver permissions yet.\nThis screen is for the patient owner.',
-          textAlign: TextAlign.center,
-        ),
-      )
-          : ListView.builder(
-        itemCount: _permissions.length,
-        itemBuilder: (context, index) {
-          final item = _permissions[index];
-          return Card(
+          : ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Invite caregiver, guardian, or clinician',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: 'Email'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedRole,
+            items: const [
+              DropdownMenuItem(value: 'caregiver', child: Text('Caregiver')),
+              DropdownMenuItem(value: 'guardian', child: Text('Guardian')),
+              DropdownMenuItem(value: 'clinician', child: Text('Clinician')),
+            ],
+            onChanged: (value) => setState(() => _selectedRole = value ?? 'caregiver'),
+            decoration: const InputDecoration(labelText: 'Role'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedPermission,
+            items: const [
+              DropdownMenuItem(value: 'read', child: Text('Read')),
+              DropdownMenuItem(value: 'edit', child: Text('Edit')),
+              DropdownMenuItem(value: 'emergency_only', child: Text('Emergency only')),
+            ],
+            onChanged: (value) => setState(() => _selectedPermission = value ?? 'read'),
+            decoration: const InputDecoration(labelText: 'Permission'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notesController,
+            decoration: const InputDecoration(labelText: 'Notes'),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _sending ? null : _sendInvite,
+            child: Text(_sending ? 'Sending...' : 'Send invite'),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Current grants',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._grants.map((g) => Card(
             child: ListTile(
-              title: Text(
-                item.permission,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: Text('${g['grantee_role'] ?? '-'} • ${g['permission'] ?? '-'}'),
               subtitle: Text(
-                [
-                  'Status: ${item.status}',
-                  'Caregiver user id: ${item.caregiverUserId}',
-                  'Granted at: ${_formatDate(item.grantedAt)}',
-                  'Expires at: ${_formatDate(item.expiresAt)}',
-                  if (item.notes != null && item.notes!.isNotEmpty)
-                    'Notes: ${item.notes}',
-                ].join('\n'),
-              ),
-              isThreeLine: true,
-              trailing: IconButton(
-                icon: const Icon(Icons.block),
-                onPressed: () {
-                  if (item.id != null) {
-                    _revoke(item.id!);
-                  }
-                },
+                'Status: ${g['status'] ?? '-'}\n'
+                    'Expires: ${g['expires_at'] ?? '-'}',
               ),
             ),
-          );
-        },
+          )),
+          const SizedBox(height: 24),
+          const Text(
+            'Pending invites',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._invites.map((i) => Card(
+            child: ListTile(
+              title: Text('${i['invited_role'] ?? '-'} • ${i['invited_email'] ?? '-'}'),
+              subtitle: Text(
+                'Permission: ${i['permission'] ?? '-'}\nStatus: ${i['status'] ?? '-'}',
+              ),
+            ),
+          )),
+        ],
       ),
     );
   }
