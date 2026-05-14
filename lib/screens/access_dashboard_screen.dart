@@ -22,6 +22,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
   }
 
   Future<void> _load() async {
+    setState(() => _loading = true);
     final rows = await _accessService.fetchMyAccessDashboardRows();
     if (!mounted) return;
     setState(() {
@@ -30,21 +31,47 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     });
   }
 
-  void _openPatient(Map<String, dynamic> row) {
-    final patientId = row['patient_id']?.toString();
+  Map<String, List<Map<String, dynamic>>> _groupRowsByPatient() {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final row in _rows) {
+      final patientId = row['patient_id']?.toString();
+      if (patientId == null || patientId.isEmpty) continue;
+      grouped.putIfAbsent(patientId, () => []).add(row);
+    }
+    return grouped;
+  }
+
+  void _openPatient(List<Map<String, dynamic>> rows) {
+    if (rows.isEmpty) return;
+    final first = rows.first;
+    final patientId = first['patient_id']?.toString();
     if (patientId == null || patientId.isEmpty) return;
+
+    final patientName = [
+      first['first_name']?.toString() ?? '',
+      first['family_name']?.toString() ?? '',
+    ].join(' ').trim();
+
+    final permission = first['permission']?.toString();
 
     PatientSessionService.instance.setSession(
       patientId: patientId,
-      patientName: '${row['first_name'] ?? ''} ${row['family_name'] ?? ''}'.trim(),
-      permission: row['permission']?.toString(),
+      patientName: patientName.isEmpty ? null : patientName,
+      permission: permission,
     );
 
-    Navigator.pushNamed(context, '/emergency');
+    final isEmergencyOnly = (permission ?? '').toLowerCase() == 'emergency_only';
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      isEmergencyOnly ? '/emergency' : '/home',
+          (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final grouped = _groupRowsByPatient();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Access dashboard'),
@@ -52,34 +79,89 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _rows.isEmpty
-          ? const Center(child: Text('No active patient access yet'))
+          : grouped.isEmpty
+          ? const Center(
+        child: Text('No active patient access yet.'),
+      )
           : ListView.separated(
         padding: const EdgeInsets.all(16),
-        itemCount: _rows.length,
+        itemCount: grouped.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final row = _rows[index];
-          final name = '${row['first_name'] ?? ''} ${row['family_name'] ?? ''}'.trim();
-          final permission = row['permission']?.toString() ?? '-';
-          final status = row['status']?.toString() ?? '-';
+          final patientId = grouped.keys.elementAt(index);
+          final rows = grouped[patientId] ?? const [];
+          final first = rows.first;
+          final name = [
+            first['first_name']?.toString() ?? '',
+            first['family_name']?.toString() ?? '',
+          ].join(' ').trim();
+
+          final permissions = rows
+              .map((r) => r['permission']?.toString() ?? '-')
+              .toSet()
+              .join(', ');
+          final statuses = rows
+              .map((r) => r['status']?.toString() ?? '-')
+              .toSet()
+              .join(', ');
 
           return Card(
-            child: ListTile(
-              title: Text(name.isEmpty ? 'Unknown patient' : name),
-              subtitle: Text(
-                'Role: ${row['grantee_role'] ?? '-'}\n'
-                    'Permission: $permission\n'
-                    'Status: $status',
-              ),
-              trailing: ElevatedButton(
-                onPressed: () => _openPatient(row),
-                child: const Text('Open'),
+            child: InkWell(
+              onTap: () => _openPatient(rows),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name.isEmpty ? 'Unknown patient' : name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Patient ID: $patientId'),
+                    const SizedBox(height: 4),
+                    Text('Permissions: $permissions'),
+                    const SizedBox(height: 4),
+                    Text('Statuses: $statuses'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: rows.map((row) {
+                        return Chip(
+                          label: Text(
+                            '${row['grantee_role'] ?? '-'} • ${row['permission'] ?? '-'}',
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: () => _openPatient(rows),
+                        child: const Text('Open'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

@@ -43,7 +43,9 @@ class PatientSessionService {
     );
   }
 
-  void clear() => notifier.value = null;
+  Future<void> clear() async {
+    notifier.value = null;
+  }
 
   PatientAccessMode _modeFromPermission(String? permission) {
     final p = permission?.toLowerCase().trim();

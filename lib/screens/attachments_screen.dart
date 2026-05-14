@@ -1,26 +1,31 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/attachment_model.dart';
 import '../services/attachment_service.dart';
-import '../services/patient_service.dart';
+import '../services/patient_session_service.dart';
 
 class AttachmentsScreen extends StatefulWidget {
-  const AttachmentsScreen({super.key});
+  final String? patientId;
+  final bool canEdit;
+  final bool isEmergencyOnly;
+
+  const AttachmentsScreen({
+    super.key,
+    this.patientId,
+    this.canEdit = false,
+    this.isEmergencyOnly = false,
+  });
 
   @override
   State<AttachmentsScreen> createState() => _AttachmentsScreenState();
 }
 
 class _AttachmentsScreenState extends State<AttachmentsScreen> {
-  final _service = AttachmentService();
-  final _patientService = PatientService();
+  final AttachmentService _service = AttachmentService();
 
   bool _loading = true;
   String? _patientId;
-  String? _userId;
-  List<AttachmentModel> _attachments = [];
+  List<AttachmentModel> _items = [];
 
   @override
   void initState() {
@@ -28,272 +33,80 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    final identity = await _patientService.resolveIdentity();
-    if (!mounted) return;
+  String? _resolvePatientId() {
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+  }
 
-    if (identity == null) {
+  Future<void> _load() async {
+    final patientId = _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) {
+      if (!mounted) return;
       setState(() => _loading = false);
       return;
     }
 
-    _patientId = identity.patientId;
-    _userId = identity.appUserId;
-    _attachments = await _service.fetchAttachments(_patientId!);
-
+    final items = await _service.fetchByPatient(patientId);
     if (!mounted) return;
-    setState(() => _loading = false);
+    setState(() {
+      _patientId = patientId;
+      _items = items;
+      _loading = false;
+    });
   }
 
-  Future<void> _openAttachment(AttachmentModel item) async {
-    try {
-      // The signed URL is generated from the storage_path stored in the DB.
-      final signedUrl = await _service.getAttachmentSignedUrl(item.storagePath);
-      final uri = Uri.parse(signedUrl);
+  Future<void> _deleteItem(AttachmentModel item) async {
+    if (!widget.canEdit) return;
+    final patientId = _patientId;
+    if (patientId == null || item.id == null) return;
 
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the file')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open attachment: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _addAttachment() async {
-    final fileNameController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    String fileKind = 'other';
-    PlatformFile? selectedFile;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add attachment'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.any,
-                          withData: true,
-                        );
-
-                        if (result == null || result.files.isEmpty) return;
-
-                        setDialogState(() {
-                          selectedFile = result.files.single;
-                          if (fileNameController.text.trim().isEmpty) {
-                            fileNameController.text = selectedFile!.name;
-                          }
-                        });
-                      },
-                      icon: const Icon(Icons.upload_file),
-                      label: Text(
-                        selectedFile == null ? 'Choose file' : 'Change file',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (selectedFile != null)
-                      Text(
-                        'Selected: ${selectedFile!.name}'
-                            '${selectedFile!.size != 0 ? ' • ${(selectedFile!.size / 1024).toStringAsFixed(1)} KB' : ''}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: fileNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'File name',
-                        hintText: 'Leave as the original file name or change it',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: fileKind,
-                      decoration: const InputDecoration(labelText: 'File kind'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'lab_result',
-                          child: Text('Lab result'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'xray',
-                          child: Text('X-ray'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'scan',
-                          child: Text('Scan'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'pdf',
-                          child: Text('PDF'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'image',
-                          child: Text('Image'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'other',
-                          child: Text('Other'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        setDialogState(() {
-                          fileKind = v ?? 'other';
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        hintText: 'Describe what this file is about',
-                      ),
-                      maxLines: 3,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: selectedFile == null
-                      ? null
-                      : () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    await _service.delete(
+      patientId: patientId,
+      id: item.id!,
+      performedByUserId: 'current',
     );
-
-    if (save != true || _patientId == null || _userId == null) {
-      fileNameController.dispose();
-      descriptionController.dispose();
-      return;
-    }
-
-    try {
-      await _service.uploadAttachment(
-        patientId: _patientId!,
-        uploadedByUserId: _userId!,
-        file: selectedFile!,
-        fileKind: fileKind,
-        fileName: fileNameController.text.trim().isEmpty
-            ? selectedFile!.name
-            : fileNameController.text.trim(),
-        description: descriptionController.text.trim().isEmpty
-            ? null
-            : descriptionController.text.trim(),
-      );
-
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save attachment: $e')),
-        );
-      }
-    } finally {
-      fileNameController.dispose();
-      descriptionController.dispose();
-    }
-  }
-
-  Future<void> _deleteAttachment(AttachmentModel item) async {
-    if (_patientId == null || _userId == null) return;
-
-    try {
-      await _service.deleteAttachment(
-        id: item.id,
-        patientId: item.patientId,
-        performedByUserId: _userId!,
-        fileName: item.fileName,
-        storagePath: item.storagePath,
-      );
-
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete attachment: $e')),
-        );
-      }
-    }
+    await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Attachments')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addAttachment,
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('Attachments'),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _attachments.isEmpty
-          ? const Center(child: Text('No attachments yet'))
-          : ListView.builder(
-        itemCount: _attachments.length,
-        itemBuilder: (context, index) {
-          final item = _attachments[index];
-
-          return Card(
-            child: ListTile(
-              onTap: () => _openAttachment(item),
-              title: Text(item.fileName),
-              subtitle: Text(
-                [
+          : _patientId == null
+          ? const Center(child: Text('No patient selected.'))
+          : RefreshIndicator(
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.attach_file),
+                title: Text(item.fileName),
+                subtitle: Text([
                   'Kind: ${item.fileKind}',
-                  if (item.documentDate != null)
-                    'Document date: ${item.documentDate!.toIso8601String().split('T').first}',
-                  if ((item.description ?? '').trim().isNotEmpty)
-                    'Description: ${item.description}',
-                ].join('\n'),
+                  if ((item.fileType ?? '').isNotEmpty) 'Type: ${item.fileType}',
+                  if (item.documentDate != null) 'Date: ${item.documentDate!.toIso8601String().split('T').first}',
+                  if ((item.description ?? '').isNotEmpty) 'Description: ${item.description}',
+                ].join('\n')),
+                trailing: widget.canEdit
+                    ? IconButton(
+                  onPressed: () => _deleteItem(item),
+                  icon: const Icon(Icons.delete),
+                )
+                    : null,
               ),
-              isThreeLine: true,
-              leading: const Icon(Icons.insert_drive_file_outlined),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.open_in_new),
-                    onPressed: () => _openAttachment(item),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => _deleteAttachment(item),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
+
 import '../models/surgery_model.dart';
-import '../services/patient_service.dart';
 import '../services/surgery_service.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/verification_badge.dart';
+import '../services/patient_session_service.dart';
 
 class SurgeriesScreen extends StatefulWidget {
-  const SurgeriesScreen({super.key});
+  final String? patientId;
+  final bool canEdit;
+  final bool isEmergencyOnly;
+
+  const SurgeriesScreen({
+    super.key,
+    this.patientId,
+    this.canEdit = false,
+    this.isEmergencyOnly = false,
+  });
 
   @override
   State<SurgeriesScreen> createState() => _SurgeriesScreenState();
 }
 
 class _SurgeriesScreenState extends State<SurgeriesScreen> {
-  final _service = SurgeryService();
-  final _patientService = PatientService();
+  final SurgeryService _service = SurgeryService();
 
   bool _loading = true;
   String? _patientId;
-  String? _userId;
   List<SurgeryModel> _items = [];
 
   @override
@@ -27,198 +33,72 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
     _load();
   }
 
-  String _formatDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
+  String? _resolvePatientId() => widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
   Future<void> _load() async {
-    final identity = await _patientService.resolveIdentity();
-    if (identity == null) {
-      if (mounted) setState(() => _loading = false);
+    final patientId = _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
       return;
     }
 
-    _patientId = identity.patientId;
-    _userId = identity.appUserId;
-    _items = await _service.fetchSurgeries(_patientId!);
-
-    if (mounted) setState(() => _loading = false);
-  }
-
-  Future<void> _add() async {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final dateController = TextEditingController();
-    final placeController = TextEditingController();
-    final implantController = TextEditingController();
-    final notesController = TextEditingController();
-
-    DateTime? selectedDate;
-
-    Future<void> pickDate(StateSetter setDialogState) async {
-      final now = DateTime.now();
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: selectedDate ?? now,
-        firstDate: DateTime(1900),
-        lastDate: now,
-      );
-
-      if (picked != null) {
-        selectedDate = picked;
-        dateController.text = _formatDate(picked);
-        setDialogState(() {});
-      }
-    }
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add surgery'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CustomTextField(
-                    controller: nameController,
-                    labelText: 'Surgery name',
-                    validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: dateController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      labelText: 'Date',
-                      hintText: 'Choose from calendar',
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () => pickDate(setDialogState),
-                      ),
-                    ),
-                    validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-                    onTap: () => pickDate(setDialogState),
-                  ),
-                  const SizedBox(height: 12),
-
-                  CustomTextField(
-                    controller: placeController,
-                    labelText: 'Hospital name',
-                  ),
-                  const SizedBox(height: 12),
-
-                  CustomTextField(
-                    controller: implantController,
-                    labelText: 'Prosthetic / implant',
-                  ),
-                  const SizedBox(height: 12),
-
-                  CustomTextField(
-                    controller: notesController,
-                    labelText: 'Notes',
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() != true) return;
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true || _patientId == null || _userId == null || selectedDate == null) {
-      return;
-    }
-
-    final item = SurgeryModel(
-      id: 'temp',
-      patientId: _patientId!,
-      surgeryName: nameController.text.trim(),
-      surgeryDate: selectedDate,
-      place: placeController.text.trim().isEmpty ? null : placeController.text.trim(),
-      prostheticOrImplant:
-      implantController.text.trim().isEmpty ? null : implantController.text.trim(),
-      notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
-      createdAt: DateTime.now(),
-    );
-
-    await _service.saveSurgery(
-      surgery: item,
-      performedByUserId: _userId!,
-    );
-
-    await _load();
+    final items = await _service.fetchByPatient(patientId);
+    if (!mounted) return;
+    setState(() {
+      _patientId = patientId;
+      _items = items;
+      _loading = false;
+    });
   }
 
   Future<void> _deleteItem(SurgeryModel item) async {
-    if (_patientId == null || _userId == null) return;
-
-    await _service.deleteSurgery(
-      id: item.id,
-      patientId: item.patientId,
-      performedByUserId: _userId!,
-      surgeryName: item.surgeryName,
-    );
-
+    if (!widget.canEdit) return;
+    final patientId = _patientId;
+    if (patientId == null || item.id == null) return;
+    await _service.delete(patientId: patientId, id: item.id!, performedByUserId: 'current');
     await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Surgeries')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _add,
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('Surgeries'),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        itemCount: _items.length,
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return Card(
-            child: ListTile(
-              title: Row(
-                children: [
-                  Expanded(child: Text(item.surgeryName)),
-                  const SizedBox(width: 8),
-                  const VerificationBadge(status: 'user_entered'),
-                ],
+          : _patientId == null
+          ? const Center(child: Text('No patient selected.'))
+          : RefreshIndicator(
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                title: Text(item.surgeryName),
+                subtitle: Text([
+                  if (item.surgeryDate != null) 'Date: ${item.surgeryDate!.toIso8601String().split('T').first}',
+                  if ((item.place ?? '').isNotEmpty) 'Place: ${item.place}',
+                  if ((item.prostheticOrImplant ?? '').isNotEmpty) 'Implant: ${item.prostheticOrImplant}',
+                  if ((item.notes ?? '').isNotEmpty) 'Notes: ${item.notes}',
+                ].join('\n')),
+                trailing: widget.canEdit
+                    ? IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _deleteItem(item),
+                )
+                    : null,
               ),
-              subtitle: Text(
-                '${item.surgeryDate != null ? _formatDate(item.surgeryDate!) : '-'}'
-                    '${item.place != null && item.place!.isNotEmpty ? ' • ${item.place}' : ''}',
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _deleteItem(item),
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

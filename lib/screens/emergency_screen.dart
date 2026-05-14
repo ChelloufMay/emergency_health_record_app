@@ -1,12 +1,26 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import '../services/allergy_service.dart';
 import '../services/emergency_payload_service.dart';
+import '../services/medication_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
-  const EmergencyScreen({super.key});
+  final String? patientId;
+  final String? payload;
+  final bool canEdit;
+  final bool isEmergencyOnly;
+
+  const EmergencyScreen({
+    super.key,
+    this.patientId,
+    this.payload,
+    this.canEdit = false,
+    this.isEmergencyOnly = false,
+  });
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
@@ -14,118 +28,148 @@ class EmergencyScreen extends StatefulWidget {
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
   final PatientService _patientService = PatientService();
+  final AllergyService _allergyService = AllergyService();
+  final MedicationService _medicationService = MedicationService();
 
   bool _loading = true;
-  Map<String, dynamic>? _data;
+  String? _patientId;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_loading) {
-      _load();
-    }
-  }
+  Map<String, dynamic>? _summary;
+  List<dynamic> _allergies = [];
+  List<dynamic> _medications = [];
+  List<dynamic> _conditions = [];
 
-  String _joinParts(List<dynamic> values) {
-    return values.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).join(' • ');
-  }
-
-  String? _fromListOrText(dynamic value) {
-    if (value == null) return null;
-    if (value is List) {
-      final parts = value.map((e) {
-        if (e is Map) {
-          return e['allergen_name']?.toString() ??
-              e['medication_name']?.toString() ??
-              e['condition_name']?.toString() ??
-              e.toString();
-        }
-        return e.toString();
-      }).where((e) => e.trim().isNotEmpty).toList();
-      if (parts.isEmpty) return null;
-      return parts.join('\n');
-    }
-    return value.toString();
+  String? _resolvePatientId() {
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   Future<void> _load() async {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    Map<String, dynamic>? payload;
-
-    if (args is Map && args['payload'] != null) {
-      payload = EmergencyPayloadService.decodePayload(args['payload'].toString());
-    }
-
-    if (payload == null) {
-      final session = PatientSessionService.instance.current;
-      final identity = await _patientService.resolveIdentity();
-      final patientId = session?.patientId ?? identity?.patientId;
-
-      if (patientId != null) {
-        payload = await _patientService.fetchEmergencySummary(patientId);
+    final payload = widget.payload;
+    if (payload != null && payload.isNotEmpty) {
+      final decoded = EmergencyPayloadService.decodePayload(payload);
+      if (decoded != null) {
+        final offlineSummary = decoded['offline_summary'];
+        if (offlineSummary is Map) {
+          _summary = offlineSummary.map((key, value) => MapEntry(key.toString(), value));
+        }
+        final patientId = decoded['patient_id']?.toString();
+        _patientId = patientId;
       }
     }
 
+    final patientId = _patientId ?? _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
+
+    _patientId = patientId;
+
+    _summary ??= await _patientService.fetchEmergencySummary(patientId);
+
+    final allergies = await _allergyService.fetchByPatient(patientId);
+    final medications = await _medicationService.fetchByPatient(patientId);
+
     if (!mounted) return;
     setState(() {
-      _data = payload;
+      _allergies = allergies;
+      _medications = medications;
       _loading = false;
     });
   }
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final data = _data;
+    final name = [
+      _summary?['first_name']?.toString() ?? '',
+      _summary?['family_name']?.toString() ?? '',
+    ].join(' ').trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Emergency view')),
+      appBar: AppBar(
+        title: const Text('Emergency view'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : data == null
-          ? const Center(child: Text('No emergency data available'))
+          : _patientId == null
+          ? const Center(child: Text('No emergency payload or active session found.'))
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            '${data['first_name'] ?? ''} ${data['family_name'] ?? ''}'.trim().isEmpty
-                ? 'Unknown'
-                : '${data['first_name'] ?? ''} ${data['family_name'] ?? ''}'.trim(),
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.isEmpty ? 'Unknown patient' : name,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Blood type: ${_summary?['blood_type']?.toString() ?? '-'}'),
+                  Text('Phone: ${_summary?['phone']?.toString() ?? '-'}'),
+                  Text('Emergency contact: ${_summary?['emergency_contact_name']?.toString() ?? '-'}'),
+                  Text('Contact phone: ${_summary?['emergency_contact_phone']?.toString() ?? '-'}'),
+                  Text('Address: ${[
+                    _summary?['address_country'],
+                    _summary?['address_governorate'],
+                    _summary?['address_city'],
+                  ].where((e) => e != null && e.toString().trim().isNotEmpty).join(', ')}'),
+                ],
+              ),
+            ),
           ),
+          const SizedBox(height: 16),
+          const Text('Allergies', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text('Age: ${data['age_years'] ?? '-'}'),
-          Text('Sex: ${data['sex'] ?? '-'}'),
-          Text('Blood type: ${data['blood_type'] ?? '-'}'),
-          const SizedBox(height: 12),
-          Text(
-            'Address: ${_joinParts([
-              data['address_country'],
-              data['address_governorate'],
-              data['address_city'],
-            ])}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 20),
-          const Text('Allergies', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ..._allergies.map((item) {
+            final map = item is Map ? item : null;
+            final title = map?['allergen_name']?.toString() ?? item.toString();
+            final subtitle = [
+              map?['reaction']?.toString(),
+              map?['severity']?.toString(),
+            ].where((e) => e != null && e!.trim().isNotEmpty).join(' • ');
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.warning_amber),
+                title: Text(title),
+                subtitle: Text(subtitle.isEmpty ? '-' : subtitle),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+          const Text('Medications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(_fromListOrText(data['allergies']) ?? 'No allergies recorded'),
-          const SizedBox(height: 20),
-          const Text('Medications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(_fromListOrText(data['medications']) ?? 'No medications recorded'),
-          const SizedBox(height: 20),
-          const Text('Chronic conditions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(_fromListOrText(data['chronic_conditions']) ?? 'No chronic conditions recorded'),
-          const SizedBox(height: 20),
-          const Text('Emergency contact', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(
-            [
-              data['emergency_contact_name'],
-              data['emergency_contact_phone'],
-            ].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • '),
-          ),
+          ..._medications.map((item) {
+            final map = item is Map ? item : null;
+            final title = map?['medication_name']?.toString() ?? item.toString();
+            final subtitle = [
+              map?['dosage']?.toString(),
+              map?['frequency']?.toString(),
+              map?['purpose']?.toString(),
+            ].where((e) => e != null && e!.trim().isNotEmpty).join(' • ');
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.medication),
+                title: Text(title),
+                subtitle: Text(subtitle.isEmpty ? '-' : subtitle),
+              ),
+            );
+          }),
         ],
       ),
     );

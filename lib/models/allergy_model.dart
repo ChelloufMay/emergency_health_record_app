@@ -1,52 +1,57 @@
+import 'model_utils.dart';
+
 class AllergyModel {
-  final String id;
+  final String? id;
   final String patientId;
   final String allergenName;
-  final String allergyType; // food, medication, other
+  final String allergyType;
   final String? reaction;
   final String? severity;
-  final String source; // user, caregiver, clinician
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String source;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  // used only in the UI
-  String? verificationStatus;
-
-  AllergyModel({
-    required this.id,
+  const AllergyModel({
+    this.id,
     required this.patientId,
     required this.allergenName,
     required this.allergyType,
     this.reaction,
     this.severity,
-    required this.source,
-    required this.createdAt,
-    required this.updatedAt,
-    this.verificationStatus,
+    this.source = 'user',
+    this.createdAt,
+    this.updatedAt,
   });
 
-  factory AllergyModel.fromMap(Map<String, dynamic> map) {
+  factory AllergyModel.fromMap(Map map) {
     return AllergyModel(
-      id: map['id'] as String,
-      patientId: map['patient_id'] as String,
-      allergenName: map['allergen_name'] as String,
-      allergyType: map['allergy_type'] as String? ?? 'other',
-      reaction: map['reaction'] as String?,
-      severity: map['severity'] as String?,
-      source: map['source'] as String? ?? 'user',
-      createdAt: DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now(),
+      id: map['id']?.toString(),
+      patientId: map['patient_id']?.toString() ?? '',
+      allergenName: map['allergen_name']?.toString() ?? '',
+      allergyType: map['allergy_type']?.toString() ?? 'other',
+      reaction: map['reaction']?.toString(),
+      severity: map['severity']?.toString(),
+      source: map['source']?.toString() ?? 'user',
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'patient_id': patientId,
-      'allergen_name': allergenName,
-      'allergy_type': allergyType,
-      'reaction': reaction,
-      'severity': severity,
-      'source': source,
-    };
-  }
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'patient_id': patientId,
+    'allergen_name': allergenName,
+    'allergy_type': allergyType,
+    'reaction': reaction,
+    'severity': severity,
+    'source': source,
+  });
+
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    'patient_id': patientId,
+    'allergen_name': allergenName,
+    'allergy_type': allergyType,
+    'reaction': reaction,
+    'severity': severity,
+    'source': source,
+  });
 }

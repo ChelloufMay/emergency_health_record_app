@@ -6,68 +6,69 @@ class MedicalConditionService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final AuditService _audit = AuditService();
 
-  Future<List<MedicalConditionModel>> fetchConditions(String patientId) async {
+  Future<List<MedicalConditionModel>> fetchByPatient(String patientId) async {
     final rows = await _supabase
         .from('medical_conditions')
-        .select('*')
+        .select()
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map((r) => MedicalConditionModel.fromMap(r as Map<String, dynamic>))
-        .toList();
+    return (rows as List).map((row) => MedicalConditionModel.fromMap(row as Map)).toList();
   }
 
-  Future<String> saveCondition({
+  Future<String> save({
     required MedicalConditionModel condition,
+    required String patientId,
     required String performedByUserId,
-    String? existingId,
   }) async {
-    if (existingId != null) {
-      await _supabase
-          .from('medical_conditions')
-          .update(condition.toMap())
-          .eq('id', existingId);
+    final payload = MedicalConditionModel(
+      id: condition.id,
+      patientId: patientId,
+      conditionName: condition.conditionName,
+      type: condition.type,
+      diagnosisDate: condition.diagnosisDate,
+      diagnosisPlace: condition.diagnosisPlace,
+      followUpDoctor: condition.followUpDoctor,
+      treatment: condition.treatment,
+      notes: condition.notes,
+    );
+
+    if (payload.id == null || payload.id!.isEmpty) {
+      final inserted = await _supabase.from('medical_conditions').insert(payload.toInsertMap()).select('id').single();
+      final id = inserted['id'].toString();
 
       await _audit.log(
-        patientId: condition.patientId,
-        performedByUserId: performedByUserId,
-        action: 'update',
-        entityType: 'medical_conditions',
-        entityId: existingId,
-        fieldName: 'condition_name',
-        newValue: condition.conditionName,
-      );
-
-      return existingId;
-    } else {
-      final result = await _supabase
-          .from('medical_conditions')
-          .insert(condition.toMap())
-          .select('id')
-          .single();
-
-      final newId = result['id'] as String;
-
-      await _audit.log(
-        patientId: condition.patientId,
+        patientId: patientId,
         performedByUserId: performedByUserId,
         action: 'create',
         entityType: 'medical_conditions',
-        entityId: newId,
+        entityId: id,
         fieldName: 'condition_name',
-        newValue: condition.conditionName,
+        newValue: payload.conditionName,
       );
 
-      return newId;
+      return id;
     }
+
+    await _supabase.from('medical_conditions').update(payload.toUpdateMap()).eq('id', payload.id!);
+
+    await _audit.log(
+      patientId: patientId,
+      performedByUserId: performedByUserId,
+      action: 'update',
+      entityType: 'medical_conditions',
+      entityId: payload.id!,
+      fieldName: 'condition_name',
+      newValue: payload.conditionName,
+    );
+
+    return payload.id!;
   }
 
-  Future<void> deleteCondition({
-    required String id,
+  Future<void> delete({
     required String patientId,
+    required String id,
     required String performedByUserId,
-    required String conditionName,
   }) async {
     await _supabase.from('medical_conditions').delete().eq('id', id);
 
@@ -77,8 +78,6 @@ class MedicalConditionService {
       action: 'delete',
       entityType: 'medical_conditions',
       entityId: id,
-      fieldName: 'condition_name',
-      oldValue: conditionName,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../models/guardian_profile_model.dart';
 import '../services/guardian_profile_service.dart';
-import '../services/patient_service.dart';
 
 class GuardianProfileScreen extends StatefulWidget {
   const GuardianProfileScreen({super.key});
@@ -10,19 +11,18 @@ class GuardianProfileScreen extends StatefulWidget {
 }
 
 class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
-  final PatientService _patientService = PatientService();
   final GuardianProfileService _service = GuardianProfileService();
+  final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _relationshipController = TextEditingController();
-  final TextEditingController _authorityController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressIdController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _relationshipController = TextEditingController();
+  final _legalNoteController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _notesController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
-  String? _userId;
   String? _profileId;
 
   @override
@@ -35,58 +35,53 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _relationshipController.dispose();
-    _authorityController.dispose();
+    _legalNoteController.dispose();
     _phoneController.dispose();
-    _addressIdController.dispose();
+    _addressController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    final userId = await _patientService.ensureAppUserId();
-    if (userId == null) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      return;
+    final profile = await _service.fetchMine();
+    if (profile != null) {
+      _profileId = profile.id;
+      _fullNameController.text = profile.fullName;
+      _relationshipController.text = profile.relationshipToPatient ?? '';
+      _legalNoteController.text = profile.legalAuthorityNote ?? '';
+      _phoneController.text = profile.phone ?? '';
+      _addressController.text = profile.addressId ?? '';
+      _notesController.text = profile.notes ?? '';
     }
-
-    final row = await _service.fetchMyProfile(userId);
-
-    if (row != null) {
-      _profileId = row['id']?.toString();
-      _fullNameController.text = row['full_name']?.toString() ?? '';
-      _relationshipController.text = row['relationship_to_patient']?.toString() ?? '';
-      _authorityController.text = row['legal_authority_note']?.toString() ?? '';
-      _phoneController.text = row['phone']?.toString() ?? '';
-      _addressIdController.text = row['address_id']?.toString() ?? '';
-      _notesController.text = row['notes']?.toString() ?? '';
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _userId = userId;
-      _loading = false;
-    });
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _save() async {
-    if (_userId == null) return;
-
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
+
     try {
-      final row = await _service.saveMyProfile(
-        userId: _userId!,
-        fullName: _fullNameController.text,
-        relationshipToPatient: _relationshipController.text,
-        legalAuthorityNote: _authorityController.text,
-        phone: _phoneController.text,
-        addressId: _addressIdController.text,
-        notes: _notesController.text,
+      final model = GuardianProfileModel(
+        id: _profileId,
+        userId: '',
+        fullName: _fullNameController.text.trim(),
+        relationshipToPatient: _relationshipController.text.trim().isEmpty ? null : _relationshipController.text.trim(),
+        legalAuthorityNote: _legalNoteController.text.trim().isEmpty ? null : _legalNoteController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        addressId: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
-      _profileId = row['id']?.toString();
+
+      final id = await _service.saveMine(model);
+      if (!mounted) return;
+      setState(() => _profileId = id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Guardian profile saved.')),
+      );
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guardian profile saved')),
+        SnackBar(content: Text('Save failed: $e')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -96,51 +91,58 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Guardian profile'),
-      ),
+      appBar: AppBar(title: const Text('Guardian profile')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _fullNameController,
-            decoration: const InputDecoration(labelText: 'Full name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _relationshipController,
-            decoration: const InputDecoration(labelText: 'Relationship to patient'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _authorityController,
-            decoration: const InputDecoration(labelText: 'Legal authority note'),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Phone'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _addressIdController,
-            decoration: const InputDecoration(labelText: 'Address ID (optional)'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            decoration: const InputDecoration(labelText: 'Notes'),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Saving...' : 'Save guardian profile'),
-          ),
-        ],
+          : Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextFormField(
+              controller: _fullNameController,
+              decoration: const InputDecoration(labelText: 'Full name'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _relationshipController,
+              decoration: const InputDecoration(labelText: 'Relationship to patient'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _legalNoteController,
+              decoration: const InputDecoration(labelText: 'Legal authority note'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phoneController,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _addressController,
+              decoration: const InputDecoration(labelText: 'Address ID'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(labelText: 'Notes'),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }

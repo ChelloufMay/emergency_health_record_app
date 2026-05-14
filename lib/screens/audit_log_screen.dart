@@ -2,20 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../models/audit_log_model.dart';
 import '../services/audit_service.dart';
-import '../services/patient_service.dart';
+import '../services/patient_session_service.dart';
 
 class AuditLogScreen extends StatefulWidget {
-  const AuditLogScreen({super.key});
+  final String? patientId;
+  final bool canEdit;
+  final bool isEmergencyOnly;
+
+  const AuditLogScreen({
+    super.key,
+    this.patientId,
+    this.canEdit = false,
+    this.isEmergencyOnly = false,
+  });
 
   @override
   State<AuditLogScreen> createState() => _AuditLogScreenState();
 }
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
-  final _audit = AuditService();
-  final _patientService = PatientService();
+  final AuditService _auditService = AuditService();
 
   bool _loading = true;
+  String? _patientId;
   List<AuditLogModel> _logs = [];
 
   @override
@@ -24,58 +33,70 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     _load();
   }
 
-  String _formatDateTime(DateTime value) {
-    final y = value.year.toString().padLeft(4, '0');
-    final m = value.month.toString().padLeft(2, '0');
-    final d = value.day.toString().padLeft(2, '0');
-    final h = value.hour.toString().padLeft(2, '0');
-    final min = value.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $h:$min';
+  String? _resolvePatientId() {
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   Future<void> _load() async {
-    final identity = await _patientService.resolveIdentity();
-    if (identity == null) {
-      if (mounted) setState(() => _loading = false);
+    final patientId = _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _patientId = null;
+        _logs = [];
+      });
       return;
     }
 
-    _logs = await _audit.fetchLogs(identity.patientId);
-
-    if (mounted) setState(() => _loading = false);
+    final logs = await _auditService.fetchLogs(patientId);
+    if (!mounted) return;
+    setState(() {
+      _patientId = patientId;
+      _logs = logs;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Audit log')),
+      appBar: AppBar(
+        title: const Text('Audit log'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _patientId == null
+          ? const Center(child: Text('No patient selected.'))
           : _logs.isEmpty
-          ? const Center(child: Text('No audit logs yet'))
-          : ListView.builder(
+          ? const Center(child: Text('No audit entries yet.'))
+          : ListView.separated(
+        padding: const EdgeInsets.all(16),
         itemCount: _logs.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final item = _logs[index];
-
+          final log = _logs[index];
           return Card(
             child: ListTile(
-              leading: const Icon(Icons.history),
-              title: Text('${item.action} • ${item.entityType}'),
+              title: Text('${log.action} • ${log.entityType}'),
               subtitle: Text(
                 [
-                  if ((item.fieldName ?? '').trim().isNotEmpty)
-                    'Field: ${item.fieldName}',
-                  if ((item.performedByUserId ?? '').trim().isNotEmpty)
-                    'By: ${item.performedByUserId}',
-                  'Time: ${_formatDateTime(item.timestamp)}',
-                  if ((item.oldValue ?? '').trim().isNotEmpty)
-                    'Old: ${item.oldValue}',
-                  if ((item.newValue ?? '').trim().isNotEmpty)
-                    'New: ${item.newValue}',
+                  if (log.fieldName != null) 'Field: ${log.fieldName}',
+                  if (log.oldValue != null) 'Old: ${log.oldValue}',
+                  if (log.newValue != null) 'New: ${log.newValue}',
+                  if (log.breakGlassReason != null) 'Reason: ${log.breakGlassReason}',
+                  if (log.timestamp != null) 'At: ${log.timestamp}',
                 ].join('\n'),
               ),
-              isThreeLine: true,
+              trailing: log.action == 'break_glass'
+                  ? const Icon(Icons.warning_amber, color: Colors.orange)
+                  : null,
             ),
           );
         },

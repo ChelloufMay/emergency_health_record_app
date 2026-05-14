@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
+
 import '../models/allergy_model.dart';
 import '../services/allergy_service.dart';
-import '../services/patient_service.dart';
+import '../services/patient_session_service.dart';
 
 class AllergiesScreen extends StatefulWidget {
-  const AllergiesScreen({super.key});
+  final String? patientId;
+  final bool canEdit;
+  final bool isEmergencyOnly;
+
+  const AllergiesScreen({
+    super.key,
+    this.patientId,
+    this.canEdit = false,
+    this.isEmergencyOnly = false,
+  });
 
   @override
   State<AllergiesScreen> createState() => _AllergiesScreenState();
 }
 
 class _AllergiesScreenState extends State<AllergiesScreen> {
-  final _service = AllergyService();
-  final _patientService = PatientService();
+  final AllergyService _service = AllergyService();
 
   bool _loading = true;
   String? _patientId;
-  String? _userId;
-  List<AllergyModel> _allergies = [];
+  List<AllergyModel> _items = [];
 
   @override
   void initState() {
@@ -25,117 +33,177 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     _load();
   }
 
+  String? _resolvePatientId() {
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+  }
+
   Future<void> _load() async {
-    final identity = await _patientService.resolveIdentity();
-    if (identity == null) {
+    final patientId = _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) {
+      if (!mounted) return;
       setState(() => _loading = false);
       return;
     }
 
-    _patientId = identity.patientId;
-    _userId = identity.appUserId;
-    _allergies = await _service.fetchAllergies(_patientId!);
-
-    setState(() => _loading = false);
+    final items = await _service.fetchByPatient(patientId);
+    if (!mounted) return;
+    setState(() {
+      _patientId = patientId;
+      _items = items;
+      _loading = false;
+    });
   }
 
-  Future<void> _addAllergy() async {
-    final allergenController = TextEditingController();
-    final reactionController = TextEditingController();
-    final severityController = TextEditingController();
-    String type = 'other';
+  Future<void> _openEditor({AllergyModel? initial}) async {
+    if (!widget.canEdit) return;
 
-    final save = await showDialog<bool>(
+    final allergenController = TextEditingController(text: initial?.allergenName ?? '');
+    final reactionController = TextEditingController(text: initial?.reaction ?? '');
+    final severityController = TextEditingController(text: initial?.severity ?? '');
+    String allergyType = initial?.allergyType ?? 'other';
+    String source = initial?.source ?? 'user';
+
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add allergy'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(controller: allergenController, decoration: const InputDecoration(labelText: 'Allergen name')),
-              TextField(controller: reactionController, decoration: const InputDecoration(labelText: 'Reaction')),
-              TextField(controller: severityController, decoration: const InputDecoration(labelText: 'Severity')),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                items: const [
-                  DropdownMenuItem(value: 'food', child: Text('Food')),
-                  DropdownMenuItem(value: 'medication', child: Text('Medication')),
-                  DropdownMenuItem(value: 'other', child: Text('Other')),
-                ],
-                onChanged: (v) => type = v ?? 'other',
-                decoration: const InputDecoration(labelText: 'Type'),
-              ),
-            ],
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(initial == null ? 'Add allergy' : 'Edit allergy'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: allergenController, decoration: const InputDecoration(labelText: 'Allergen')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: allergyType,
+                  decoration: const InputDecoration(labelText: 'Type'),
+                  items: const [
+                    DropdownMenuItem(value: 'food', child: Text('Food')),
+                    DropdownMenuItem(value: 'medication', child: Text('Medication')),
+                    DropdownMenuItem(value: 'other', child: Text('Other')),
+                  ],
+                  onChanged: (v) => allergyType = v ?? 'other',
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: reactionController, decoration: const InputDecoration(labelText: 'Reaction')),
+                const SizedBox(height: 12),
+                TextField(controller: severityController, decoration: const InputDecoration(labelText: 'Severity')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: source,
+                  decoration: const InputDecoration(labelText: 'Source'),
+                  items: const [
+                    DropdownMenuItem(value: 'user', child: Text('User')),
+                    DropdownMenuItem(value: 'caregiver', child: Text('Caregiver')),
+                    DropdownMenuItem(value: 'clinician', child: Text('Clinician')),
+                  ],
+                  onChanged: (v) => source = v ?? 'user',
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-        ],
-      ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
+          ],
+        );
+      },
     );
 
-    if (save != true || _patientId == null || _userId == null) return;
+    allergenController.dispose();
+    reactionController.dispose();
+    severityController.dispose();
 
-    final allergy = AllergyModel(
-      id: 'temp',
-      patientId: _patientId!,
-      allergenName: allergenController.text.trim(),
-      allergyType: type,
-      reaction: reactionController.text.trim(),
-      severity: severityController.text.trim(),
-      source: 'user',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+    if (saved != true) return;
+
+    final patientId = _patientId;
+    if (patientId == null) return;
+
+    final model = AllergyModel(
+      id: initial?.id,
+      patientId: patientId,
+      allergenName: allergenController.text.trim().isEmpty ? (initial?.allergenName ?? '') : allergenController.text.trim(),
+      allergyType: allergyType,
+      reaction: reactionController.text.trim().isEmpty ? null : reactionController.text.trim(),
+      severity: severityController.text.trim().isEmpty ? null : severityController.text.trim(),
+      source: source,
     );
 
-    await _service.saveAllergy(
-      allergy: allergy,
-      performedByUserId: _userId!,
+    await _service.save(
+      allergy: model,
+      patientId: patientId,
+      performedByUserId: 'current',
     );
 
     await _load();
   }
 
-  Future<void> _deleteAllergy(AllergyModel allergy) async {
-    if (_userId == null) return;
+  Future<void> _deleteItem(AllergyModel item) async {
+    if (!widget.canEdit) return;
+    final patientId = _patientId;
+    if (patientId == null || item.id == null) return;
 
-    await _service.deleteAllergy(
-      id: allergy.id,
-      patientId: allergy.patientId,
-      performedByUserId: _userId!,
-      allergenName: allergy.allergenName,
+    await _service.delete(
+      patientId: patientId,
+      id: item.id!,
+      performedByUserId: 'current',
     );
-
     await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Allergies')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addAllergy,
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('Allergies'),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          if (widget.canEdit)
+            IconButton(
+              onPressed: () => _openEditor(),
+              icon: const Icon(Icons.add),
+            ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        itemCount: _allergies.length,
-        itemBuilder: (context, index) {
-          final item = _allergies[index];
-          return Card(
-            child: ListTile(
-              title: Text(item.allergenName),
-              subtitle: Text('${item.allergyType} • ${item.severity ?? ''}'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _deleteAllergy(item),
+          : _patientId == null
+          ? const Center(child: Text('No patient selected.'))
+          : RefreshIndicator(
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                title: Text(item.allergenName),
+                subtitle: Text([
+                  'Type: ${item.allergyType}',
+                  if ((item.reaction ?? '').isNotEmpty) 'Reaction: ${item.reaction}',
+                  if ((item.severity ?? '').isNotEmpty) 'Severity: ${item.severity}',
+                  if ((item.source).isNotEmpty) 'Source: ${item.source}',
+                ].join('\n')),
+                trailing: widget.canEdit
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                )
+                    : null,
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

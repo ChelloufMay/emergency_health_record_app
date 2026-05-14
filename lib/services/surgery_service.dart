@@ -6,65 +6,67 @@ class SurgeryService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final AuditService _audit = AuditService();
 
-  Future<List<SurgeryModel>> fetchSurgeries(String patientId) async {
+  Future<List<SurgeryModel>> fetchByPatient(String patientId) async {
     final rows = await _supabase
         .from('surgeries')
         .select()
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map((r) => SurgeryModel.fromMap(r as Map<String, dynamic>))
-        .toList();
+    return (rows as List).map((row) => SurgeryModel.fromMap(row as Map)).toList();
   }
 
-  Future<String> saveSurgery({
+  Future<String> save({
     required SurgeryModel surgery,
+    required String patientId,
     required String performedByUserId,
-    String? existingId,
   }) async {
-    if (existingId != null) {
-      await _supabase.from('surgeries').update(surgery.toMap()).eq('id', existingId);
+    final payload = SurgeryModel(
+      id: surgery.id,
+      patientId: patientId,
+      surgeryName: surgery.surgeryName,
+      surgeryDate: surgery.surgeryDate,
+      place: surgery.place,
+      prostheticOrImplant: surgery.prostheticOrImplant,
+      notes: surgery.notes,
+    );
+
+    if (payload.id == null || payload.id!.isEmpty) {
+      final inserted = await _supabase.from('surgeries').insert(payload.toInsertMap()).select('id').single();
+      final id = inserted['id'].toString();
 
       await _audit.log(
-        patientId: surgery.patientId,
-        performedByUserId: performedByUserId,
-        action: 'update',
-        entityType: 'surgeries',
-        entityId: existingId,
-        fieldName: 'surgery_name',
-        newValue: surgery.surgeryName,
-      );
-
-      return existingId;
-    } else {
-      final result = await _supabase
-          .from('surgeries')
-          .insert(surgery.toMap())
-          .select('id')
-          .single();
-
-      final newId = result['id'] as String;
-
-      await _audit.log(
-        patientId: surgery.patientId,
+        patientId: patientId,
         performedByUserId: performedByUserId,
         action: 'create',
         entityType: 'surgeries',
-        entityId: newId,
+        entityId: id,
         fieldName: 'surgery_name',
-        newValue: surgery.surgeryName,
+        newValue: payload.surgeryName,
       );
 
-      return newId;
+      return id;
     }
+
+    await _supabase.from('surgeries').update(payload.toUpdateMap()).eq('id', payload.id!);
+
+    await _audit.log(
+      patientId: patientId,
+      performedByUserId: performedByUserId,
+      action: 'update',
+      entityType: 'surgeries',
+      entityId: payload.id!,
+      fieldName: 'surgery_name',
+      newValue: payload.surgeryName,
+    );
+
+    return payload.id!;
   }
 
-  Future<void> deleteSurgery({
-    required String id,
+  Future<void> delete({
     required String patientId,
+    required String id,
     required String performedByUserId,
-    required String surgeryName,
   }) async {
     await _supabase.from('surgeries').delete().eq('id', id);
 
@@ -74,8 +76,6 @@ class SurgeryService {
       action: 'delete',
       entityType: 'surgeries',
       entityId: id,
-      fieldName: 'surgery_name',
-      oldValue: surgeryName,
     );
   }
 }

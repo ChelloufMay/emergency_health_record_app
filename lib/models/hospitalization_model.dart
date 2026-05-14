@@ -1,53 +1,50 @@
+import 'model_utils.dart';
+
 class HospitalizationModel {
-  final String id;
+  final String? id;
   final String patientId;
   final String? hospitalName;
   final DateTime? admissionDate;
   final DateTime? dischargeDate;
   final String? reason;
   final String? notes;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  HospitalizationModel({
-    required this.id,
+  const HospitalizationModel({
+    this.id,
     required this.patientId,
     this.hospitalName,
     this.admissionDate,
     this.dischargeDate,
     this.reason,
     this.notes,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  static DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    return DateTime.tryParse(value.toString());
-  }
-
-  factory HospitalizationModel.fromMap(Map<String, dynamic> map) {
+  factory HospitalizationModel.fromMap(Map map) {
     return HospitalizationModel(
-      id: map['id'] as String,
-      patientId: map['patient_id'] as String,
-      hospitalName: map['hospital_name'] as String?,
-      admissionDate: _parseDate(map['admission_date']),
-      dischargeDate: _parseDate(map['discharge_date']),
-      reason: map['reason'] as String?,
-      notes: map['notes'] as String?,
-      createdAt: _parseDate(map['created_at']) ?? DateTime.now(),
-      updatedAt: _parseDate(map['updated_at']) ?? DateTime.now(),
+      id: map['id']?.toString(),
+      patientId: map['patient_id']?.toString() ?? '',
+      hospitalName: map['hospital_name']?.toString(),
+      admissionDate: asDateTime(map['admission_date']),
+      dischargeDate: asDateTime(map['discharge_date']),
+      reason: map['reason']?.toString(),
+      notes: map['notes']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'patient_id': patientId,
-      'hospital_name': hospitalName,
-      'admission_date': admissionDate?.toIso8601String().split('T').first,
-      'discharge_date': dischargeDate?.toIso8601String().split('T').first,
-      'reason': reason,
-      'notes': notes,
-    };
-  }
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    'patient_id': patientId,
+    'hospital_name': hospitalName,
+    'admission_date': admissionDate?.toIso8601String().split('T').first,
+    'discharge_date': dischargeDate?.toIso8601String().split('T').first,
+    'reason': reason,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toUpdateMap() => toInsertMap();
 }
