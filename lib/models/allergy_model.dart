@@ -39,7 +39,7 @@ class AllergyModel {
     );
   }
 
-  Map<String, dynamic> toInsertMap() => cleanMap({
+  Map toInsertMap() => cleanMap({
     'patient_id': patientId,
     'allergen_name': allergenName,
     'allergy_type': allergyType,
@@ -48,12 +48,5 @@ class AllergyModel {
     'source': source,
   });
 
-  Map<String, dynamic> toUpdateMap() => cleanMap({
-    'patient_id': patientId,
-    'allergen_name': allergenName,
-    'allergy_type': allergyType,
-    'reaction': reaction,
-    'severity': severity,
-    'source': source,
-  });
+  Map toUpdateMap() => toInsertMap();
 }

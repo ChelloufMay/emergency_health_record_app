@@ -45,7 +45,7 @@ class MedicationModel {
     );
   }
 
-  Map<String, dynamic> toInsertMap() => cleanMap({
+  Map toInsertMap() => cleanMap({
     'patient_id': patientId,
     'medication_name': medicationName,
     'dosage': dosage,
@@ -56,5 +56,5 @@ class MedicationModel {
     'source': source,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map toUpdateMap() => toInsertMap();
 }

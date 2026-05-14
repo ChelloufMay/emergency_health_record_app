@@ -13,19 +13,30 @@ class FamilyDoctorService {
   }
 
   Future<FamilyDoctorModel?> fetchForPatient(String patientId) async {
-    final profileRow = await _supabase.from('patient_profiles').select('family_doctor_id').eq('id', patientId).maybeSingle();
+    final profileRow = await _supabase
+        .from('patient_profiles')
+        .select('family_doctor_id')
+        .eq('id', patientId)
+        .maybeSingle();
     if (profileRow == null) return null;
 
     final doctorId = profileRow['family_doctor_id'] as String?;
     if (doctorId == null) return null;
 
-    final doctorRow = await _supabase.from('family_doctors').select().eq('id', doctorId).maybeSingle();
+    final doctorRow = await _supabase
+        .from('family_doctors')
+        .select()
+        .eq('id', doctorId)
+        .maybeSingle();
     if (doctorRow == null) return null;
 
     final addressId = doctorRow['address_id'] as String?;
-    Map? addressRow;
+    Map<String, dynamic>? addressRow;
     if (addressId != null) {
-      addressRow = await _supabase.from('addresses').select().eq('id', addressId).maybeSingle();
+      final fetched = await _supabase.from('addresses').select().eq('id', addressId).maybeSingle();
+      if (fetched != null) {
+        addressRow = Map<String, dynamic>.from(fetched);
+      }
     }
 
     return FamilyDoctorModel.fromMap({
@@ -39,31 +50,54 @@ class FamilyDoctorService {
     required FamilyDoctorModel doctor,
     required String performedByUserId,
   }) async {
-    final profileRow = await _supabase.from('patient_profiles').select('family_doctor_id').eq('id', patientId).maybeSingle();
-    final currentDoctorId = doctor.id ?? profileRow?['family_doctor_id'] as String?;
+    final profileRow = await _supabase
+        .from('patient_profiles')
+        .select('family_doctor_id')
+        .eq('id', patientId)
+        .maybeSingle();
 
+    final currentDoctorId = doctor.id ?? profileRow?['family_doctor_id'] as String?;
     final country = _trimToNull(doctor.country);
     if (country == null) {
       throw Exception('Doctor office country is required.');
     }
 
-    final addressPayload = doctor.toAddressMap();
-    addressPayload['country'] = country;
+    final addressPayload = {
+      'country': country,
+      'governorate': _trimToNull(doctor.governorate),
+      'city': _trimToNull(doctor.city),
+      'avenue': _trimToNull(doctor.avenue),
+      'street': _trimToNull(doctor.street),
+      'postal_code': _trimToNull(doctor.postalCode),
+      'extra_details': _trimToNull(doctor.extraDetails),
+      'created_by_user_id': performedByUserId,
+    };
 
     String addressId;
-    if (doctor.addressId == null || doctor.addressId!.isEmpty) {
-      final insertedAddress = await _supabase.from('addresses').insert(addressPayload).select('id').single();
+    if (doctor.addressId == null) {
+      final insertedAddress = await _supabase
+          .from('addresses')
+          .insert(addressPayload)
+          .select('id')
+          .single();
       addressId = insertedAddress['id'] as String;
     } else {
       await _supabase.from('addresses').update(addressPayload).eq('id', doctor.addressId!);
       addressId = doctor.addressId!;
     }
 
-    final doctorPayload = doctor.toDoctorMap(addressIdOverride: addressId);
+    final doctorPayload = {
+      ...doctor.toDoctorMap(addressIdOverride: addressId),
+      'created_by_user_id': performedByUserId,
+    };
 
     String doctorId;
     if (currentDoctorId == null) {
-      final insertedDoctor = await _supabase.from('family_doctors').insert(doctorPayload).select('id').single();
+      final insertedDoctor = await _supabase
+          .from('family_doctors')
+          .insert(doctorPayload)
+          .select('id')
+          .single();
       doctorId = insertedDoctor['id'] as String;
 
       await _audit.log(
@@ -99,16 +133,21 @@ class FamilyDoctorService {
     required String doctorId,
     required String performedByUserId,
   }) async {
-    final doctorRow = await _supabase.from('family_doctors').select('address_id, full_name').eq('id', doctorId).maybeSingle();
+    final doctorRow = await _supabase
+        .from('family_doctors')
+        .select('address_id, full_name, created_by_user_id')
+        .eq('id', doctorId)
+        .maybeSingle();
     if (doctorRow == null) return;
 
     final addressId = doctorRow['address_id'] as String?;
     final doctorName = doctorRow['full_name'] as String? ?? '';
+    final creatorId = doctorRow['created_by_user_id']?.toString();
 
     await _supabase.from('family_doctors').delete().eq('id', doctorId);
     await _supabase.from('patient_profiles').update({'family_doctor_id': null}).eq('id', patientId);
 
-    if (addressId != null) {
+    if (addressId != null && creatorId == performedByUserId) {
       await _supabase.from('addresses').delete().eq('id', addressId);
     }
 
