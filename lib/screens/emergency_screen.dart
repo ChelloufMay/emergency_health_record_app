@@ -142,7 +142,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             final subtitle = [
               map?['reaction']?.toString(),
               map?['severity']?.toString(),
-            ].where((e) => e != null && e!.trim().isNotEmpty).join(' • ');
+            ].where((e) => e != null && e.trim().isNotEmpty).join(' • ');
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.warning_amber),
@@ -161,7 +161,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
               map?['dosage']?.toString(),
               map?['frequency']?.toString(),
               map?['purpose']?.toString(),
-            ].where((e) => e != null && e!.trim().isNotEmpty).join(' • ');
+            ].where((e) => e != null && e.trim().isNotEmpty).join(' • ');
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.medication),

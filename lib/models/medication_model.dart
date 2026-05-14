@@ -27,6 +27,8 @@ class MedicationModel {
     this.updatedAt,
   });
 
+  String? get verificationStatus => 'user_entered';
+
   factory MedicationModel.fromMap(Map map) {
     return MedicationModel(
       id: map['id']?.toString(),

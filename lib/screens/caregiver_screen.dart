@@ -81,7 +81,7 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: invitedRole,
+                  initialValue: invitedRole,
                   decoration: const InputDecoration(labelText: 'Role'),
                   items: const [
                     DropdownMenuItem(value: 'caregiver', child: Text('Caregiver')),
@@ -92,7 +92,7 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: permission,
+                  initialValue: permission,
                   decoration: const InputDecoration(labelText: 'Permission'),
                   items: const [
                     DropdownMenuItem(value: 'read', child: Text('Read')),

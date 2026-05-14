@@ -23,6 +23,8 @@ class AllergyModel {
     this.updatedAt,
   });
 
+  String? get verificationStatus => 'user_entered';
+
   factory AllergyModel.fromMap(Map map) {
     return AllergyModel(
       id: map['id']?.toString(),

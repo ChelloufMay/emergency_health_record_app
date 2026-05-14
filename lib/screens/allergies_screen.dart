@@ -75,7 +75,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                 TextField(controller: allergenController, decoration: const InputDecoration(labelText: 'Allergen')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: allergyType,
+                  initialValue: allergyType,
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: const [
                     DropdownMenuItem(value: 'food', child: Text('Food')),
@@ -90,7 +90,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                 TextField(controller: severityController, decoration: const InputDecoration(labelText: 'Severity')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: source,
+                  initialValue: source,
                   decoration: const InputDecoration(labelText: 'Source'),
                   items: const [
                     DropdownMenuItem(value: 'user', child: Text('User')),

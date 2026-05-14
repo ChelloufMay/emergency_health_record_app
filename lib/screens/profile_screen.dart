@@ -72,29 +72,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _load() async {
     final profile = await _profileService.fetchProfile();
     final identity = await _patientService.resolveIdentity();
-    final existing = profile;
 
-    if (existing != null) {
-      _profileId = existing.id;
-      _userId = existing.userId;
-      _legalIdController.text = existing.legalId ?? '';
-      _firstNameController.text = existing.firstName;
-      _familyNameController.text = existing.familyName;
-      _sex = existing.sex;
-      _dateOfBirth = existing.dateOfBirth;
-      _bloodTypeController.text = existing.bloodType ?? '';
-      _phoneController.text = existing.phone ?? '';
-      _emergencyNameController.text = existing.emergencyContactName ?? '';
-      _emergencyPhoneController.text = existing.emergencyContactPhone ?? '';
-      _insuranceController.text = existing.insurancePlan ?? '';
-      _covidVaccineController.text = existing.covidVaccineType ?? '';
+    if (profile != null) {
+      _profileId = profile.id;
+      _userId = profile.userId;
+      _legalIdController.text = profile.legalId ?? '';
+      _firstNameController.text = profile.firstName;
+      _familyNameController.text = profile.familyName;
+      _sex = profile.sex;
+      _dateOfBirth = profile.dateOfBirth;
+      _bloodTypeController.text = profile.bloodType ?? '';
+      _phoneController.text = profile.phone ?? '';
+      _emergencyNameController.text = profile.emergencyContactName ?? '';
+      _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
+      _insuranceController.text = profile.insurancePlan ?? '';
+      _covidVaccineController.text = profile.covidVaccineType ?? '';
     } else {
       _userId = identity?.appUserId;
     }
 
-    if (mounted) {
-      setState(() => _loading = false);
-    }
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _pickBirthDate() async {
@@ -187,7 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             DropdownButtonFormField<String>(
-              value: _sex,
+              initialValue: _sex,
               decoration: const InputDecoration(labelText: 'Sex'),
               items: const [
                 DropdownMenuItem(value: 'male', child: Text('Male')),

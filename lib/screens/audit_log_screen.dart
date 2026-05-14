@@ -79,7 +79,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           : ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _logs.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final log = _logs[index];
           return Card(
