@@ -13,17 +13,20 @@ import 'screens/caregiver_choice_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/caregiver_screen.dart';
 import 'screens/conditions_screen.dart';
+import 'screens/clinician_profile_screen.dart';
+import 'screens/emergency_access_token_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/family_doctor_screen.dart';
 import 'screens/family_history_screen.dart';
 import 'screens/guardian_profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/hospitalizations_screen.dart';
-import 'screens/clinician_profile_screen.dart';
 import 'screens/lifestyle_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/medical_summary_screen.dart';
 import 'screens/medications_screen.dart';
+import 'screens/patient_notifications_screen.dart';
+import 'screens/patient_risk_predictions_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
@@ -31,6 +34,7 @@ import 'screens/reproductive_health_screen.dart';
 import 'screens/role_router_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/surgeries_screen.dart';
+import 'screens/verification_labels_screen.dart';
 import 'screens/vaccinations_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/emergency_payload_service.dart';
@@ -56,8 +60,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  StreamSubscription<AuthState>? _authSubscription;
-  StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription? _authSubscription;
+  StreamSubscription? _linkSubscription;
   final AppLinks _appLinks = AppLinks();
 
   @override
@@ -71,6 +75,7 @@ class _MyAppState extends State<MyApp> {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
           (data) async {
         debugPrint('Auth event: ${data.event}');
+
         switch (data.event) {
           case AuthChangeEvent.signedIn:
             if (data.session != null) {
@@ -153,15 +158,20 @@ class _MyAppState extends State<MyApp> {
       ),
       initialRoute: '/',
       routes: {
+        // Entry flow
         '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/entry': (context) => const RoleRouterScreen(),
+
+        // Core patient flow
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/medical_summary': (context) => const MedicalSummaryScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/qr': (context) => const QrScreen(),
+
+        // Access / caregiver flow
         '/caregivers': (context) => const CaregiverScreen(),
         '/caregiver_choice': (context) => const CaregiverChoiceScreen(),
         '/access_dashboard': (context) => const AccessDashboardScreen(),
@@ -169,7 +179,8 @@ class _MyAppState extends State<MyApp> {
         '/guardian_profile': (context) => const GuardianProfileScreen(),
         '/clinician_profile': (context) => const ClinicianProfileScreen(),
         '/audit_log': (context) => const AuditLogScreen(),
-        '/settings': (context) => const SettingsScreen(),
+
+        // Medical record sections
         '/allergies': (context) => const AllergiesScreen(),
         '/medications': (context) => const MedicationsScreen(),
         '/conditions': (context) => const ConditionsScreen(),
@@ -181,6 +192,22 @@ class _MyAppState extends State<MyApp> {
         '/reproductive_health': (context) => const ReproductiveHealthScreen(),
         '/family_doctor': (context) => const FamilyDoctorScreen(),
         '/attachments': (context) => const AttachmentsScreen(),
+
+        // New screens added to match the DB
+        '/patient_risk_predictions': (context) =>
+        const PatientRiskPredictionsScreen(),
+        '/emergency_access_tokens': (context) =>
+        const EmergencyAccessTokenScreen(),
+        '/verification_labels': (context) =>
+        const VerificationLabelsScreen(),
+        '/patient_notifications': (context) =>
+        const PatientNotificationsScreen(),
+
+        // Optional auth callback route, useful if you later wire one in
+        '/auth-callback': (context) => const AuthCallbackScreen(),
+
+        // Settings
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }
@@ -201,8 +228,9 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _finish() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 300));
     final session = Supabase.instance.client.auth.currentSession;
+
     if (!mounted) return;
 
     if (session != null) {
