@@ -44,6 +44,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     }
 
     final items = await _service.fetchByPatient(patientId);
+
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
@@ -52,11 +53,135 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     });
   }
 
+  Future<void> _openEditor({MedicationModel? initial}) async {
+    if (!widget.canEdit) return;
+
+    final nameController = TextEditingController(text: initial?.medicationName ?? '');
+    final dosageController = TextEditingController(text: initial?.dosage ?? '');
+    final frequencyController = TextEditingController(text: initial?.frequency ?? '');
+    final purposeController = TextEditingController(text: initial?.purpose ?? '');
+    final startDateController = TextEditingController(
+      text: initial?.startDate?.toIso8601String().split('T').first ?? '',
+    );
+    final endDateController = TextEditingController(
+      text: initial?.endDate?.toIso8601String().split('T').first ?? '',
+    );
+    String source = initial?.source ?? 'user';
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(initial == null ? 'Add medication' : 'Edit medication'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // The medication editor matches public.medications exactly.
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Medication name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dosageController,
+                  decoration: const InputDecoration(labelText: 'Dosage'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: frequencyController,
+                  decoration: const InputDecoration(labelText: 'Frequency'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: purposeController,
+                  decoration: const InputDecoration(labelText: 'Purpose'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: startDateController,
+                  decoration: const InputDecoration(labelText: 'Start date', hintText: 'YYYY-MM-DD'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: endDateController,
+                  decoration: const InputDecoration(labelText: 'End date', hintText: 'YYYY-MM-DD'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: source,
+                  decoration: const InputDecoration(labelText: 'Source'),
+                  items: const [
+                    DropdownMenuItem(value: 'user', child: Text('User')),
+                    DropdownMenuItem(value: 'caregiver', child: Text('Caregiver')),
+                    DropdownMenuItem(value: 'clinician', child: Text('Clinician')),
+                  ],
+                  onChanged: (v) => source = v ?? 'user',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (saved != true) {
+      nameController.dispose();
+      dosageController.dispose();
+      frequencyController.dispose();
+      purposeController.dispose();
+      startDateController.dispose();
+      endDateController.dispose();
+      return;
+    }
+
+    final patientId = _patientId;
+    if (patientId == null) return;
+
+    final model = MedicationModel(
+      id: initial?.id,
+      patientId: patientId,
+      medicationName: nameController.text.trim(),
+      dosage: dosageController.text.trim().isEmpty ? null : dosageController.text.trim(),
+      frequency: frequencyController.text.trim().isEmpty ? null : frequencyController.text.trim(),
+      purpose: purposeController.text.trim().isEmpty ? null : purposeController.text.trim(),
+      startDate: startDateController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(startDateController.text.trim()),
+      endDate: endDateController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(endDateController.text.trim()),
+      source: source,
+    );
+
+    await _service.save(medication: model, patientId: patientId);
+
+    nameController.dispose();
+    dosageController.dispose();
+    frequencyController.dispose();
+    purposeController.dispose();
+    startDateController.dispose();
+    endDateController.dispose();
+
+    await _load();
+  }
+
   Future<void> _deleteItem(MedicationModel item) async {
     if (!widget.canEdit) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
-    await _service.delete(patientId: patientId, id: item.id!, performedByUserId: 'current');
+
+    await _service.delete(patientId: patientId, id: item.id!);
     await _load();
   }
 
@@ -67,6 +192,8 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
         title: const Text('Medications'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          if (widget.canEdit)
+            IconButton(onPressed: () => _openEditor(), icon: const Icon(Icons.add)),
         ],
       ),
       body: _loading
@@ -87,13 +214,25 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                   if ((item.dosage ?? '').isNotEmpty) 'Dosage: ${item.dosage}',
                   if ((item.frequency ?? '').isNotEmpty) 'Frequency: ${item.frequency}',
                   if ((item.purpose ?? '').isNotEmpty) 'Purpose: ${item.purpose}',
-                  if (item.startDate != null) 'Start: ${item.startDate!.toIso8601String().split('T').first}',
-                  if (item.endDate != null) 'End: ${item.endDate!.toIso8601String().split('T').first}',
+                  if (item.startDate != null)
+                    'Start: ${item.startDate!.toIso8601String().split('T').first}',
+                  if (item.endDate != null)
+                    'End: ${item.endDate!.toIso8601String().split('T').first}',
+                  if ((item.source).isNotEmpty) 'Source: ${item.source}',
                 ].join('\n')),
                 trailing: widget.canEdit
-                    ? IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteItem(item),
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
                 )
                     : null,
               ),

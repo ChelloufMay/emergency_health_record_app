@@ -1,53 +1,57 @@
-// the first screen. It gives the user two choices: login or register.
 import 'package:flutter/material.dart';
+
+import 'login_screen.dart';
+import 'register_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // This screen stays DB-agnostic on purpose.
+    // It is only the entry point before auth decides which branch to take.
     return Scaffold(
-      body: Center(
+      body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // a simple icon to give to the screen
-              const Icon(Icons.health_and_safety, size: 72),
-              const SizedBox(height: 16),
-              const Text(
-                'Health Record App',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              const Spacer(),
+              const Icon(Icons.health_and_safety_outlined, size: 88),
+              const SizedBox(height: 24),
+              Text(
+                'Emergency Health Record',
                 textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 8),
-              const Text(
-                'Secure emergency health record for users and caregivers.',
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/login');
-                  },
-                  child: const Text('Login'),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/register');
-                  },
-                  child: const Text('Register'),
-                ),
+              Text(
+                'Secure patient records, access control, and emergency summary flow.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                },
+                child: const Text('Sign in'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  );
+                },
+                child: const Text('Create account'),
               ),
             ],
           ),

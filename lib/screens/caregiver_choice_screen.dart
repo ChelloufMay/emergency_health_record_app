@@ -3,68 +3,55 @@ import 'package:flutter/material.dart';
 class CaregiverChoiceScreen extends StatelessWidget {
   const CaregiverChoiceScreen({super.key});
 
+  void _open(BuildContext context, String routeName) {
+    Navigator.pushNamed(context, routeName);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choose your persona'),
+        title: const Text('Choose role'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _ChoiceCard(
-            title: 'Caregiver',
-            subtitle: 'Access records and manage patient permissions.',
-            icon: Icons.health_and_safety,
-            onTap: () => Navigator.pushNamed(context, '/caregiver_profile'),
+          // This screen is only a role launcher.
+          // It does not read the DB directly; it sends the user to the
+          // correct role/profile flow based on what they need to manage.
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Caregiver dashboard'),
+              subtitle: const Text('View patients you can access'),
+              onTap: () => _open(context, '/caregiver_dashboard'),
+            ),
           ),
-          const SizedBox(height: 12),
-          _ChoiceCard(
-            title: 'Guardian',
-            subtitle: 'Create a guardian profile for legal responsibility support.',
-            icon: Icons.shield_outlined,
-            onTap: () => Navigator.pushNamed(context, '/guardian_profile'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('Caregiver profile'),
+              subtitle: const Text('Edit caregiver profile data'),
+              onTap: () => _open(context, '/caregiver_profile'),
+            ),
           ),
-          const SizedBox(height: 12),
-          _ChoiceCard(
-            title: 'Clinician',
-            subtitle: 'Create a clinician profile for professional access.',
-            icon: Icons.medical_services_outlined,
-            onTap: () => Navigator.pushNamed(context, '/clinician_profile'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.local_hospital_outlined),
+              title: const Text('Clinician profile'),
+              subtitle: const Text('Edit clinician profile data'),
+              onTap: () => _open(context, '/clinician_profile'),
+            ),
           ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: () => Navigator.pushNamed(context, '/access_dashboard'),
-            child: const Text('Open access dashboard'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.family_restroom_outlined),
+              title: const Text('Guardian profile'),
+              subtitle: const Text('Edit guardian profile data'),
+              onTap: () => _open(context, '/guardian_profile'),
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ChoiceCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _ChoiceCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon, size: 32),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
       ),
     );
   }

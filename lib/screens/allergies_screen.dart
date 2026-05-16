@@ -34,6 +34,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   String? _resolvePatientId() {
+    // Keep every section screen tied to the same patient context.
     return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
@@ -46,6 +47,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     }
 
     final items = await _service.fetchByPatient(patientId);
+
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
@@ -72,7 +74,11 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: allergenController, decoration: const InputDecoration(labelText: 'Allergen')),
+                // These fields match public.allergies and AllergyModel.
+                TextField(
+                  controller: allergenController,
+                  decoration: const InputDecoration(labelText: 'Allergen'),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: allergyType,
@@ -85,9 +91,15 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   onChanged: (v) => allergyType = v ?? 'other',
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: reactionController, decoration: const InputDecoration(labelText: 'Reaction')),
+                TextField(
+                  controller: reactionController,
+                  decoration: const InputDecoration(labelText: 'Reaction'),
+                ),
                 const SizedBox(height: 12),
-                TextField(controller: severityController, decoration: const InputDecoration(labelText: 'Severity')),
+                TextField(
+                  controller: severityController,
+                  decoration: const InputDecoration(labelText: 'Severity'),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: source,
@@ -103,18 +115,25 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
           ],
         );
       },
     );
 
-    allergenController.dispose();
-    reactionController.dispose();
-    severityController.dispose();
-
-    if (saved != true) return;
+    if (saved != true) {
+      allergenController.dispose();
+      reactionController.dispose();
+      severityController.dispose();
+      return;
+    }
 
     final patientId = _patientId;
     if (patientId == null) return;
@@ -122,19 +141,17 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     final model = AllergyModel(
       id: initial?.id,
       patientId: patientId,
-      allergenName: allergenController.text.trim().isEmpty ? (initial?.allergenName ?? '') : allergenController.text.trim(),
+      allergenName: allergenController.text.trim(),
       allergyType: allergyType,
       reaction: reactionController.text.trim().isEmpty ? null : reactionController.text.trim(),
       severity: severityController.text.trim().isEmpty ? null : severityController.text.trim(),
       source: source,
     );
 
-    await _service.save(
-      allergy: model,
-      patientId: patientId,
-      performedByUserId: 'current',
-    );
-
+    await _service.save(allergy: model, patientId: patientId);
+    allergenController.dispose();
+    reactionController.dispose();
+    severityController.dispose();
     await _load();
   }
 
@@ -143,11 +160,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
-    await _service.delete(
-      patientId: patientId,
-      id: item.id!,
-      performedByUserId: 'current',
-    );
+    await _service.delete(patientId: patientId, id: item.id!);
     await _load();
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/auth_service.dart';
+
+import 'role_router_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,164 +11,192 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _authService = AuthService();
-
   final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _isLoading = false;
-  String? _message;
-  bool _isSuccess = false;
+  // Keeping the account creation flexible:
+  // the DB defaults role to owner, but this lets the app create a
+  // role-aware user row when the user is not a patient owner.
+  String _selectedRole = 'owner';
 
-  Future<void> _signUp() async {
-    final fullName = _fullNameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
+  bool _loading = false;
+  String? _error;
+  String? _success;
 
-    if (fullName.isEmpty) {
-      setState(() {
-        _message = 'Please enter your full name.';
-        _isSuccess = false;
-      });
-      return;
-    }
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
-    if (email.isEmpty) {
-      setState(() {
-        _message = 'Please enter your email.';
-        _isSuccess = false;
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      setState(() {
-        _message = 'Password must be at least 6 characters.';
-        _isSuccess = false;
-      });
-      return;
-    }
-
+  Future<void> _register() async {
     setState(() {
-      _isLoading = true;
-      _message = null;
+      _loading = true;
+      _error = null;
+      _success = null;
     });
 
     try {
-      final response = await _authService.signUp(
-        email: email,
-        password: password,
-        fullName: fullName,
-        phone: phone.isEmpty ? null : phone,
+      final auth = Supabase.instance.client.auth;
+
+      final result = await auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        data: <String, dynamic>{
+          // These land in auth metadata so the trigger can populate public.users.
+          'full_name': _fullNameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+        },
       );
 
+      final user = result.user;
+      if (user != null) {
+        // The DB trigger already creates/updates public.users,
+        // but we also update the row here so the chosen role is correct.
+        // This keeps users.role in sync with the app branch the router uses.
+        await Supabase.instance.client
+            .from('users')
+            .update({
+          'full_name': _fullNameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'role': _selectedRole,
+        })
+            .eq('auth_user_id', user.id);
+      }
+
       if (!mounted) return;
 
-      // If email confirmation is disabled in Supabase, a session may exist
-      // immediately and the auth listener in main.dart will send the user home.
-      // If confirmation is enabled, the user must open the email link first.
-      final hasSession = response.session != null;
-
       setState(() {
-        _isSuccess = true;
-        _message = hasSession
-            ? 'Account created. You are signed in and will be redirected.'
-            : 'Account created! Check your email and tap the confirmation link to continue.';
+        _success = 'Account created. Continue to sign in if email confirmation is enabled.';
       });
+
+      // If email confirmation is off and the session exists, this takes the user
+      // straight into the router. Otherwise they can sign in after confirming.
+      if (auth.currentSession != null && mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const RoleRouterScreen()),
+              (route) => false,
+        );
+      }
     } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSuccess = false;
-        _message = e.message;
-      });
+      setState(() => _error = e.message);
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSuccess = false;
-        _message = e.toString().replaceFirst('Exception: ', '');
-      });
+      setState(() => _error = 'Registration failed: $e');
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _loading = false);
       }
     }
   }
 
   @override
-  void dispose() {
-    _fullNameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    const roles = <String>['owner', 'caregiver', 'guardian', 'clinician'];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      appBar: AppBar(title: const Text('Create account')),
+      body: SafeArea(
         child: ListView(
+          padding: const EdgeInsets.all(24),
           children: [
+            Text(
+              'Create your account',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'The auth user is created first. Profile data is then attached by the router and profile screens.',
+            ),
+            const SizedBox(height: 24),
             TextField(
               controller: _fullNameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Full Name'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Full name',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
-                labelText: 'Phone (optional)',
-                hintText: '+216 XX XXX XXX',
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
             ),
-            const SizedBox(height: 24),
-            if (_message != null) ...[
-              Text(
-                _message!,
-                style: TextStyle(
-                  color: _isSuccess ? Colors.green.shade700 : Colors.red,
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              items: roles
+                  .map(
+                    (role) => DropdownMenuItem(
+                  value: role,
+                  child: Text(role),
                 ),
-                textAlign: TextAlign.center,
+              )
+                  .toList(),
+              onChanged: _loading
+                  ? null
+                  : (value) {
+                if (value != null) {
+                  setState(() => _selectedRole = value);
+                }
+              },
+              decoration: const InputDecoration(
+                labelText: 'Account role',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.red),
               ),
               const SizedBox(height: 12),
             ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading || _isSuccess ? null : _signUp,
-                child: _isLoading
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                    : const Text('Create Account'),
+            if (_success != null) ...[
+              Text(
+                _success!,
+                style: const TextStyle(color: Colors.green),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pushReplacementNamed(context, '/login'),
-              child: const Text('Already have an account? Sign in'),
+              const SizedBox(height: 12),
+            ],
+            FilledButton(
+              onPressed: _loading ? null : _register,
+              child: _loading
+                  ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+                  : const Text('Create account'),
             ),
           ],
         ),

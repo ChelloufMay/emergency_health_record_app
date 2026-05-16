@@ -1,183 +1,191 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/caregiver_permission_model.dart';
-
-class CaregiverPatientDetailScreen extends StatelessWidget {
-  final String patientId;
-  final Map<String, dynamic>? summary;
-  final List<CaregiverPermissionModel> permissions;
+class CaregiverPatientDetailScreen extends StatefulWidget {
+  final String? patientId;
 
   const CaregiverPatientDetailScreen({
     super.key,
-    required this.patientId,
-    required this.summary,
-    required this.permissions,
+    this.patientId,
   });
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+  @override
+  State<CaregiverPatientDetailScreen> createState() =>
+      _CaregiverPatientDetailScreenState();
+}
+
+class _CaregiverPatientDetailScreenState
+    extends State<CaregiverPatientDetailScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  bool _loading = true;
+  Map<String, dynamic>? _summary;
+  Map<String, dynamic>? _grant;
+
+  String? _patientId;
+
+  Future<String?> _currentAppUserId() async {
+    final value = await _supabase.rpc('current_app_user_id');
+    return value?.toString();
   }
 
-  bool _isActive(CaregiverPermissionModel permission) {
-    if (permission.status != 'active') return false;
-    if (permission.expiresAt == null) return true;
-    return permission.expiresAt!.isAfter(DateTime.now());
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  String _permissionLabel(CaregiverPermissionModel permission) {
-    if (permission.permission == 'emergency_only') {
-      // Important note:
-      // In the current database helper, emergency_only is still treated like read access.
-      // If you want it to behave differently, the SQL helper / policies must be tightened.
-      return 'Emergency only';
+  Future<void> _load() async {
+    final patientId = widget.patientId;
+    final userId = await _currentAppUserId();
+
+    if (patientId == null || patientId.isEmpty || userId == null || userId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
     }
-    return permission.permission[0].toUpperCase() + permission.permission.substring(1);
+
+    // The summary comes from the DB view patient_emergency_summary.
+    // The permission row comes from access_grants so the UI can decide
+    // whether edit navigation is allowed.
+    final summaryRows = await _supabase
+        .from('patient_emergency_summary')
+        .select()
+        .eq('patient_id', patientId)
+        .limit(1);
+
+    final grantRows = await _supabase
+        .from('access_grants')
+        .select()
+        .eq('patient_id', patientId)
+        .eq('grantee_user_id', userId)
+        .eq('status', 'active')
+        .limit(1);
+
+    if (!mounted) return;
+    setState(() {
+      _patientId = patientId;
+      _summary = (summaryRows.isNotEmpty)
+          ? Map<String, dynamic>.from(summaryRows.first as Map)
+          : null;
+      _grant = (grantRows.isNotEmpty)
+          ? Map<String, dynamic>.from(grantRows.first as Map)
+          : null;
+      _loading = false;
+    });
+  }
+
+  bool get _canEdit => _grant?['permission']?.toString() == 'edit';
+
+  void _openSection(String routeName) {
+    Navigator.pushNamed(
+      context,
+      routeName,
+      arguments: {
+        'patientId': _patientId,
+        'canEdit': _canEdit,
+        'isEmergencyOnly': false,
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final first = summary?['first_name']?.toString().trim() ?? '';
-    final family = summary?['family_name']?.toString().trim() ?? '';
-    final fullName = '$first $family'.trim().isEmpty ? 'Patient details' : '$first $family';
-
-    final activePermissions = permissions.where(_isActive).toList();
-    final inactivePermissions = permissions.where((p) => !_isActive(p)).toList();
+    final summary = _summary;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(fullName),
+        title: const Text('Patient detail'),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
       ),
-      body: ListView(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _patientId == null
+          ? const Center(child: Text('No patient selected.'))
+          : summary == null
+          ? const Center(child: Text('No patient summary available.'))
+          : ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // This screen uses the access row + emergency summary together.
+          // That keeps caregiver/clinician/guardian detail views aligned
+          // with the same DB rules as the owner flow.
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
-                [
-                  'Patient ID: $patientId',
-                  if (summary != null) 'Age: ${summary!['age_years'] ?? '-'}',
-                  if (summary != null) 'Blood type: ${summary!['blood_type'] ?? '-'}',
-                  if (summary != null) 'City: ${summary!['address_city'] ?? '-'}',
-                  if (summary != null)
-                    'Emergency contact: ${summary!['emergency_contact_name'] ?? '-'}',
-                  if (summary != null)
-                    'Emergency phone: ${summary!['emergency_contact_phone'] ?? '-'}',
-                ].join('\n'),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Your access on this patient',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          if (permissions.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No permission rows were found for this patient.'),
-              ),
-            )
-          else
-            ...permissions.map((permission) {
-              final active = _isActive(permission);
-              return Card(
-                child: ListTile(
-                  title: Text(
-                    _permissionLabel(permission),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     [
-                      'Status: ${permission.status}',
-                      'State: ${active ? 'active' : 'inactive'}',
-                      'Granted at: ${_formatDate(permission.grantedAt)}',
-                      'Expires at: ${_formatDate(permission.expiresAt)}',
-                      if (permission.notes != null && permission.notes!.isNotEmpty)
-                        'Notes: ${permission.notes}',
-                    ].join('\n'),
+                      summary['first_name']?.toString() ?? '',
+                      summary['family_name']?.toString() ?? '',
+                    ].join(' ').trim(),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  isThreeLine: true,
-                ),
-              );
-            }),
-          const SizedBox(height: 16),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Important: the current database keeps the core patient profile owner-only. '
-                    'Caregivers can open the shared patient record and the allowed medical data, '
-                    'but editing the core patient profile itself needs a database policy change.',
+                  const SizedBox(height: 8),
+                  Text('Patient ID: $_patientId'),
+                  Text('Age: ${summary['age_years']?.toString() ?? 'Unknown'}'),
+                  Text('Sex: ${summary['sex']?.toString() ?? 'Unknown'}'),
+                  Text('Blood type: ${summary['blood_type']?.toString() ?? 'Unknown'}'),
+                  Text('Phone: ${summary['phone']?.toString() ?? 'Unknown'}'),
+                  Text(
+                    'Emergency contact: ${summary['emergency_contact_name']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Emergency phone: ${summary['emergency_contact_phone']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Address: ${[
+                      summary['address_country']?.toString() ?? '',
+                      summary['address_governorate']?.toString() ?? '',
+                      summary['address_city']?.toString() ?? '',
+                    ].where((e) => e.trim().isNotEmpty).join(' • ')}',
+                  ),
+                  Text(
+                    'Permission: ${_grant?['permission']?.toString() ?? 'none'}',
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Active permission rows',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          if (activePermissions.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No active permission rows for this patient.'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: () => _openSection('/medical_summary'),
+                child: const Text('Open summary'),
               ),
-            )
-          else
-            ...activePermissions.map(
-                  (permission) => Card(
-                child: ListTile(
-                  title: Text(
-                    _permissionLabel(permission),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    [
-                      'Granted at: ${_formatDate(permission.grantedAt)}',
-                      'Expires at: ${_formatDate(permission.expiresAt)}',
-                    ].join('\n'),
-                  ),
+              OutlinedButton(
+                onPressed: () => _openSection('/allergies'),
+                child: const Text('Allergies'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/medications'),
+                child: const Text('Medications'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/conditions'),
+                child: const Text('Conditions'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/vaccinations'),
+                child: const Text('Vaccinations'),
+              ),
+              if (_canEdit)
+                OutlinedButton(
+                  onPressed: () => _openSection('/attachments'),
+                  child: const Text('Attachments'),
                 ),
-              ),
-            ),
-          const SizedBox(height: 16),
-          const Text(
-            'Inactive rows',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ],
           ),
-          const SizedBox(height: 8),
-          if (inactivePermissions.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No revoked or expired rows for this patient.'),
-              ),
-            )
-          else
-            ...inactivePermissions.map(
-                  (permission) => Card(
-                child: ListTile(
-                  title: Text(
-                    _permissionLabel(permission),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    [
-                      'Status: ${permission.status}',
-                      'Expires at: ${_formatDate(permission.expiresAt)}',
-                    ].join('\n'),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

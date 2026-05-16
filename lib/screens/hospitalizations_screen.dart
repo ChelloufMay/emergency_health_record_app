@@ -44,6 +44,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     }
 
     final items = await _service.fetchByPatient(patientId);
+
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
@@ -52,11 +53,113 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     });
   }
 
+  Future<void> _openEditor({HospitalizationModel? initial}) async {
+    if (!widget.canEdit) return;
+
+    final hospitalNameController = TextEditingController(text: initial?.hospitalName ?? '');
+    final admissionDateController = TextEditingController(
+      text: initial?.admissionDate?.toIso8601String().split('T').first ?? '',
+    );
+    final dischargeDateController = TextEditingController(
+      text: initial?.dischargeDate?.toIso8601String().split('T').first ?? '',
+    );
+    final reasonController = TextEditingController(text: initial?.reason ?? '');
+    final notesController = TextEditingController(text: initial?.notes ?? '');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(initial == null ? 'Add hospitalization' : 'Edit hospitalization'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: hospitalNameController,
+                  decoration: const InputDecoration(labelText: 'Hospital name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: admissionDateController,
+                  decoration: const InputDecoration(labelText: 'Admission date', hintText: 'YYYY-MM-DD'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dischargeDateController,
+                  decoration: const InputDecoration(labelText: 'Discharge date', hintText: 'YYYY-MM-DD'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(labelText: 'Reason'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (saved != true) {
+      hospitalNameController.dispose();
+      admissionDateController.dispose();
+      dischargeDateController.dispose();
+      reasonController.dispose();
+      notesController.dispose();
+      return;
+    }
+
+    final patientId = _patientId;
+    if (patientId == null) return;
+
+    final model = HospitalizationModel(
+      id: initial?.id,
+      patientId: patientId,
+      hospitalName: hospitalNameController.text.trim().isEmpty ? null : hospitalNameController.text.trim(),
+      admissionDate: admissionDateController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(admissionDateController.text.trim()),
+      dischargeDate: dischargeDateController.text.trim().isEmpty
+          ? null
+          : DateTime.tryParse(dischargeDateController.text.trim()),
+      reason: reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
+      notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+    );
+
+    await _service.save(hospitalization: model, patientId: patientId);
+
+    hospitalNameController.dispose();
+    admissionDateController.dispose();
+    dischargeDateController.dispose();
+    reasonController.dispose();
+    notesController.dispose();
+
+    await _load();
+  }
+
   Future<void> _deleteItem(HospitalizationModel item) async {
     if (!widget.canEdit) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
-    await _service.delete(patientId: patientId, id: item.id!, performedByUserId: 'current');
+
+    await _service.delete(patientId: patientId, id: item.id!);
     await _load();
   }
 
@@ -67,6 +170,8 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
         title: const Text('Hospitalizations'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          if (widget.canEdit)
+            IconButton(onPressed: () => _openEditor(), icon: const Icon(Icons.add)),
         ],
       ),
       body: _loading
@@ -84,15 +189,26 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
               child: ListTile(
                 title: Text(item.hospitalName ?? 'Hospitalization'),
                 subtitle: Text([
-                  if (item.admissionDate != null) 'Admission: ${item.admissionDate!.toIso8601String().split('T').first}',
-                  if (item.dischargeDate != null) 'Discharge: ${item.dischargeDate!.toIso8601String().split('T').first}',
+                  if (item.admissionDate != null)
+                    'Admission: ${item.admissionDate!.toIso8601String().split('T').first}',
+                  if (item.dischargeDate != null)
+                    'Discharge: ${item.dischargeDate!.toIso8601String().split('T').first}',
                   if ((item.reason ?? '').isNotEmpty) 'Reason: ${item.reason}',
                   if ((item.notes ?? '').isNotEmpty) 'Notes: ${item.notes}',
                 ].join('\n')),
                 trailing: widget.canEdit
-                    ? IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteItem(item),
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
                 )
                     : null,
               ),

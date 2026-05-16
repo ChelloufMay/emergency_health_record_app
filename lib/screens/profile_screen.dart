@@ -70,6 +70,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
+    // This screen binds to the owner profile tables only:
+    // - patient_profiles via ProfileService
+    // - users via PatientService.ensureAppUserId
     final profile = await _profileService.fetchProfile();
     final identity = await _patientService.resolveIdentity();
 
@@ -91,7 +94,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userId = identity?.appUserId;
     }
 
-    if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    setState(() => _loading = false);
   }
 
   Future<void> _pickBirthDate() async {
@@ -122,22 +126,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _saving = true);
 
     try {
+      // The DB owns the actual patient row. The screen only prepares a model
+      // that matches the patient_profiles columns and lets the service do the
+      // insert/update work.
       final profile = PatientProfileModel(
         id: _profileId,
         userId: userId,
-        legalId: _legalIdController.text.trim().isEmpty ? null : _legalIdController.text.trim(),
+        legalId: _legalIdController.text.trim().isEmpty
+            ? null
+            : _legalIdController.text.trim(),
         firstName: _firstNameController.text.trim(),
         familyName: _familyNameController.text.trim(),
         sex: _sex,
         dateOfBirth: _dateOfBirth,
-        bloodType: _bloodTypeController.text.trim().isEmpty ? null : _bloodTypeController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        emergencyContactName: _emergencyNameController.text.trim().isEmpty ? null : _emergencyNameController.text.trim(),
-        emergencyContactPhone: _emergencyPhoneController.text.trim().isEmpty ? null : _emergencyPhoneController.text.trim(),
-        insurancePlan: _insuranceController.text.trim().isEmpty ? null : _insuranceController.text.trim(),
-        covidVaccineType: _covidVaccineController.text.trim().isEmpty ? null : _covidVaccineController.text.trim(),
+        bloodType: _bloodTypeController.text.trim().isEmpty
+            ? null
+            : _bloodTypeController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        emergencyContactName: _emergencyNameController.text.trim().isEmpty
+            ? null
+            : _emergencyNameController.text.trim(),
+        emergencyContactPhone: _emergencyPhoneController.text.trim().isEmpty
+            ? null
+            : _emergencyPhoneController.text.trim(),
+        insurancePlan: _insuranceController.text.trim().isEmpty
+            ? null
+            : _insuranceController.text.trim(),
+        covidVaccineType: _covidVaccineController.text.trim().isEmpty
+            ? null
+            : _covidVaccineController.text.trim(),
       );
 
+      // Address is saved through the profile service so the profile + address
+      // relationship stays consistent with the DB foreign keys.
       final addressFields = <String, dynamic>{
         'country': _countryController.text.trim(),
         'governorate': _governorateController.text.trim(),
@@ -175,6 +198,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My profile'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -183,6 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // These fields are the direct owner profile fields from
+            // patient_profiles_enriched / patient_profiles.
             DropdownButtonFormField<String>(
               initialValue: _sex,
               decoration: const InputDecoration(labelText: 'Sex'),
@@ -191,7 +222,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 DropdownMenuItem(value: 'female', child: Text('Female')),
                 DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
               ],
-              onChanged: (value) => setState(() => _sex = value ?? 'unknown'),
+              onChanged: (value) =>
+                  setState(() => _sex = value ?? 'unknown'),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -202,19 +234,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextFormField(
               controller: _firstNameController,
               decoration: const InputDecoration(labelText: 'First name'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _familyNameController,
               decoration: const InputDecoration(labelText: 'Family name'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Date of birth'),
-              subtitle: Text(_dateOfBirth == null ? 'Not set' : _dateOfBirth!.toIso8601String().split('T').first),
+              subtitle: Text(
+                _dateOfBirth == null
+                    ? 'Not set'
+                    : _dateOfBirth!.toIso8601String().split('T').first,
+              ),
               trailing: IconButton(
                 onPressed: _pickBirthDate,
                 icon: const Icon(Icons.calendar_month),
@@ -233,25 +271,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _emergencyNameController,
-              decoration: const InputDecoration(labelText: 'Emergency contact name'),
+              decoration: const InputDecoration(
+                labelText: 'Emergency contact name',
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _emergencyPhoneController,
-              decoration: const InputDecoration(labelText: 'Emergency contact phone'),
+              decoration: const InputDecoration(
+                labelText: 'Emergency contact phone',
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _insuranceController,
-              decoration: const InputDecoration(labelText: 'Insurance plan'),
+              decoration: const InputDecoration(
+                labelText: 'Insurance plan',
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _covidVaccineController,
-              decoration: const InputDecoration(labelText: 'COVID vaccine type'),
+              decoration: const InputDecoration(
+                labelText: 'COVID vaccine type',
+              ),
             ),
             const SizedBox(height: 24),
-            const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Address',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _countryController,

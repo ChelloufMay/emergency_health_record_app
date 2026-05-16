@@ -21,11 +21,15 @@ class AuditLogScreen extends StatefulWidget {
 }
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
-  final AuditService _auditService = AuditService();
+  final AuditService _auditService = AuditService.instance;
 
   bool _loading = true;
   String? _patientId;
   List<AuditLogModel> _logs = [];
+
+  String? _resolvePatientId() {
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+  }
 
   @override
   void initState() {
@@ -33,29 +37,40 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     _load();
   }
 
-  String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
-  }
-
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _patientId = null;
-        _logs = [];
-      });
+      setState(() => _loading = false);
       return;
     }
 
-    final logs = await _auditService.fetchLogs(patientId);
+    // This uses the ranked audit view so the newest rows are already ordered
+    // correctly at the DB layer.
+    final logs = await _auditService.getRankedAuditLogsForPatient(patientId);
+
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
       _logs = logs;
       _loading = false;
     });
+  }
+
+  String _summary(AuditLogModel log) {
+    final action = log.action;
+    final entity = log.entityType;
+    final field = log.fieldName;
+    final newValue = log.newValue;
+
+    final parts = <String>[
+      action,
+      entity,
+      if ((field ?? '').trim().isNotEmpty) field!,
+      if ((newValue ?? '').trim().isNotEmpty) '→ $newValue',
+    ];
+
+    return parts.where((e) => e.trim().isNotEmpty).join(' • ');
   }
 
   @override
@@ -75,28 +90,25 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : _logs.isEmpty
-          ? const Center(child: Text('No audit entries yet.'))
+          ? const Center(child: Text('No audit logs found.'))
           : ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _logs.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final log = _logs[index];
           return Card(
             child: ListTile(
-              title: Text('${log.action} • ${log.entityType}'),
+              title: Text(_summary(log)),
               subtitle: Text(
                 [
-                  if (log.fieldName != null) 'Field: ${log.fieldName}',
-                  if (log.oldValue != null) 'Old: ${log.oldValue}',
-                  if (log.newValue != null) 'New: ${log.newValue}',
-                  if (log.breakGlassReason != null) 'Reason: ${log.breakGlassReason}',
-                  if (log.timestamp != null) 'At: ${log.timestamp}',
+                  'When: ${log.timestamp?.toIso8601String() ?? 'Unknown'}',
+                  'Performed by: ${log.performedByUserId ?? 'System'}',
+                  if ((log.breakGlassReason ?? '').trim().isNotEmpty)
+                    'Reason: ${log.breakGlassReason}',
                 ].join('\n'),
               ),
-              trailing: log.action == 'break_glass'
-                  ? const Icon(Icons.warning_amber, color: Colors.orange)
-                  : null,
+              isThreeLine: true,
             ),
           );
         },

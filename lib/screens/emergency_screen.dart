@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../services/emergency_payload_service.dart';
@@ -46,226 +44,173 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Map<String, dynamic> _mapFrom(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      return value;
-    }
+    if (value is Map<String, dynamic>) return value;
     if (value is Map) {
-      return value.map((key, val) => MapEntry(key.toString(), val));
+      return value.map((key, value) => MapEntry(key.toString(), value));
     }
     return <String, dynamic>{};
   }
 
-  List<Map<String, dynamic>> _mapListFrom(dynamic value) {
-    if (value is! List) return <Map<String, dynamic>>[];
-
-    return value
-        .whereType<Map>()
-        .map((item) => _mapFrom(item))
-        .toList();
-  }
-
-  DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    return DateTime.tryParse(value.toString());
-  }
-
-  String _formatDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final y = dateTime.year.toString().padLeft(4, '0');
-    final m = dateTime.month.toString().padLeft(2, '0');
-    final d = dateTime.day.toString().padLeft(2, '0');
-    final hh = dateTime.hour.toString().padLeft(2, '0');
-    final mm = dateTime.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm';
-  }
-
-  String? _formatAge(DateTime? dob) {
-    if (dob == null) return null;
-    final today = DateTime.now();
-    var age = today.year - dob.year;
-    if (today.month < dob.month ||
-        (today.month == dob.month && today.day < dob.day)) {
-      age--;
+  List<Map<String, dynamic>> _listFrom(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) => _mapFrom(item))
+          .where((item) => item.isNotEmpty)
+          .toList();
     }
-    return age.toString();
+    return <Map<String, dynamic>>[];
   }
 
-  String? _buildAddressSummary(Map<String, dynamic>? row) {
-    if (row == null) return null;
+  String? _extractTokenFromPayload(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
 
-    final parts = <String>[
-      row['address_country']?.toString().trim() ?? '',
-      row['address_governorate']?.toString().trim() ?? '',
-      row['address_city']?.toString().trim() ?? '',
-      row['address_avenue']?.toString().trim() ?? '',
-      row['address_street']?.toString().trim() ?? '',
-      row['address_postal_code']?.toString().trim() ?? '',
-      row['address_extra_details']?.toString().trim() ?? '',
-    ].where((part) => part.isNotEmpty).toList();
-
-    if (parts.isEmpty) {
-      final nestedAddress = row['address'];
-      if (nestedAddress is Map) {
-        return _buildAddressSummary(_mapFrom(nestedAddress));
+    // First try URI style payloads: healthapp://emergency?payload=...
+    final uri = Uri.tryParse(raw);
+    if (uri != null) {
+      final uriPayload = EmergencyPayloadService.extractPayloadFromUri(uri);
+      if (uriPayload != null && uriPayload.trim().isNotEmpty) {
+        raw = uriPayload;
       }
-      return null;
     }
 
-    return parts.join(' • ');
-  }
-
-  Map<String, dynamic>? _extractSnapshot(Map<String, dynamic> decoded) {
-    final offlineSummary = decoded['offline_summary'];
-    if (offlineSummary is Map) {
-      return _mapFrom(offlineSummary);
+    // Then try base64-encoded envelope payloads.
+    final decoded = EmergencyPayloadService.decodePayload(raw);
+    if (decoded != null) {
+      final token = decoded['token']?.toString();
+      if (token != null && token.trim().isNotEmpty) {
+        _hasOfflineSnapshot = decoded['offline_summary'] is Map;
+        return token.trim();
+      }
     }
 
-    if (decoded.containsKey('patient_id') ||
-        decoded.containsKey('first_name') ||
-        decoded.containsKey('allergies') ||
-        decoded.containsKey('medications') ||
-        decoded.containsKey('chronic_conditions')) {
-      return decoded;
-    }
-
-    return null;
-  }
-
-  void _applySummary(Map<String, dynamic> summary) {
-    final dob = _parseDateTime(summary['date_of_birth']);
-
-    final name = [
-      summary['first_name']?.toString().trim() ?? '',
-      summary['family_name']?.toString().trim() ?? '',
-    ].where((part) => part.isNotEmpty).join(' ');
-
-    final emergencyContactName =
-        summary['emergency_contact_name']?.toString().trim() ?? '';
-    final emergencyContactPhone =
-        summary['emergency_contact_phone']?.toString().trim() ?? '';
-
-    _patientId = summary['patient_id']?.toString() ??
-        summary['id']?.toString() ??
-        _patientId;
-
-    _name = name.isEmpty ? _name : name;
-    _dob = dob == null ? _dob : _formatDate(dob);
-    _age = _formatAge(dob) ?? _age;
-    _bloodType = summary['blood_type']?.toString() ?? _bloodType;
-    _phone = summary['phone']?.toString() ?? _phone;
-
-    final contactParts = <String>[
-      emergencyContactName,
-      emergencyContactPhone,
-    ].where((part) => part.isNotEmpty).toList();
-    if (contactParts.isNotEmpty) {
-      _emergencyContact = contactParts.join(' • ');
-    }
-
-    _addressSummary = _buildAddressSummary(summary) ?? _addressSummary;
-    _insurancePlan = summary['insurance_plan']?.toString() ?? _insurancePlan;
-    _covidVaccineType =
-        summary['covid_vaccine_type']?.toString() ?? _covidVaccineType;
-
-    _allergies = _mapListFrom(summary['allergies']);
-    _medications = _mapListFrom(summary['medications']);
-    _conditions = _mapListFrom(
-      summary['chronic_conditions'] ?? summary['medical_conditions'],
-    );
-
-    _lastUpdated = _parseDateTime(summary['updated_at']) ?? _lastUpdated;
-    _hasOfflineSnapshot = true;
+    // Fall back to raw token text.
+    return raw.trim();
   }
 
   Future<void> _load() async {
+    // This screen now resolves the emergency token first, then asks the DB
+    // for the actual emergency-safe row. That matches the new DB function
+    // resolve_emergency_access_token().
+    final token = _extractTokenFromPayload(widget.payload);
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
+
     try {
-      final rawPayload = widget.payload?.trim();
+      final resolved = await _patientService.resolveEmergencyAccessToken(token);
 
-      if (rawPayload != null && rawPayload.isNotEmpty) {
-        final decoded = EmergencyPayloadService.decodePayload(rawPayload);
-        if (decoded != null) {
-          final snapshot = _extractSnapshot(_mapFrom(decoded));
-          if (snapshot != null) {
-            _applySummary(snapshot);
-          }
-        }
+      if (resolved == null) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        return;
       }
 
-      final identity = await _patientService.resolveIdentity();
+      final patientId = resolved['patient_id']?.toString();
+      Map<String, dynamic>? emergencySummary;
 
-      _patientId ??= identity?.patientProfileId;
-
-      if (_patientId != null) {
-        final remote = await _patientService.fetchEmergencySummary(_patientId!);
-        if (remote != null) {
-          _applySummary(_mapFrom(remote));
-        }
+      if (patientId != null && patientId.isNotEmpty) {
+        emergencySummary = await _patientService.fetchEmergencySummary(patientId);
       }
+
+      // If online fetch fails, keep the token-resolved snapshot values so the
+      // emergency UI still has something usable.
+      final fallback = _mapFrom(resolved['offline_summary']);
+      final source = emergencySummary ?? fallback;
+
+      if (!mounted) return;
+      setState(() {
+        _patientId = patientId;
+        _name = [
+          source['first_name']?.toString() ?? resolved['first_name']?.toString() ?? '',
+          source['family_name']?.toString() ??
+              resolved['family_name']?.toString() ??
+              '',
+        ].join(' ').trim();
+
+        final dobValue = source['date_of_birth'] ?? resolved['date_of_birth'];
+        _dob = dobValue?.toString();
+        _age = source['age_years']?.toString() ?? resolved['age_years']?.toString();
+        _bloodType = source['blood_type']?.toString() ??
+            resolved['blood_type']?.toString();
+        _phone = source['phone']?.toString() ?? resolved['phone']?.toString();
+        _emergencyContact = [
+          source['emergency_contact_name']?.toString() ??
+              resolved['emergency_contact_name']?.toString() ??
+              '',
+          source['emergency_contact_phone']?.toString() ??
+              resolved['emergency_contact_phone']?.toString() ??
+              '',
+        ].where((e) => e.trim().isNotEmpty).join(' • ');
+        _addressSummary = [
+          source['address_country']?.toString() ??
+              resolved['address_country']?.toString() ??
+              '',
+          source['address_governorate']?.toString() ??
+              resolved['address_governorate']?.toString() ??
+              '',
+          source['address_city']?.toString() ??
+              resolved['address_city']?.toString() ??
+              '',
+        ].where((e) => e.trim().isNotEmpty).join(' • ');
+        _insurancePlan = source['insurance_plan']?.toString() ??
+            resolved['insurance_plan']?.toString();
+        _covidVaccineType = source['covid_vaccine_type']?.toString() ??
+            resolved['covid_vaccine_type']?.toString();
+        _lastUpdated = DateTime.tryParse(
+          source['updated_at']?.toString() ?? resolved['updated_at']?.toString() ?? '',
+        );
+        _allergies = _listFrom(source['allergies']);
+        _medications = _listFrom(source['medications']);
+        _conditions = _listFrom(source['chronic_conditions']);
+        _loading = false;
+      });
     } catch (_) {
-      // Keep whatever was decoded locally. Emergency view should still render.
-    } finally {
       if (!mounted) return;
       setState(() => _loading = false);
     }
   }
 
-  String _joinDetails(List<String?> values) {
-    final cleaned = values
-        .where((value) => value != null && value.trim().isNotEmpty)
-        .map((value) => value!.trim())
-        .toList();
-
-    if (cleaned.isEmpty) return '-';
-    return cleaned.join(' • ');
-  }
-
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text('$label: ${value?.trim().isNotEmpty == true ? value : '-'}'),
-    );
-  }
-
-  Widget _buildMapItem({
-    required Map<String, dynamic> row,
-    required String titleKey,
-    List<String> subtitleKeys = const [],
-    String? fallbackTitle,
-  }) {
-    final title = row[titleKey]?.toString().trim();
-    final subtitle = _joinDetails(
-      subtitleKeys.map((key) => row[key]?.toString()).toList(),
-    );
+  Widget _renderItem(Map<String, dynamic> item) {
+    final title = item['allergen_name'] ??
+        item['medication_name'] ??
+        item['condition_name'] ??
+        'Item';
+    final detailParts = <String>[
+      if ((item['reaction']?.toString() ?? '').trim().isNotEmpty) item['reaction'].toString(),
+      if ((item['severity']?.toString() ?? '').trim().isNotEmpty) item['severity'].toString(),
+      if ((item['dosage']?.toString() ?? '').trim().isNotEmpty) item['dosage'].toString(),
+      if ((item['frequency']?.toString() ?? '').trim().isNotEmpty) item['frequency'].toString(),
+      if ((item['type']?.toString() ?? '').trim().isNotEmpty) item['type'].toString(),
+      if ((item['notes']?.toString() ?? '').trim().isNotEmpty) item['notes'].toString(),
+    ];
 
     return ListTile(
+      dense: true,
       contentPadding: EdgeInsets.zero,
-      title: Text(
-        (title != null && title.isNotEmpty) ? title : (fallbackTitle ?? '-'),
-      ),
-      subtitle: Text(subtitle),
+      title: Text(title.toString()),
+      subtitle: detailParts.isEmpty ? null : Text(detailParts.join(' • ')),
     );
   }
 
-  Widget _buildEmptyState(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(text),
+  Widget _section(String title, List<Map<String, dynamic>> items) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              const Text('No data')
+            else
+              ...items.map(_renderItem),
+          ],
+        ),
+      ),
     );
   }
 
@@ -275,105 +220,58 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       appBar: AppBar(
         title: const Text('Emergency view'),
         actions: [
-          if (_hasOfflineSnapshot)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(Icons.offline_bolt),
-            ),
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _patientId == null
+          ? const Center(child: Text('Invalid or missing emergency token.'))
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            _name ?? 'Unknown',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _name?.isNotEmpty == true ? _name! : 'Emergency patient',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Patient ID: $_patientId'),
+                  Text('DOB: ${_dob ?? 'Unknown'}'),
+                  Text('Age: ${_age ?? 'Unknown'}'),
+                  Text('Blood type: ${_bloodType ?? 'Unknown'}'),
+                  Text('Phone: ${_phone ?? 'Unknown'}'),
+                  Text('Emergency contact: ${_emergencyContact ?? 'Unknown'}'),
+                  Text('Address: ${_addressSummary ?? 'Unknown'}'),
+                  Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
+                  Text('COVID vaccine: ${_covidVaccineType ?? 'Unknown'}'),
+                  Text(
+                    'Source: ${_hasOfflineSnapshot ? 'Offline snapshot + token' : 'Live token lookup'}',
+                  ),
+                  if (_lastUpdated != null)
+                    Text('Last updated: ${_lastUpdated!.toIso8601String()}'),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          if (_hasOfflineSnapshot)
-            const Text(
-              'Offline emergency snapshot',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          const SizedBox(height: 8),
-          _infoRow('DOB', _dob),
-          _infoRow('Age', _age),
-          _infoRow('Blood type', _bloodType),
-          _infoRow('Phone', _phone),
           const SizedBox(height: 12),
-          Text(
-            'Address: ${_addressSummary ?? '-'}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          if (_insurancePlan != null || _covidVaccineType != null) ...[
-            const SizedBox(height: 8),
-            _infoRow('Insurance', _insurancePlan),
-            _infoRow('COVID vaccine', _covidVaccineType),
-          ],
-          if (_lastUpdated != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Last updated: ${_formatDateTime(_lastUpdated!)}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 20),
-          _sectionTitle('Allergies'),
-          if (_allergies.isEmpty)
-            _buildEmptyState('No allergies recorded')
-          else
-            ..._allergies.map(
-                  (row) => _buildMapItem(
-                row: row,
-                titleKey: 'allergen_name',
-                subtitleKeys: const [
-                  'reaction',
-                  'severity',
-                ],
-              ),
-            ),
+          _section('Allergies', _allergies),
           const SizedBox(height: 12),
-          _sectionTitle('Medications'),
-          if (_medications.isEmpty)
-            _buildEmptyState('No medications recorded')
-          else
-            ..._medications.map(
-                  (row) => _buildMapItem(
-                row: row,
-                titleKey: 'medication_name',
-                subtitleKeys: const [
-                  'dosage',
-                  'frequency',
-                  'purpose',
-                ],
-              ),
-            ),
+          _section('Medications', _medications),
           const SizedBox(height: 12),
-          _sectionTitle('Chronic conditions'),
-          if (_conditions.isEmpty)
-            _buildEmptyState('No chronic conditions recorded')
-          else
-            ..._conditions.map(
-                  (row) => _buildMapItem(
-                row: row,
-                titleKey: 'condition_name',
-                subtitleKeys: const [
-                  'diagnosis_date',
-                  'diagnosis_place',
-                  'follow_up_doctor',
-                  'treatment',
-                  'notes',
-                ],
-              ),
-            ),
-          const SizedBox(height: 12),
-          _sectionTitle('Emergency contact'),
-          Text(_emergencyContact ?? '-'),
+          _section('Chronic conditions', _conditions),
         ],
       ),
     );

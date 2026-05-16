@@ -44,6 +44,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     }
 
     final items = await _service.fetchByPatient(patientId);
+
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
@@ -52,11 +53,111 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     });
   }
 
+  Future<void> _openEditor({FamilyHistoryModel? initial}) async {
+    if (!widget.canEdit) return;
+
+    final relationController = TextEditingController(text: initial?.relation ?? '');
+    final conditionController = TextEditingController(text: initial?.conditionName ?? '');
+    final categoryController = TextEditingController(text: initial?.category ?? '');
+    final notesController = TextEditingController(text: initial?.notes ?? '');
+    bool? isGenetic = initial?.isGenetic;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(initial == null ? 'Add family history' : 'Edit family history'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Family history is its own owner-only section, so the UI keeps
+                // the row structure very close to the DB table.
+                TextField(
+                  controller: relationController,
+                  decoration: const InputDecoration(labelText: 'Relation'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: conditionController,
+                  decoration: const InputDecoration(labelText: 'Condition name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<bool?>(
+                  initialValue: isGenetic,
+                  decoration: const InputDecoration(labelText: 'Genetic'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Unknown')),
+                    DropdownMenuItem(value: true, child: Text('Yes')),
+                    DropdownMenuItem(value: false, child: Text('No')),
+                  ],
+                  onChanged: (v) => isGenetic = v,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (saved != true) {
+      relationController.dispose();
+      conditionController.dispose();
+      categoryController.dispose();
+      notesController.dispose();
+      return;
+    }
+
+    final patientId = _patientId;
+    if (patientId == null) return;
+
+    final model = FamilyHistoryModel(
+      id: initial?.id,
+      patientId: patientId,
+      relation: relationController.text.trim().isEmpty ? null : relationController.text.trim(),
+      conditionName: conditionController.text.trim(),
+      category: categoryController.text.trim().isEmpty ? null : categoryController.text.trim(),
+      isGenetic: isGenetic,
+      notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+    );
+
+    await _service.save(familyHistory: model, patientId: patientId);
+
+    relationController.dispose();
+    conditionController.dispose();
+    categoryController.dispose();
+    notesController.dispose();
+
+    await _load();
+  }
+
   Future<void> _deleteItem(FamilyHistoryModel item) async {
     if (!widget.canEdit) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
-    await _service.delete(patientId: patientId, id: item.id!, performedByUserId: 'current');
+
+    await _service.delete(patientId: patientId, id: item.id!);
     await _load();
   }
 
@@ -67,6 +168,8 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
         title: const Text('Family history'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          if (widget.canEdit)
+            IconButton(onPressed: () => _openEditor(), icon: const Icon(Icons.add)),
         ],
       ),
       body: _loading
@@ -90,9 +193,18 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
                   if ((item.notes ?? '').isNotEmpty) 'Notes: ${item.notes}',
                 ].join('\n')),
                 trailing: widget.canEdit
-                    ? IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteItem(item),
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
                 )
                     : null,
               ),
