@@ -27,7 +27,6 @@ class PatientSessionService {
   final ValueNotifier<PatientSession?> notifier = ValueNotifier(null);
 
   PatientSession? get current => notifier.value;
-
   bool get hasSession => notifier.value != null;
 
   void setSession({

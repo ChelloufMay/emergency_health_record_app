@@ -10,15 +10,23 @@ class CaregiverProfileService {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
 
-    final row = await _supabase.from('caregiver_profiles').select().eq('user_id', appUserId).maybeSingle();
+    final row = await _supabase
+        .from('caregiver_profiles')
+        .select()
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
     if (row == null) return null;
-    return CaregiverProfileModel.fromMap(row);
+    return CaregiverProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<String> saveMine(CaregiverProfileModel model) async {
     final appUserId = await _patientService.ensureAppUserId();
-    if (appUserId == null) throw Exception('Not authenticated');
+    if (appUserId == null) {
+      throw Exception('Not authenticated');
+    }
 
+    // The row is owned by user_id, which is unique in the database.
     final payload = CaregiverProfileModel(
       id: model.id,
       userId: appUserId,
@@ -32,14 +40,24 @@ class CaregiverProfileService {
       mobility: model.mobility,
     ).toInsertMap();
 
-    await _supabase.from('caregiver_profiles').upsert(payload, onConflict: 'user_id');
-    final row = await _supabase.from('caregiver_profiles').select('id').eq('user_id', appUserId).single();
+    await _supabase.from('caregiver_profiles').upsert(
+      payload,
+      onConflict: 'user_id',
+    );
+
+    final row = await _supabase
+        .from('caregiver_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .single();
+
     return row['id'].toString();
   }
 
   Future<void> deleteMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;
+
     await _supabase.from('caregiver_profiles').delete().eq('user_id', appUserId);
   }
 }

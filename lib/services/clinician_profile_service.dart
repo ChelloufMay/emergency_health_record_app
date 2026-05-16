@@ -10,27 +10,44 @@ class ClinicianProfileService {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
 
-    final row = await _supabase.from('clinician_profiles').select().eq('user_id', appUserId).maybeSingle();
+    final row = await _supabase
+        .from('clinician_profiles')
+        .select()
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
     if (row == null) return null;
-    return ClinicianProfileModel.fromMap(row);
+    return ClinicianProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<String> saveMine(ClinicianProfileModel model) async {
     final appUserId = await _patientService.ensureAppUserId();
-    if (appUserId == null) throw Exception('Not authenticated');
+    if (appUserId == null) {
+      throw Exception('Not authenticated');
+    }
 
-    await _supabase.from('clinician_profiles').upsert({
-      ...model.toInsertMap(),
-      'user_id': appUserId,
-    }, onConflict: 'user_id');
+    // The database enforces one clinician profile per user_id.
+    await _supabase.from('clinician_profiles').upsert(
+      {
+        ...model.toInsertMap(),
+        'user_id': appUserId,
+      },
+      onConflict: 'user_id',
+    );
 
-    final row = await _supabase.from('clinician_profiles').select('id').eq('user_id', appUserId).single();
+    final row = await _supabase
+        .from('clinician_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .single();
+
     return row['id'].toString();
   }
 
   Future<void> deleteMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;
+
     await _supabase.from('clinician_profiles').delete().eq('user_id', appUserId);
   }
 }

@@ -1,10 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/attachment_model.dart';
-import 'audit_service.dart';
 
 class AttachmentService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final AuditService _audit = AuditService();
 
   Future<List<AttachmentModel>> fetchByPatient(String patientId) async {
     final rows = await _supabase
@@ -13,7 +12,9 @@ class AttachmentService {
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
 
-    return (rows as List).map((row) => AttachmentModel.fromMap(row as Map)).toList();
+    return (rows as List)
+        .map((row) => AttachmentModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .toList();
   }
 
   String buildStoragePath({
@@ -45,42 +46,22 @@ class AttachmentService {
 
     if (payload.id == null || payload.id!.isEmpty) {
       final inserted = await _supabase.from('attachments').insert(payload.toInsertMap()).select('id').single();
-      final id = inserted['id'].toString();
-
-      await _audit.log(
-        patientId: patientId,
-        performedByUserId: performedByUserId,
-        action: 'create',
-        entityType: 'attachments',
-        entityId: id,
-        fieldName: 'file_name',
-        newValue: payload.fileName,
-      );
-
-      return id;
+      return inserted['id'].toString();
     }
 
     await _supabase.from('attachments').update(payload.toUpdateMap()).eq('id', payload.id!);
-
-    await _audit.log(
-      patientId: patientId,
-      performedByUserId: performedByUserId,
-      action: 'update',
-      entityType: 'attachments',
-      entityId: payload.id!,
-      fieldName: 'file_name',
-      newValue: payload.fileName,
-    );
-
     return payload.id!;
   }
 
   Future<void> delete({
     required String patientId,
     required String id,
-    required String performedByUserId,
   }) async {
-    final row = await _supabase.from('attachments').select('storage_path, file_name').eq('id', id).maybeSingle();
+    final row = await _supabase
+        .from('attachments')
+        .select('storage_path, file_name')
+        .eq('id', id)
+        .maybeSingle();
 
     await _supabase.from('attachments').delete().eq('id', id);
 
@@ -90,13 +71,5 @@ class AttachmentService {
         await _supabase.storage.from('attachments').remove([storagePath]);
       }
     }
-
-    await _audit.log(
-      patientId: patientId,
-      performedByUserId: performedByUserId,
-      action: 'delete',
-      entityType: 'attachments',
-      entityId: id,
-    );
   }
 }

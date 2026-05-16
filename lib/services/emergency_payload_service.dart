@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 class EmergencyPayloadService {
-  static String encodePayload(Map<String, dynamic> data) {
+  static String encodePayload(Map data) {
     return base64UrlEncode(utf8.encode(jsonEncode(data)));
   }
 
-  static Map<String, dynamic>? decodePayload(String raw) {
+  static Map? decodePayload(String raw) {
     try {
       final bytes = base64Url.decode(raw);
       final jsonText = utf8.decode(bytes);

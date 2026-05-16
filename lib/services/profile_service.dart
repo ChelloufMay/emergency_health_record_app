@@ -1,21 +1,25 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/address_model.dart';
 import '../models/patient_profile_model.dart';
-import 'audit_service.dart';
 import 'patient_service.dart';
 
 class ProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final AuditService _audit = AuditService();
   final PatientService _patientService = PatientService();
 
   Future<PatientProfileModel?> fetchProfile() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
 
-    final row = await _supabase.from('patient_profiles').select().eq('user_id', appUserId).maybeSingle();
+    final row = await _supabase
+        .from('patient_profiles')
+        .select()
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
     if (row == null) return null;
-    return PatientProfileModel.fromMap(row);
+    return PatientProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<String> saveProfile({
@@ -23,7 +27,11 @@ class ProfileService {
     required String performedByUserId,
     Map<String, dynamic>? addressFields,
   }) async {
-    final appUserId = await _patientService.ensureAppUserId();
+    final appUserId = await _patientService.ensureAppUserId(
+      fullName: '${profile.firstName} ${profile.familyName}',
+      phone: profile.phone,
+    );
+
     if (appUserId == null) {
       throw Exception('No linked app user row was found.');
     }
@@ -51,68 +59,55 @@ class ProfileService {
       addressFields: addressFields,
     );
 
+    // save_my_patient_profile() now owns the core patient row fields.
     String? savedId;
     try {
-      final patientId = await _supabase.rpc('save_my_patient_profile', params: {
-        '_legal_id': safeProfile.legalId,
-        '_first_name': safeProfile.firstName,
-        '_family_name': safeProfile.familyName,
-        '_sex': safeProfile.sex,
-        '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
-        '_blood_type': safeProfile.bloodType,
-        '_phone': safeProfile.phone,
-        '_emergency_contact_name': safeProfile.emergencyContactName,
-        '_emergency_contact_phone': safeProfile.emergencyContactPhone,
-        '_insurance_plan': safeProfile.insurancePlan,
-        '_covid_vaccine_type': safeProfile.covidVaccineType,
-      });
+      final patientId = await _supabase.rpc(
+        'save_my_patient_profile',
+        params: {
+          '_legal_id': safeProfile.legalId,
+          '_first_name': safeProfile.firstName,
+          '_family_name': safeProfile.familyName,
+          '_sex': safeProfile.sex,
+          '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
+          '_blood_type': safeProfile.bloodType,
+          '_phone': safeProfile.phone,
+          '_emergency_contact_name': safeProfile.emergencyContactName,
+          '_emergency_contact_phone': safeProfile.emergencyContactPhone,
+          '_insurance_plan': safeProfile.insurancePlan,
+          '_covid_vaccine_type': safeProfile.covidVaccineType,
+        },
+      );
       savedId = patientId?.toString();
     } on PostgrestException {
-      final patientId = await _supabase.rpc('save_my_patient_profile', params: {
-        '_legal_id': safeProfile.legalId,
-        '_first_name': safeProfile.firstName,
-        '_family_name': safeProfile.familyName,
-        '_sex': safeProfile.sex,
-        '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
-        '_blood_type': safeProfile.bloodType,
-        '_phone': safeProfile.phone,
-        '_emergency_contact_name': safeProfile.emergencyContactName,
-        '_emergency_contact_phone': safeProfile.emergencyContactPhone,
-        '_insurance_plan': safeProfile.insurancePlan,
-        '_covid_vaccine_type': safeProfile.covidVaccineType,
-      });
+      final patientId = await _supabase.rpc(
+        'save_my_patient_profile',
+        params: {
+          '_legal_id': safeProfile.legalId,
+          '_first_name': safeProfile.firstName,
+          '_family_name': safeProfile.familyName,
+          '_sex': safeProfile.sex,
+          '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
+          '_blood_type': safeProfile.bloodType,
+          '_phone': safeProfile.phone,
+          '_emergency_contact_name': safeProfile.emergencyContactName,
+          '_emergency_contact_phone': safeProfile.emergencyContactPhone,
+          '_insurance_plan': safeProfile.insurancePlan,
+          '_covid_vaccine_type': safeProfile.covidVaccineType,
+        },
+      );
       savedId = patientId?.toString();
     }
 
-    if (savedId == null) throw Exception('Profile save failed.');
+    if (savedId == null) {
+      throw Exception('Profile save failed.');
+    }
 
     if (addressId != null || safeProfile.familyDoctorId != null) {
       await _supabase.from('patient_profiles').update({
         if (addressId != null) 'address_id': addressId,
         if (safeProfile.familyDoctorId != null) 'family_doctor_id': safeProfile.familyDoctorId,
       }).eq('id', savedId);
-    }
-
-    await _audit.log(
-      patientId: savedId,
-      performedByUserId: performedByUserId,
-      action: 'update',
-      entityType: 'patient_profiles',
-      entityId: savedId,
-      fieldName: 'first_name',
-      newValue: '${safeProfile.firstName} ${safeProfile.familyName}',
-    );
-
-    if (addressId != null) {
-      await _audit.log(
-        patientId: savedId,
-        performedByUserId: performedByUserId,
-        action: 'update',
-        entityType: 'addresses',
-        entityId: addressId,
-        fieldName: 'address_id',
-        newValue: addressId,
-      );
     }
 
     return savedId;
@@ -125,7 +120,12 @@ class ProfileService {
     String sex = 'unknown',
     String? legalId,
   }) async {
-    final existing = await _supabase.from('patient_profiles').select('id').eq('user_id', userId).maybeSingle();
+    final existing = await _supabase
+        .from('patient_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
     if (existing != null) return existing['id'] as String;
 
     final inserted = await _supabase.from('patient_profiles').insert({
@@ -143,11 +143,13 @@ class ProfileService {
     required String? addressId,
     required Map<String, dynamic>? addressFields,
   }) async {
-    if (addressFields == null) return addressId;
+    if (addressFields == null || addressFields.isEmpty) return addressId;
 
     final model = AddressModel(
       id: addressId,
-      country: addressFields['country']?.toString().trim().isNotEmpty == true ? addressFields['country'].toString().trim() : 'Unknown',
+      country: addressFields['country']?.toString().trim().isNotEmpty == true
+          ? addressFields['country'].toString().trim()
+          : 'Unknown',
       governorate: addressFields['governorate']?.toString(),
       city: addressFields['city']?.toString(),
       avenue: addressFields['avenue']?.toString(),
@@ -169,11 +171,11 @@ class ProfileService {
     if (!hasAnyValue) return addressId;
 
     if (addressId != null && addressId.isNotEmpty) {
-      await _supabase.from('addresses').update(model.toMap()).eq('id', addressId);
+      await _supabase.from('addresses').update(model.toUpdateMap()).eq('id', addressId);
       return addressId;
     }
 
-    final inserted = await _supabase.from('addresses').insert(model.toMap()).select('id').single();
+    final inserted = await _supabase.from('addresses').insert(model.toInsertMap()).select('id').single();
     return inserted['id']?.toString();
   }
 }

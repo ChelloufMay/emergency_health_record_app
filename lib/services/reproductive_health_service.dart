@@ -1,21 +1,24 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/reproductive_health_model.dart';
-import 'audit_service.dart';
 
 class ReproductiveHealthService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final AuditService _audit = AuditService();
 
   Future<ReproductiveHealthModel?> fetchByPatient(String patientId) async {
-    final row = await _supabase.from('reproductive_health').select().eq('patient_id', patientId).maybeSingle();
+    final row = await _supabase
+        .from('reproductive_health')
+        .select()
+        .eq('patient_id', patientId)
+        .maybeSingle();
+
     if (row == null) return null;
-    return ReproductiveHealthModel.fromMap(row);
+    return ReproductiveHealthModel.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<String> save({
     required ReproductiveHealthModel reproductiveHealth,
     required String patientId,
-    required String performedByUserId,
   }) async {
     final payload = ReproductiveHealthModel(
       id: reproductiveHealth.id,
@@ -42,53 +45,17 @@ class ReproductiveHealthService {
 
     if (existing == null) {
       final inserted = await _supabase.from('reproductive_health').insert(payload.toInsertMap()).select('id').single();
-      final id = inserted['id'].toString();
-
-      await _audit.log(
-        patientId: patientId,
-        performedByUserId: performedByUserId,
-        action: 'create',
-        entityType: 'reproductive_health',
-        entityId: id,
-        fieldName: 'patient_id',
-        newValue: patientId,
-      );
-
-      return id;
+      return inserted['id'].toString();
     }
 
     final id = existing['id'].toString();
     await _supabase.from('reproductive_health').update(payload.toUpdateMap()).eq('patient_id', patientId);
-
-    await _audit.log(
-      patientId: patientId,
-      performedByUserId: performedByUserId,
-      action: 'update',
-      entityType: 'reproductive_health',
-      entityId: id,
-      fieldName: 'patient_id',
-      newValue: patientId,
-    );
-
     return id;
   }
 
   Future<void> delete({
     required String patientId,
-    required String performedByUserId,
   }) async {
-    final existing = await _supabase.from('reproductive_health').select('id').eq('patient_id', patientId).maybeSingle();
-    if (existing == null) return;
-
-    final id = existing['id'].toString();
     await _supabase.from('reproductive_health').delete().eq('patient_id', patientId);
-
-    await _audit.log(
-      patientId: patientId,
-      performedByUserId: performedByUserId,
-      action: 'delete',
-      entityType: 'reproductive_health',
-      entityId: id,
-    );
   }
 }

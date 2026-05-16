@@ -31,7 +31,15 @@ class PatientService {
   Future<Map<String, dynamic>?> fetchCurrentAppUserRow() async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
-    return _supabase.from('users').select().eq('auth_user_id', authUser.id).maybeSingle();
+
+    final row = await _supabase
+        .from('users')
+        .select()
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
   }
 
   Future<String?> ensureAppUserId({String? fullName, String? phone}) async {
@@ -47,7 +55,6 @@ class PatientService {
         authUser.email?.split('@').first ??
         'User')
         .trim();
-
     final resolvedPhone = phone?.trim();
 
     try {
@@ -74,21 +81,25 @@ class PatientService {
     if (appUserId == null) return null;
 
     final userRow = await fetchCurrentAppUserRow();
+
     final patientRow = await _supabase
         .from('patient_profiles')
         .select('id, sex')
         .eq('user_id', appUserId)
         .maybeSingle();
+
     final caregiverRow = await _supabase
         .from('caregiver_profiles')
         .select('id')
         .eq('user_id', appUserId)
         .maybeSingle();
+
     final guardianRow = await _supabase
         .from('guardian_profiles')
         .select('id')
         .eq('user_id', appUserId)
         .maybeSingle();
+
     final clinicianRow = await _supabase
         .from('clinician_profiles')
         .select('id')
@@ -106,22 +117,111 @@ class PatientService {
     );
   }
 
+  Future<bool> hasPatientProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('patient_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> hasCaregiverProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('caregiver_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> hasGuardianProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('guardian_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> hasClinicianProfile() async {
+    final appUserId = await ensureAppUserId();
+    if (appUserId == null) return false;
+
+    final row = await _supabase
+        .from('clinician_profiles')
+        .select('id')
+        .eq('user_id', appUserId)
+        .maybeSingle();
+
+    return row != null;
+  }
+
+  Future<bool> canAccessPatient(String patientId, String action) async {
+    final result = await _supabase.rpc(
+      'can_access_patient',
+      params: {
+        '_patient_id': patientId,
+        '_action': action,
+      },
+    );
+    return result == true;
+  }
+
+  Future<bool> canAccessPatientSection(String patientId, String section, String action) async {
+    final result = await _supabase.rpc(
+      'can_access_patient_section',
+      params: {
+        '_patient_id': patientId,
+        '_section': section,
+        '_action': action,
+      },
+    );
+    return result == true;
+  }
+
+  Future<bool> hasAnyAccessGrant(String patientId) async {
+    final result = await _supabase.rpc(
+      'has_any_access_for_patient',
+      params: {'_patient_id': patientId},
+    );
+    return result == true;
+  }
+
   Future<Map<String, dynamic>?> fetchPatientSummary(String patientId) async {
-    return _supabase
+    final row = await _supabase
         .from('patient_profiles_enriched')
         .select(
       'id, user_id, legal_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at',
     )
         .eq('id', patientId)
         .maybeSingle();
+
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
   }
 
   Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
-    return _supabase
+    final row = await _supabase
         .from('patient_emergency_summary')
         .select('*')
         .eq('patient_id', patientId)
         .maybeSingle();
+
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
   }
 
   Future<Map<String, dynamic>?> resolveEmergencyAccessToken(String token) async {

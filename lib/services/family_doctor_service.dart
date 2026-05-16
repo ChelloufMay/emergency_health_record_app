@@ -1,10 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/address_model.dart';
 import '../models/family_doctor_model.dart';
-import 'audit_service.dart';
+import '../models/family_doctor_with_address_model.dart';
 
 class FamilyDoctorService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final AuditService _audit = AuditService();
 
   String? _trimToNull(String? value) {
     final text = value?.trim();
@@ -12,12 +13,13 @@ class FamilyDoctorService {
     return text;
   }
 
-  Future<FamilyDoctorModel?> fetchForPatient(String patientId) async {
+  Future<FamilyDoctorWithAddressModel?> fetchForPatient(String patientId) async {
     final profileRow = await _supabase
         .from('patient_profiles')
         .select('family_doctor_id')
         .eq('id', patientId)
         .maybeSingle();
+
     if (profileRow == null) return null;
 
     final doctorId = profileRow['family_doctor_id'] as String?;
@@ -28,19 +30,24 @@ class FamilyDoctorService {
         .select()
         .eq('id', doctorId)
         .maybeSingle();
+
     if (doctorRow == null) return null;
 
     final addressId = doctorRow['address_id'] as String?;
     Map<String, dynamic>? addressRow;
     if (addressId != null) {
-      final fetched = await _supabase.from('addresses').select().eq('id', addressId).maybeSingle();
-      if (fetched != null) {
-        addressRow = Map<String, dynamic>.from(fetched);
+      final rawAddress = await _supabase
+          .from('addresses')
+          .select()
+          .eq('id', addressId)
+          .maybeSingle();
+      if (rawAddress != null) {
+        addressRow = Map<String, dynamic>.from(rawAddress);
       }
     }
 
-    return FamilyDoctorModel.fromMap({
-      ...doctorRow,
+    return FamilyDoctorWithAddressModel.fromMap({
+      ...Map<String, dynamic>.from(doctorRow),
       if (addressRow != null) ...addressRow,
     });
   }
@@ -48,6 +55,7 @@ class FamilyDoctorService {
   Future<String> saveForPatient({
     required String patientId,
     required FamilyDoctorModel doctor,
+    Map<String, dynamic>? addressFields,
     required String performedByUserId,
   }) async {
     final profileRow = await _supabase
@@ -57,74 +65,85 @@ class FamilyDoctorService {
         .maybeSingle();
 
     final currentDoctorId = doctor.id ?? profileRow?['family_doctor_id'] as String?;
-    final country = _trimToNull(doctor.country);
-    if (country == null) {
-      throw Exception('Doctor office country is required.');
+
+    String? existingAddressId;
+    if (currentDoctorId != null) {
+      final existingDoctor = await _supabase
+          .from('family_doctors')
+          .select('address_id')
+          .eq('id', currentDoctorId)
+          .maybeSingle();
+      existingAddressId = existingDoctor?['address_id']?.toString();
     }
 
-    final addressPayload = {
-      'country': country,
-      'governorate': _trimToNull(doctor.governorate),
-      'city': _trimToNull(doctor.city),
-      'avenue': _trimToNull(doctor.avenue),
-      'street': _trimToNull(doctor.street),
-      'postal_code': _trimToNull(doctor.postalCode),
-      'extra_details': _trimToNull(doctor.extraDetails),
-      'created_by_user_id': performedByUserId,
-    };
+    String? addressIdToUse = doctor.addressId ?? existingAddressId;
 
-    String addressId;
-    if (doctor.addressId == null) {
-      final insertedAddress = await _supabase
-          .from('addresses')
-          .insert(addressPayload)
-          .select('id')
-          .single();
-      addressId = insertedAddress['id'] as String;
-    } else {
-      await _supabase.from('addresses').update(addressPayload).eq('id', doctor.addressId!);
-      addressId = doctor.addressId!;
+    if (addressFields != null && addressFields.isNotEmpty) {
+      final country = _trimToNull(addressFields['country']?.toString()) ?? 'Unknown';
+
+      final addressModel = AddressModel(
+        id: addressIdToUse,
+        country: country,
+        governorate: _trimToNull(addressFields['governorate']?.toString()),
+        city: _trimToNull(addressFields['city']?.toString()),
+        avenue: _trimToNull(addressFields['avenue']?.toString()),
+        street: _trimToNull(addressFields['street']?.toString()),
+        postalCode: _trimToNull(addressFields['postal_code']?.toString()),
+        extraDetails: _trimToNull(addressFields['extra_details']?.toString()),
+      );
+
+      final hasAnyValue = [
+        addressModel.country,
+        addressModel.governorate,
+        addressModel.city,
+        addressModel.avenue,
+        addressModel.street,
+        addressModel.postalCode,
+        addressModel.extraDetails,
+      ].any((v) => v != null && v.toString().isNotEmpty);
+
+      if (hasAnyValue) {
+        if (addressModel.id == null || addressModel.id!.isEmpty) {
+          final insertedAddress = await _supabase
+              .from('addresses')
+              .insert(addressModel.toInsertMap())
+              .select('id')
+              .single();
+          addressIdToUse = insertedAddress['id'].toString();
+        } else {
+          await _supabase.from('addresses').update(addressModel.toUpdateMap()).eq('id', addressModel.id!);
+          addressIdToUse = addressModel.id;
+        }
+      }
     }
 
-    final doctorPayload = {
-      ...doctor.toDoctorMap(addressIdOverride: addressId),
-      'created_by_user_id': performedByUserId,
-    };
+    final doctorPayload = FamilyDoctorModel(
+      id: currentDoctorId,
+      fullName: doctor.fullName,
+      phone: doctor.phone,
+      addressId: addressIdToUse,
+      medicalLicenseNumber: doctor.medicalLicenseNumber,
+      firstSeenDate: doctor.firstSeenDate,
+      notes: doctor.notes,
+      createdByUserId: doctor.createdByUserId,
+    );
 
     String doctorId;
     if (currentDoctorId == null) {
       final insertedDoctor = await _supabase
           .from('family_doctors')
-          .insert(doctorPayload)
+          .insert(doctorPayload.toInsertMap())
           .select('id')
           .single();
-      doctorId = insertedDoctor['id'] as String;
-
-      await _audit.log(
-        patientId: patientId,
-        performedByUserId: performedByUserId,
-        action: 'create',
-        entityType: 'family_doctors',
-        entityId: doctorId,
-        fieldName: 'full_name',
-        newValue: doctor.fullName,
-      );
+      doctorId = insertedDoctor['id'].toString();
     } else {
       doctorId = currentDoctorId;
-      await _supabase.from('family_doctors').update(doctorPayload).eq('id', doctorId);
-
-      await _audit.log(
-        patientId: patientId,
-        performedByUserId: performedByUserId,
-        action: 'update',
-        entityType: 'family_doctors',
-        entityId: doctorId,
-        fieldName: 'full_name',
-        newValue: doctor.fullName,
-      );
+      await _supabase.from('family_doctors').update(doctorPayload.toUpdateMap()).eq('id', doctorId);
     }
 
+    // The family doctor link lives on public.patient_profiles, so that update stays owner-only.
     await _supabase.from('patient_profiles').update({'family_doctor_id': doctorId}).eq('id', patientId);
+
     return doctorId;
   }
 
@@ -135,30 +154,18 @@ class FamilyDoctorService {
   }) async {
     final doctorRow = await _supabase
         .from('family_doctors')
-        .select('address_id, full_name, created_by_user_id')
+        .select('address_id, full_name')
         .eq('id', doctorId)
         .maybeSingle();
+
     if (doctorRow == null) return;
 
     final addressId = doctorRow['address_id'] as String?;
-    final doctorName = doctorRow['full_name'] as String? ?? '';
-    final creatorId = doctorRow['created_by_user_id']?.toString();
-
     await _supabase.from('family_doctors').delete().eq('id', doctorId);
     await _supabase.from('patient_profiles').update({'family_doctor_id': null}).eq('id', patientId);
 
-    if (addressId != null && creatorId == performedByUserId) {
+    if (addressId != null) {
       await _supabase.from('addresses').delete().eq('id', addressId);
     }
-
-    await _audit.log(
-      patientId: patientId,
-      performedByUserId: performedByUserId,
-      action: 'delete',
-      entityType: 'family_doctors',
-      entityId: doctorId,
-      fieldName: 'full_name',
-      oldValue: doctorName,
-    );
   }
 }
