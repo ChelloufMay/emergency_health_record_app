@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/patient_risk_prediction_model.dart';
+import '../services/patient_risk_prediction_service.dart';
+import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
 class PatientRiskPredictionsScreen extends StatefulWidget {
@@ -19,15 +20,13 @@ class PatientRiskPredictionsScreen extends StatefulWidget {
 
 class _PatientRiskPredictionsScreenState
     extends State<PatientRiskPredictionsScreen> {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final PatientRiskPredictionService _service = PatientRiskPredictionService();
+  final PatientService _patientService = PatientService();
 
   bool _loading = true;
-  String? _patientId;
+  String? _error;
+  String? _patientName;
   List<PatientRiskPredictionModel> _predictions = [];
-
-  String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
-  }
 
   @override
   void initState() {
@@ -35,63 +34,168 @@ class _PatientRiskPredictionsScreenState
     _load();
   }
 
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '-';
+    final y = dateTime.year.toString().padLeft(4, '0');
+    final m = dateTime.month.toString().padLeft(2, '0');
+    final d = dateTime.day.toString().padLeft(2, '0');
+    final hh = dateTime.hour.toString().padLeft(2, '0');
+    final mm = dateTime.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm';
+  }
+
+  String _formatScore(double score) => '${(score * 100).toStringAsFixed(1)}%';
+
+  String _describeFactor(dynamic factor) {
+    if (factor is Map) {
+      final map = Map<String, dynamic>.from(factor);
+      final label = map['label']?.toString() ??
+          map['name']?.toString() ??
+          map['factor']?.toString() ??
+          'Factor';
+      final value = map['value']?.toString();
+      final weight = map['weight']?.toString();
+
+      final parts = <String>[label];
+      if (value != null && value.trim().isNotEmpty) parts.add(value);
+      if (weight != null && weight.trim().isNotEmpty) parts.add('weight: $weight');
+      return parts.join(' • ');
+    }
+    return factor?.toString() ?? '-';
+  }
+
+  Future<String?> _resolvePatientId() async {
+    if (widget.patientId != null && widget.patientId!.trim().isNotEmpty) {
+      return widget.patientId!.trim();
+    }
+
+    final session = PatientSessionService.instance.current;
+    if (session?.patientId.isNotEmpty == true) return session!.patientId;
+
+    final identity = await _patientService.resolveIdentity();
+    return identity?.patientProfileId;
+  }
+
   Future<void> _load() async {
-    final patientId = _resolvePatientId();
-    if (patientId == null || patientId.isEmpty) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      return;
-    }
-
-    // This screen is read-only. Predictions are inserted by service role
-    // workflows, and the DB policy already allows authenticated reads.
-    final rows = await _supabase
-        .from('patient_risk_predictions')
-        .select()
-        .eq('patient_id', patientId)
-        .order('created_at', ascending: false);
-
-    final predictions = (rows as List)
-        .map(
-          (row) => PatientRiskPredictionModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
-        .toList();
-
-    if (!mounted) return;
     setState(() {
-      _patientId = patientId;
-      _predictions = predictions;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
-  }
 
-  Color _riskColor(String level) {
-    switch (level.toLowerCase()) {
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      default:
-        return Colors.green;
+    try {
+      final patientId = await _resolvePatientId();
+      if (patientId == null || patientId.isEmpty) {
+        setState(() {
+          _error = 'No patient profile found.';
+          _loading = false;
+        });
+        return;
+      }
+
+      final identity = await _patientService.resolveIdentity();
+      _patientName = identity?.patientProfileId != null ? 'Patient profile ${identity!.patientProfileId}' : null;
+
+      final list = await _service.fetchByPatient(patientId);
+      if (!mounted) return;
+      setState(() {
+        _predictions = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load predictions: $e';
+        _loading = false;
+      });
     }
   }
 
-  Widget _factorsWidget(List<dynamic> factors) {
-    if (factors.isEmpty) return const Text('No main factors recorded.');
+  Widget _buildPredictionCard(PatientRiskPredictionModel prediction,
+      {bool highlighted = false}) {
+    final mainFactors = prediction.mainFactors;
+    final snapshot = prediction.inputSnapshot;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: factors
-          .map((factor) => Chip(label: Text(factor.toString())))
-          .toList(),
+    return Card(
+      elevation: highlighted ? 2 : 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    highlighted ? 'Current risk result' : 'Prediction record',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Chip(label: Text(prediction.riskLevel.toUpperCase())),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Risk score: ${_formatScore(prediction.riskScore)}'),
+            const SizedBox(height: 4),
+            Text('Model: ${prediction.modelName}'),
+            if ((prediction.modelVersion ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Version: ${prediction.modelVersion}'),
+            ],
+            const SizedBox(height: 4),
+            Text('Created: ${_formatDateTime(prediction.createdAt)}'),
+            if ((prediction.explanation ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Explanation',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(prediction.explanation!),
+            ],
+            if (mainFactors.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Main factors',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: mainFactors
+                    .map((factor) => Chip(label: Text(_describeFactor(factor))))
+                    .toList(),
+              ),
+            ],
+            if (snapshot.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Input snapshot'),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SelectableText(snapshot.toString()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final current = _predictions.isNotEmpty ? _predictions.first : null;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Risk predictions'),
@@ -99,83 +203,51 @@ class _PatientRiskPredictionsScreenState
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _patientId == null
-          ? const Center(child: Text('No patient selected.'))
+          : _error != null
+          ? Center(child: Text(_error!))
           : _predictions.isEmpty
-          ? const Center(child: Text('No predictions available.'))
-          : ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _predictions.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final prediction = _predictions[index];
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          prediction.modelName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Chip(
-                        label: Text(prediction.riskLevel),
-                        backgroundColor:
-                        _riskColor(prediction.riskLevel)
-                            .withOpacity(0.12),
-                        side: BorderSide(
-                          color: _riskColor(prediction.riskLevel),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Score: ${prediction.riskScore.toStringAsFixed(4)}',
-                  ),
-                  Text(
-                    'Version: ${prediction.modelVersion ?? 'Unknown'}',
-                  ),
-                  Text(
-                    'Created: ${prediction.createdAt?.toIso8601String() ?? 'Unknown'}',
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Main factors',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  _factorsWidget(prediction.mainFactors),
-                  if ((prediction.explanation ?? '')
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Explanation',
-                      style:
-                      TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(prediction.explanation!),
-                  ],
-                ],
+          ? const Center(
+        child: Text('No risk predictions have been recorded yet.'),
+      )
+          : RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if ((_patientName ?? '').trim().isNotEmpty) ...[
+              Text(
+                _patientName!,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (current != null) _buildPredictionCard(current, highlighted: true),
+            const SizedBox(height: 16),
+            const Text(
+              'History',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          );
-        },
+            const SizedBox(height: 8),
+            ..._predictions.skip(1).map(
+                  (prediction) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildPredictionCard(prediction),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
