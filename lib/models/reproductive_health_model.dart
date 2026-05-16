@@ -45,6 +45,11 @@ class ReproductiveHealthModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory ReproductiveHealthModel.fromMap(Map map) {
     return ReproductiveHealthModel(
       id: map['id']?.toString(),
@@ -76,8 +81,8 @@ class ReproductiveHealthModel {
     'cycle_regular': cycleRegular,
     'cycle_painful': cyclePainful,
     'pain_level': painLevel,
-    'last_period_start': lastPeriodStart?.toIso8601String().split('T').first,
-    'last_period_end': lastPeriodEnd?.toIso8601String().split('T').first,
+    'last_period_start': _dateOnly(lastPeriodStart),
+    'last_period_end': _dateOnly(lastPeriodEnd),
     'currently_pregnant': currentlyPregnant,
     'pregnancy_term_weeks': pregnancyTermWeeks,
     'gestity': gestity,
@@ -90,5 +95,25 @@ class ReproductiveHealthModel {
     'abortion_history': abortionHistory,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id stays fixed.
+    'has_menstrual_cycle': hasMenstrualCycle,
+    'cycle_regular': cycleRegular,
+    'cycle_painful': cyclePainful,
+    'pain_level': painLevel,
+    'last_period_start': _dateOnly(lastPeriodStart),
+    'last_period_end': _dateOnly(lastPeriodEnd),
+    'currently_pregnant': currentlyPregnant,
+    'pregnancy_term_weeks': pregnancyTermWeeks,
+    'gestity': gestity,
+    'parity': parity,
+    'abortions': abortions,
+    'puberty_age': pubertyAge,
+    'breast_exam_notes': breastExamNotes,
+    'pregnancy_history': pregnancyHistory,
+    'birth_history': birthHistory,
+    'abortion_history': abortionHistory,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

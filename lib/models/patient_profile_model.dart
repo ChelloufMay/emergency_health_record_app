@@ -39,6 +39,11 @@ class PatientProfileModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory PatientProfileModel.fromMap(Map map) {
     return PatientProfileModel(
       id: map['id']?.toString(),
@@ -67,7 +72,7 @@ class PatientProfileModel {
     'first_name': firstName,
     'family_name': familyName,
     'sex': sex,
-    'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
+    'date_of_birth': _dateOnly(dateOfBirth),
     'blood_type': bloodType,
     'phone': phone,
     'address_id': addressId,
@@ -78,5 +83,22 @@ class PatientProfileModel {
     'family_doctor_id': familyDoctorId,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // user_id is the ownership key and should remain fixed.
+    'legal_id': legalId,
+    'first_name': firstName,
+    'family_name': familyName,
+    'sex': sex,
+    'date_of_birth': _dateOnly(dateOfBirth),
+    'blood_type': bloodType,
+    'phone': phone,
+    'address_id': addressId,
+    'emergency_contact_name': emergencyContactName,
+    'emergency_contact_phone': emergencyContactPhone,
+    'insurance_plan': insurancePlan,
+    'covid_vaccine_type': covidVaccineType,
+    'family_doctor_id': familyDoctorId,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

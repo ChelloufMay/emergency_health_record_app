@@ -54,5 +54,16 @@ class MedicalConditionModel {
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id is the owner link and should not change.
+    'condition_name': conditionName,
+    'type': type,
+    'diagnosis_date': diagnosisDate?.toIso8601String().split('T').first,
+    'diagnosis_place': diagnosisPlace,
+    'follow_up_doctor': followUpDoctor,
+    'treatment': treatment,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

@@ -1,106 +1,71 @@
+import 'model_utils.dart';
+
 class FamilyDoctorModel {
   final String? id;
   final String fullName;
   final String? phone;
-  final String? addressId;
-
-  // The actual address fields from public.addresses.
-  final String? country;
-  final String? governorate;
-  final String? city;
-  final String? avenue;
-  final String? street;
-  final String? postalCode;
-  final String? extraDetails;
-
+  final String? addressId; // Only the FK belongs in public.family_doctors.
   final String? medicalLicenseNumber;
   final DateTime? firstSeenDate;
   final String? notes;
+  final String? createdByUserId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  FamilyDoctorModel({
+  const FamilyDoctorModel({
     this.id,
     required this.fullName,
     this.phone,
     this.addressId,
-    this.country,
-    this.governorate,
-    this.city,
-    this.avenue,
-    this.street,
-    this.postalCode,
-    this.extraDetails,
     this.medicalLicenseNumber,
     this.firstSeenDate,
     this.notes,
+    this.createdByUserId,
     this.createdAt,
     this.updatedAt,
   });
 
-  static DateTime? _parseDateTime(dynamic value) {
+  static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
-    if (value is DateTime) return value;
-    return DateTime.tryParse(value.toString());
+    return value.toIso8601String().split('T').first;
   }
 
-  static String? _clean(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) return null;
-    return text;
-  }
-
-  factory FamilyDoctorModel.fromMap(Map<String, dynamic> map) {
+  factory FamilyDoctorModel.fromMap(Map map) {
     return FamilyDoctorModel(
       id: map['id']?.toString(),
       fullName: map['full_name']?.toString() ?? '',
-      phone: _clean(map['phone']),
-
-      // The service merges the doctor row + address row before calling fromMap,
-      // so address fields can be read here as one combined model.
+      phone: map['phone']?.toString(),
       addressId: map['address_id']?.toString(),
-      country: _clean(map['country']),
-      governorate: _clean(map['governorate']),
-      city: _clean(map['city']),
-      avenue: _clean(map['avenue']),
-      street: _clean(map['street']),
-      postalCode: _clean(map['postal_code']),
-      extraDetails: _clean(map['extra_details']),
-
-      medicalLicenseNumber: _clean(map['medical_license_number']),
-      firstSeenDate: map['first_seen_date'] != null
-          ? DateTime.tryParse(map['first_seen_date'].toString())
-          : null,
-      notes: _clean(map['notes']),
-      createdAt: _parseDateTime(map['created_at']),
-      updatedAt: _parseDateTime(map['updated_at']),
+      medicalLicenseNumber: map['medical_license_number']?.toString(),
+      firstSeenDate: asDateTime(map['first_seen_date']),
+      notes: map['notes']?.toString(),
+      createdByUserId: map['created_by_user_id']?.toString(),
+      createdAt: asDateTime(map['created_at']),
+      updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  // Payload for public.family_doctors.
-  // The address row is created/updated separately in public.addresses.
-  Map<String, dynamic> toDoctorMap({String? addressIdOverride}) {
-    return {
-      'full_name': fullName.trim(),
-      'phone': _clean(phone),
-      'address_id': addressIdOverride ?? addressId,
-      'medical_license_number': _clean(medicalLicenseNumber),
-      'first_seen_date': firstSeenDate?.toIso8601String().split('T').first,
-      'notes': _clean(notes),
-    };
-  }
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    // The model now matches public.family_doctors only.
+    // Address details live in public.addresses and are linked by address_id.
+    'full_name': fullName.trim(),
+    'phone': phone?.trim(),
+    'address_id': addressId,
+    'medical_license_number': medicalLicenseNumber?.trim(),
+    'first_seen_date': _dateOnly(firstSeenDate),
+    'notes': notes,
+    'created_by_user_id': createdByUserId,
+  });
 
-  // Payload for public.addresses.
-  // This stays separate because the database stores doctor office address in the addresses table, not inside family_doctors.
-  Map<String, dynamic> toAddressMap() {
-    return {
-      'country': _clean(country),
-      'governorate': _clean(governorate),
-      'city': _clean(city),
-      'avenue': _clean(avenue),
-      'street': _clean(street),
-      'postal_code': _clean(postalCode),
-      'extra_details': _clean(extraDetails),
-    };
-  }
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // Keep the row focused on the doctor record itself.
+    'full_name': fullName.trim(),
+    'phone': phone?.trim(),
+    'address_id': addressId,
+    'medical_license_number': medicalLicenseNumber?.trim(),
+    'first_seen_date': _dateOnly(firstSeenDate),
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

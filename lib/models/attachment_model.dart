@@ -27,6 +27,11 @@ class AttachmentModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory AttachmentModel.fromMap(Map map) {
     return AttachmentModel(
       id: map['id']?.toString(),
@@ -49,19 +54,20 @@ class AttachmentModel {
     'file_kind': fileKind,
     'file_type': fileType,
     'storage_path': storagePath,
-    'document_date': documentDate?.toIso8601String().split('T').first,
+    'document_date': _dateOnly(documentDate),
     'description': description,
     'uploaded_by_user_id': uploadedByUserId,
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    'patient_id': patientId,
+    // Ownership fields stay fixed.
     'file_name': fileName,
     'file_kind': fileKind,
     'file_type': fileType,
     'storage_path': storagePath,
-    'document_date': documentDate?.toIso8601String().split('T').first,
+    'document_date': _dateOnly(documentDate),
     'description': description,
-    'uploaded_by_user_id': uploadedByUserId,
   });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

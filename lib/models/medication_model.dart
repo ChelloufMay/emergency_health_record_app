@@ -45,7 +45,7 @@ class MedicationModel {
     );
   }
 
-  Map toInsertMap() => cleanMap({
+  Map<String, dynamic> toInsertMap() => cleanMap({
     'patient_id': patientId,
     'medication_name': medicationName,
     'dosage': dosage,
@@ -56,5 +56,16 @@ class MedicationModel {
     'source': source,
   });
 
-  Map toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id is immutable.
+    'medication_name': medicationName,
+    'dosage': dosage,
+    'frequency': frequency,
+    'purpose': purpose,
+    'start_date': startDate?.toIso8601String().split('T').first,
+    'end_date': endDate?.toIso8601String().split('T').first,
+    'source': source,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

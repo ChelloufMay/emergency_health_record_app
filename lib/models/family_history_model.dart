@@ -46,5 +46,14 @@ class FamilyHistoryModel {
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id should not move between patients.
+    'relation': relation,
+    'condition_name': conditionName,
+    'category': category,
+    'is_genetic': isGenetic,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

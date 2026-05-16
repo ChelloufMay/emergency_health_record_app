@@ -6,7 +6,7 @@ class UserModel {
   final String fullName;
   final String? phone;
   final String? email;
-  final String role;
+  final String role; // DB enum: user_role.
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -35,6 +35,8 @@ class UserModel {
   }
 
   Map<String, dynamic> toInsertMap() => cleanMap({
+    // Used by the auth bootstrap / profile sync path.
+    // The DB defaults role to owner, but keeping it here preserves the current app flow and makes service-side inserts explicit.
     'auth_user_id': authUserId,
     'full_name': fullName,
     'phone': phone,
@@ -43,10 +45,9 @@ class UserModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
+    // The current DB grants authenticated users updates only for full_name and phone, so the model only sends those fields.
     'full_name': fullName,
     'phone': phone,
-    'email': email,
-    'role': role,
   });
 
   Map<String, dynamic> toMap() => toInsertMap();

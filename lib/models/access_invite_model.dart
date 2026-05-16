@@ -4,9 +4,9 @@ class AccessInviteModel {
   final String? id;
   final String patientId;
   final String invitedEmail;
-  final String invitedRole;
-  final String permission;
-  final String status;
+  final String invitedRole; // DB enum: user_role, but the table accepts only caregiver/guardian/clinician.
+  final String permission; // DB enum: permission_type.
+  final String status; // DB enum: access_invite_status.
   final String? inviteToken;
   final String? invitedByUserId;
   final String? acceptedByUserId;
@@ -62,31 +62,29 @@ class AccessInviteModel {
   }
 
   Map<String, dynamic> toInsertMap() => cleanMap({
+    // This payload is intentionally minimal.
+    // Database defaults and the create_access_invite() RPC handle:
+    // - invite_token
+    // - invited_at
+    // - invited_by_user_id
+    // - accepted/rejected columns
     'patient_id': patientId,
-    'invited_email': invitedEmail,
+    'invited_email': invitedEmail.trim().toLowerCase(),
     'invited_role': invitedRole,
     'permission': permission,
-    'status': status,
-    'invite_token': inviteToken,
-    'invited_by_user_id': invitedByUserId,
-    'accepted_by_user_id': acceptedByUserId,
-    'rejected_by_user_id': rejectedByUserId,
-    'invited_at': invitedAt?.toIso8601String(),
-    'accepted_at': acceptedAt?.toIso8601String(),
-    'rejected_at': rejectedAt?.toIso8601String(),
     'expires_at': expiresAt?.toIso8601String(),
     'notes': notes,
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    'patient_id': patientId,
-    'invited_email': invitedEmail,
-    'invited_role': invitedRole,
+    // Only mutable invite lifecycle fields should be updated.
+    // Identity fields stay fixed after creation.
     'permission': permission,
     'status': status,
-    'invited_by_user_id': invitedByUserId,
     'accepted_by_user_id': acceptedByUserId,
+    'accepted_at': acceptedAt?.toIso8601String(),
     'rejected_by_user_id': rejectedByUserId,
+    'rejected_at': rejectedAt?.toIso8601String(),
     'expires_at': expiresAt?.toIso8601String(),
     'notes': notes,
   });

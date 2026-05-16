@@ -4,9 +4,9 @@ class AccessGrantModel {
   final String? id;
   final String patientId;
   final String granteeUserId;
-  final String granteeRole;
-  final String permission;
-  final String status;
+  final String granteeRole; // DB enum: user_role (this table allows caregiver/guardian/clinician only.)
+  final String permission; // DB enum: permission_type.
+  final String status; // DB enum: permission_status.
   final String? grantedByUserId;
   final DateTime? grantedAt;
   final DateTime? expiresAt;
@@ -14,6 +14,7 @@ class AccessGrantModel {
   final String? notes;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? lastExpiryReminderAt; // Used by queue_expiring_access_reminders().
 
   const AccessGrantModel({
     this.id,
@@ -29,6 +30,7 @@ class AccessGrantModel {
     this.notes,
     this.createdAt,
     this.updatedAt,
+    this.lastExpiryReminderAt,
   });
 
   factory AccessGrantModel.fromMap(Map map) {
@@ -46,10 +48,12 @@ class AccessGrantModel {
       notes: map['notes']?.toString(),
       createdAt: asDateTime(map['created_at']),
       updatedAt: asDateTime(map['updated_at']),
+      lastExpiryReminderAt: asDateTime(map['last_expiry_reminder_at']),
     );
   }
 
   Map<String, dynamic> toInsertMap() => cleanMap({
+    // Identity and access assignment fields.
     'patient_id': patientId,
     'grantee_user_id': granteeUserId,
     'grantee_role': granteeRole,
@@ -60,18 +64,20 @@ class AccessGrantModel {
     'expires_at': expiresAt?.toIso8601String(),
     'source_invite_id': sourceInviteId,
     'notes': notes,
+    // last_expiry_reminder_at is intentionally omitted here.
+    // The reminder job manages this field.
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    'patient_id': patientId,
-    'grantee_user_id': granteeUserId,
-    'grantee_role': granteeRole,
+    // Keep the identity of the grant stable.
+    // Only mutable state should be updated.
     'permission': permission,
     'status': status,
     'granted_by_user_id': grantedByUserId,
+    'granted_at': grantedAt?.toIso8601String(),
     'expires_at': expiresAt?.toIso8601String(),
-    'source_invite_id': sourceInviteId,
     'notes': notes,
+    // Intentionally omitted: patient_id, grantee_user_id, grantee_role, source_invite_id, last_expiry_reminder_at.
   });
 
   Map<String, dynamic> toMap() => toInsertMap();

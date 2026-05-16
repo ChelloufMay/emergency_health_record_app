@@ -51,4 +51,32 @@ class NotificationEventModel {
       updatedAt: asDateTime(map['updated_at']),
     );
   }
+
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    // Notification rows are append-first.
+    // Delivery state can still be updated later by the service.
+    'patient_id': patientId,
+    'actor_user_id': actorUserId,
+    'recipient_user_id': recipientUserId,
+    'recipient_email': recipientEmail,
+    'event_type': eventType,
+    'entity_type': entityType,
+    'entity_id': entityId,
+    'message': message,
+    'delivery_channel': deliveryChannel,
+    'is_sent': isSent,
+    'sent_at': sentAt?.toIso8601String(),
+  });
+
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // Keep the notification event identity stable.
+    'recipient_user_id': recipientUserId,
+    'recipient_email': recipientEmail,
+    'message': message,
+    'delivery_channel': deliveryChannel,
+    'is_sent': isSent,
+    'sent_at': sentAt?.toIso8601String(),
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

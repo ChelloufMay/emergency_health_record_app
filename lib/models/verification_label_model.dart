@@ -49,7 +49,7 @@ class VerificationLabelModel {
     );
   }
 
-  Map<String, dynamic> toMap() => cleanMap({
+  Map<String, dynamic> toInsertMap() => cleanMap({
     'patient_id': patientId,
     'entity_type': entityType,
     'entity_id': entityId,
@@ -62,4 +62,18 @@ class VerificationLabelModel {
     'entered_by_role': enteredByRole,
     'entered_by_credentials': enteredByCredentials,
   });
+
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // The uniqueness key is patient_id + entity_type + entity_id + field_name.
+    // Those fields should stay stable after creation.
+    'status': status,
+    'verified_by_user_id': verifiedByUserId,
+    'verified_at': verifiedAt?.toIso8601String(),
+    'comment': comment,
+    'entered_by_user_id': enteredByUserId,
+    'entered_by_role': enteredByRole,
+    'entered_by_credentials': enteredByCredentials,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

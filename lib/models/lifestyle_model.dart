@@ -94,5 +94,26 @@ class LifestyleModel {
     'water_type': waterType,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id is the stable owner key.
+    'lives_alone': livesAlone,
+    'has_caregiver': hasCaregiver,
+    'stairs_in_home': stairsInHome,
+    'socioeconomic_class': socioeconomicClass,
+    'work_status': workStatus,
+    'smoking': smoking,
+    'packs_per_day': packsPerDay,
+    'smoking_years': smokingYears,
+    'drugs': drugs,
+    'drug_type': drugType,
+    'drug_quantity': drugQuantity,
+    'chicha': chicha,
+    'chicha_years': chichaYears,
+    'alcohol_frequency': alcoholFrequency,
+    'food_quality': foodQuality,
+    'milk_type': milkType,
+    'water_type': waterType,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

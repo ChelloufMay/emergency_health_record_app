@@ -9,6 +9,7 @@ class AddressModel {
   final String? street;
   final String? postalCode;
   final String? extraDetails;
+  final String? createdByUserId; // Matches public.addresses.created_by_user_id.
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -21,6 +22,7 @@ class AddressModel {
     this.street,
     this.postalCode,
     this.extraDetails,
+    this.createdByUserId,
     this.createdAt,
     this.updatedAt,
   });
@@ -35,12 +37,27 @@ class AddressModel {
       street: map['street']?.toString(),
       postalCode: map['postal_code']?.toString(),
       extraDetails: map['extra_details']?.toString(),
+      createdByUserId: map['created_by_user_id']?.toString(),
       createdAt: asDateTime(map['created_at']),
       updatedAt: asDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toMap() => cleanMap({
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    // created_by_user_id is DB-managed by default(current_app_user_id()).
+    // Keeping it optional here allows service-side inserts when needed.
+    'country': country,
+    'governorate': governorate,
+    'city': city,
+    'avenue': avenue,
+    'street': street,
+    'postal_code': postalCode,
+    'extra_details': extraDetails,
+    'created_by_user_id': createdByUserId,
+  });
+
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // The creator owns the row, so creator identity should not change.
     'country': country,
     'governorate': governorate,
     'city': city,
@@ -49,4 +66,6 @@ class AddressModel {
     'postal_code': postalCode,
     'extra_details': extraDetails,
   });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

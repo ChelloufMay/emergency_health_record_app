@@ -58,5 +58,17 @@ class CaregiverProfileModel {
     'mobility': mobility,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // user_id is the ownership key and should not change.
+    'full_name': fullName,
+    'relationship_to_patient': relationshipToPatient,
+    'phone': phone,
+    'address_id': addressId,
+    'proximity': proximity,
+    'attendance': attendance,
+    'can_drive': canDrive,
+    'mobility': mobility,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

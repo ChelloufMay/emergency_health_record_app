@@ -23,6 +23,11 @@ class HospitalizationModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory HospitalizationModel.fromMap(Map map) {
     return HospitalizationModel(
       id: map['id']?.toString(),
@@ -40,11 +45,20 @@ class HospitalizationModel {
   Map<String, dynamic> toInsertMap() => cleanMap({
     'patient_id': patientId,
     'hospital_name': hospitalName,
-    'admission_date': admissionDate?.toIso8601String().split('T').first,
-    'discharge_date': dischargeDate?.toIso8601String().split('T').first,
+    'admission_date': _dateOnly(admissionDate),
+    'discharge_date': _dateOnly(dischargeDate),
     'reason': reason,
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id stays fixed.
+    'hospital_name': hospitalName,
+    'admission_date': _dateOnly(admissionDate),
+    'discharge_date': _dateOnly(dischargeDate),
+    'reason': reason,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

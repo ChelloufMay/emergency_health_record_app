@@ -50,5 +50,15 @@ class GuardianProfileModel {
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // user_id is the ownership key and should stay fixed.
+    'full_name': fullName,
+    'relationship_to_patient': relationshipToPatient,
+    'legal_authority_note': legalAuthorityNote,
+    'phone': phone,
+    'address_id': addressId,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

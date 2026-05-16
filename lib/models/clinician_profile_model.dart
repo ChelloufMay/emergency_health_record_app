@@ -66,5 +66,19 @@ class ClinicianProfileModel {
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // user_id should stay fixed for the clinician profile row.
+    'full_name': fullName,
+    'phone': phone,
+    'address_id': addressId,
+    'license_number': licenseNumber,
+    'specialization': specialization,
+    'facility_name': facilityName,
+    'work_phone': workPhone,
+    'is_verified': isVerified,
+    'verification_note': verificationNote,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

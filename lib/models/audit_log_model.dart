@@ -4,7 +4,7 @@ class AuditLogModel {
   final String? id;
   final String patientId;
   final String? performedByUserId;
-  final String action;
+  final String action; // DB enum: action_type.
   final String entityType;
   final String? entityId;
   final String? fieldName;
@@ -14,7 +14,7 @@ class AuditLogModel {
   final String? ipAddress;
   final String? breakGlassReason;
   final String? eventHash;
-  final DateTime? timestamp;
+  final DateTime? timestamp; // DB defaults to now().
 
   const AuditLogModel({
     this.id,
@@ -52,7 +52,9 @@ class AuditLogModel {
     );
   }
 
-  Map<String, dynamic> toMap() => cleanMap({
+  Map<String, dynamic> toInsertMap() => cleanMap({
+    // Audit logs are append-only.
+    // Service role writes them; the DB may also fill timestamp automatically.
     'patient_id': patientId,
     'performed_by_user_id': performedByUserId,
     'action': action,
@@ -65,5 +67,8 @@ class AuditLogModel {
     'ip_address': ipAddress,
     'break_glass_reason': breakGlassReason,
     'event_hash': eventHash,
+    'timestamp': timestamp?.toIso8601String(),
   });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

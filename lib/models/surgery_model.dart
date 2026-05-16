@@ -23,6 +23,11 @@ class SurgeryModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory SurgeryModel.fromMap(Map map) {
     return SurgeryModel(
       id: map['id']?.toString(),
@@ -40,11 +45,20 @@ class SurgeryModel {
   Map<String, dynamic> toInsertMap() => cleanMap({
     'patient_id': patientId,
     'surgery_name': surgeryName,
-    'surgery_date': surgeryDate?.toIso8601String().split('T').first,
+    'surgery_date': _dateOnly(surgeryDate),
     'place': place,
     'prosthetic_or_implant': prostheticOrImplant,
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id should not be edited on an existing surgery row.
+    'surgery_name': surgeryName,
+    'surgery_date': _dateOnly(surgeryDate),
+    'place': place,
+    'prosthetic_or_implant': prostheticOrImplant,
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

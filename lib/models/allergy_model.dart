@@ -23,6 +23,8 @@ class AllergyModel {
     this.updatedAt,
   });
 
+  // This model is intentionally lightweight.
+  // The schema stores the allergy source as a DB enum-like text field.
   String? get verificationStatus => 'user_entered';
 
   factory AllergyModel.fromMap(Map map) {
@@ -39,7 +41,7 @@ class AllergyModel {
     );
   }
 
-  Map toInsertMap() => cleanMap({
+  Map<String, dynamic> toInsertMap() => cleanMap({
     'patient_id': patientId,
     'allergen_name': allergenName,
     'allergy_type': allergyType,
@@ -48,5 +50,14 @@ class AllergyModel {
     'source': source,
   });
 
-  Map toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id should not change on update.
+    'allergen_name': allergenName,
+    'allergy_type': allergyType,
+    'reaction': reaction,
+    'severity': severity,
+    'source': source,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }

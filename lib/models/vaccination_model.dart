@@ -23,6 +23,11 @@ class VaccinationModel {
     this.updatedAt,
   });
 
+  static String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
   factory VaccinationModel.fromMap(Map map) {
     return VaccinationModel(
       id: map['id']?.toString(),
@@ -42,9 +47,18 @@ class VaccinationModel {
     'vaccine_name': vaccineName,
     'category': category,
     'dose_number': doseNumber,
-    'date_administered': dateAdministered?.toIso8601String().split('T').first,
+    'date_administered': _dateOnly(dateAdministered),
     'notes': notes,
   });
 
-  Map<String, dynamic> toUpdateMap() => toInsertMap();
+  Map<String, dynamic> toUpdateMap() => cleanMap({
+    // patient_id remains fixed for the vaccination row.
+    'vaccine_name': vaccineName,
+    'category': category,
+    'dose_number': doseNumber,
+    'date_administered': _dateOnly(dateAdministered),
+    'notes': notes,
+  });
+
+  Map<String, dynamic> toMap() => toInsertMap();
 }
