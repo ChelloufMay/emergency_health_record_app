@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _NavCard(
                   icon: Icons.psychology_outlined,
                   label: 'Risk Predictions',
-                  onTap: () => _openSection('/risk_predictions'),
+                  onTap: () => _openSection('/patient_risk_predictions'),
                 ),
                 _NavCard(
                   icon: Icons.settings_outlined,
