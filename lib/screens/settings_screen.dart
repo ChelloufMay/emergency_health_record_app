@@ -76,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
 
-                if (!mounted) return;
+                if (!dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
 
                 _showSnack(
@@ -344,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             _email ?? '',
                             style: TextStyle(
-                              color: cs.onPrimaryContainer.withOpacity(0.7),
+                              color: cs.onPrimaryContainer.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -356,7 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: cs.primary.withOpacity(0.15),
+                                color: cs.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(

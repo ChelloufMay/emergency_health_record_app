@@ -125,7 +125,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                             trailing: IconButton(
                               onPressed: () async {
                                 await _accessService.revokeGrant(grant.id ?? '');
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 Navigator.of(context).pop(true);
                               },
                               icon: const Icon(Icons.block),
@@ -168,7 +168,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                                       await _accessService.acceptInvite(
                                         invite.inviteToken!,
                                       );
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       Navigator.of(context).pop(true);
                                     },
                                     icon: const Icon(Icons.check),
@@ -181,7 +181,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                                       await _accessService.rejectInvite(
                                         invite.inviteToken!,
                                       );
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       Navigator.of(context).pop(true);
                                     },
                                     icon: const Icon(Icons.close),
