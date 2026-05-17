@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
@@ -40,12 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _signOut() async {
-    await PatientSessionService.instance.clear();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/entry', (route) => false);
-  }
-
   void _openSection(String routeName) {
     final session = _session;
 
@@ -84,9 +79,13 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Refresh',
           ),
           IconButton(
-            onPressed: _signOut,
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (!mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            },
             icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
+            tooltip: 'Log out',
           ),
         ],
       ),

@@ -22,22 +22,10 @@ class ProfileService {
     return PatientProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
-  Future<AddressModel?> fetchAddress(String? addressId) async {
-    if (addressId == null || addressId.trim().isEmpty) return null;
-
-    final row = await _supabase
-        .from('addresses')
-        .select()
-        .eq('id', addressId)
-        .maybeSingle();
-
-    if (row == null) return null;
-    return AddressModel.fromMap(Map<String, dynamic>.from(row));
-  }
-
-  Future<String> saveCoreProfile({
+  Future<String> saveProfile({
     required PatientProfileModel profile,
     required String performedByUserId,
+    Map<String, dynamic>? addressFields,
   }) async {
     if (performedByUserId.trim().isEmpty) {
       throw Exception('Missing performedByUserId.');
@@ -70,10 +58,7 @@ class ProfileService {
       familyDoctorId: profile.familyDoctorId,
     );
 
-    // Important: call the PRIVATE schema version directly.
-    // Your public wrapper is STABLE/read-only, which is what triggers the
-    // "cannot execute INSERT in a read-only transaction" error.
-    final patientId = await _supabase.schema('private_api').rpc(
+    final savedPatientId = await _supabase.schema('public').rpc(
       'save_my_patient_profile',
       params: {
         '_legal_id': safeProfile.legalId,
@@ -91,42 +76,77 @@ class ProfileService {
       },
     );
 
-    final savedId = patientId?.toString();
+    final savedId = savedPatientId?.toString();
     if (savedId == null || savedId.isEmpty) {
       throw Exception('Profile save failed.');
+    }
+
+    final addressId = await _upsertAddress(
+      addressId: safeProfile.addressId,
+      addressFields: addressFields,
+    );
+
+    if (addressId != null || safeProfile.familyDoctorId != null) {
+      final updateData = <String, dynamic>{};
+
+      if (addressId != null) {
+        updateData['address_id'] = addressId;
+      }
+      if (safeProfile.familyDoctorId != null) {
+        updateData['family_doctor_id'] = safeProfile.familyDoctorId;
+      }
+
+      if (updateData.isNotEmpty) {
+        await _supabase.from('patient_profiles').update(updateData).eq('id', savedId);
+      }
     }
 
     return savedId;
   }
 
-  Future<String?> saveAddress({
-    required Map<String, dynamic> addressFields,
-    String? addressId,
+  Future<String> ensureProfileExists({
+    required String userId,
+    required String firstName,
+    required String familyName,
+    String sex = 'unknown',
+    String? legalId,
   }) async {
+    final existing = await _supabase
+        .from('patient_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (existing != null) return existing['id'] as String;
+
+    final inserted = await _supabase.from('patient_profiles').insert({
+      'user_id': userId,
+      'legal_id': legalId,
+      'first_name': firstName,
+      'family_name': familyName,
+      'sex': sex,
+    }).select('id').single();
+
+    return inserted['id'] as String;
+  }
+
+  Future<String?> _upsertAddress({
+    required String? addressId,
+    required Map<String, dynamic>? addressFields,
+  }) async {
+    if (addressFields == null || addressFields.isEmpty) return addressId;
+
     final model = AddressModel(
       id: addressId,
-      country: (addressFields['country']?.toString().trim().isNotEmpty == true)
+      country: addressFields['country']?.toString().trim().isNotEmpty == true
           ? addressFields['country'].toString().trim()
-          : 'Tunisia',
-      governorate: addressFields['governorate']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['governorate']?.toString().trim(),
-      city: addressFields['city']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['city']?.toString().trim(),
-      avenue: addressFields['avenue']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['avenue']?.toString().trim(),
-      street: addressFields['street']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['street']?.toString().trim(),
-      postalCode: addressFields['postal_code']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['postal_code']?.toString().trim(),
-      extraDetails:
-      addressFields['extra_details']?.toString().trim().isEmpty == true
-          ? null
-          : addressFields['extra_details']?.toString().trim(),
+          : 'Unknown',
+      governorate: addressFields['governorate']?.toString(),
+      city: addressFields['city']?.toString(),
+      avenue: addressFields['avenue']?.toString(),
+      street: addressFields['street']?.toString(),
+      postalCode: addressFields['postal_code']?.toString(),
+      extraDetails: addressFields['extra_details']?.toString(),
     );
 
     final hasAnyValue = [
@@ -137,7 +157,7 @@ class ProfileService {
       model.street,
       model.postalCode,
       model.extraDetails,
-    ].any((v) => v != null && v.toString().trim().isNotEmpty);
+    ].any((v) => v != null && v.toString().isNotEmpty);
 
     if (!hasAnyValue) return addressId;
 
@@ -146,23 +166,7 @@ class ProfileService {
       return addressId;
     }
 
-    final inserted = await _supabase
-        .from('addresses')
-        .insert(model.toInsertMap())
-        .select('id')
-        .single();
-
+    final inserted = await _supabase.from('addresses').insert(model.toInsertMap()).select('id').single();
     return inserted['id']?.toString();
-  }
-
-  Future<void> linkAddressToProfile({
-    required String patientId,
-    String? addressId,
-  }) async {
-    if (addressId == null || addressId.trim().isEmpty) return;
-
-    await _supabase.from('patient_profiles').update({
-      'address_id': addressId,
-    }).eq('id', patientId);
   }
 }

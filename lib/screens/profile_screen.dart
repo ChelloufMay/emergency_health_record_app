@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/patient_profile_model.dart';
 import '../services/patient_service.dart';
@@ -14,6 +15,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileService _profileService = ProfileService();
   final PatientService _patientService = PatientService();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -103,43 +105,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
-    final profile = await _profileService.fetchProfile();
-    final identity = await _patientService.resolveIdentity();
-
-    if (profile != null) {
-      _profileId = profile.id;
-      _addressId = profile.addressId;
-      _userId = profile.userId;
-
-      _legalIdController.text = profile.legalId ?? '';
-      _firstNameController.text = profile.firstName;
-      _familyNameController.text = profile.familyName;
-      _sex = profile.sex;
-      _dateOfBirth = profile.dateOfBirth;
-      _bloodType = _normalizeOption(profile.bloodType, _bloodTypes);
-      _phoneController.text = profile.phone ?? '';
-      _emergencyNameController.text = profile.emergencyContactName ?? '';
-      _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
-      _insurancePlan = _normalizeOption(profile.insurancePlan, _insurancePlans);
-      _covidVaccineType =
-          _normalizeOption(profile.covidVaccineType, _covidVaccines);
-
-      final address = await _profileService.fetchAddress(profile.addressId);
-      if (address != null) {
-        _countryController.text = address.country;
-        _governorateController.text = address.governorate ?? '';
-        _cityController.text = address.city ?? '';
-        _avenueController.text = address.avenue ?? '';
-        _streetController.text = address.street ?? '';
-        _postalCodeController.text = address.postalCode ?? '';
-        _extraDetailsController.text = address.extraDetails ?? '';
-      }
-    } else {
+    try {
+      // Resolve identity first so the screen can still work even if profile fetch fails.
+      final identity = await _patientService.resolveIdentity();
       _userId = identity?.appUserId;
-    }
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+      try {
+        final profile = await _profileService.fetchProfile();
+
+        if (profile != null) {
+          _profileId = profile.id;
+          _addressId = profile.addressId;
+          _userId = profile.userId;
+
+          _legalIdController.text = profile.legalId ?? '';
+          _firstNameController.text = profile.firstName;
+          _familyNameController.text = profile.familyName;
+          _sex = profile.sex;
+          _dateOfBirth = profile.dateOfBirth;
+          _bloodType = _normalizeOption(profile.bloodType, _bloodTypes);
+          _phoneController.text = profile.phone ?? '';
+          _emergencyNameController.text = profile.emergencyContactName ?? '';
+          _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
+          _insurancePlan = _normalizeOption(profile.insurancePlan, _insurancePlans);
+          _covidVaccineType =
+              _normalizeOption(profile.covidVaccineType, _covidVaccines);
+
+          if (profile.addressId != null && profile.addressId!.trim().isNotEmpty) {
+            try {
+              final addressRow = await _supabase
+                  .from('addresses')
+                  .select()
+                  .eq('id', profile.addressId!)
+                  .maybeSingle();
+
+              if (addressRow != null) {
+                _countryController.text =
+                    (addressRow['country'] ?? 'Tunisia').toString();
+                _governorateController.text =
+                    (addressRow['governorate'] ?? '').toString();
+                _cityController.text = (addressRow['city'] ?? '').toString();
+                _avenueController.text = (addressRow['avenue'] ?? '').toString();
+                _streetController.text = (addressRow['street'] ?? '').toString();
+                _postalCodeController.text =
+                    (addressRow['postal_code'] ?? '').toString();
+                _extraDetailsController.text =
+                    (addressRow['extra_details'] ?? '').toString();
+              }
+            } catch (_) {
+              // If address fetch fails, keep the form usable.
+            }
+          }
+        }
+      } catch (e) {
+        // Keep the screen usable even if profile fetch fails.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not load profile: $e')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not initialize screen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   Future<void> _pickBirthDate() async {
@@ -205,28 +241,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'extra_details': _extraDetailsController.text.trim(),
       };
 
-      // 1) Save the patient profile through the private_api schema directly.
-      final savedProfileId = await _profileService.saveCoreProfile(
+      final savedProfileId = await _profileService.saveProfile(
         profile: profile,
         performedByUserId: userId,
-      );
-
-      // 2) Save or update the address.
-      final savedAddressId = await _profileService.saveAddress(
-        addressId: _addressId,
         addressFields: addressFields,
-      );
-
-      // 3) Link the address to the patient profile.
-      await _profileService.linkAddressToProfile(
-        patientId: savedProfileId,
-        addressId: savedAddressId,
       );
 
       if (!mounted) return;
       setState(() {
         _profileId = savedProfileId;
-        _addressId = savedAddressId;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -284,8 +307,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('My profile'),
         actions: [
           IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (!mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            },
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
           ),
         ],
       ),
@@ -392,7 +420,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             const SizedBox(height: 24),
-
             _sectionTitle('Address'),
             TextFormField(
               controller: _countryController,
@@ -432,7 +459,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
