@@ -246,7 +246,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _proximity,
+            initialValue: _proximity,
             decoration: const InputDecoration(labelText: 'Proximity'),
             items: const [
               DropdownMenuItem(value: 'cohabitant', child: Text('Cohabitant')),
@@ -257,7 +257,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _attendance,
+            initialValue: _attendance,
             decoration: const InputDecoration(labelText: 'Attendance'),
             items: const [
               DropdownMenuItem(value: 'daily', child: Text('Daily')),
@@ -278,7 +278,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<bool?>(
-            value: _canDrive,
+            initialValue: _canDrive,
             decoration: const InputDecoration(labelText: 'Can drive'),
             items: const [
               DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -289,7 +289,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _mobility,
+            initialValue: _mobility,
             decoration: const InputDecoration(labelText: 'Mobility'),
             items: const [
               DropdownMenuItem(value: 'independent', child: Text('Independent')),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/attachment_model.dart';
-import '../models/user_model.dart';
 import '../services/attachment_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
@@ -81,6 +80,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     );
     String fileKind = initial?.fileKind ?? 'other';
 
+    if (!mounted) return;
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {

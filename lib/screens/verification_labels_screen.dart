@@ -192,7 +192,7 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
 
   Future<void> _deleteLabel(String id) async {
     try {
-      await _service.delete(id);
+      await _service.delete(patientId: _patientId!, id: id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Label deleted.')),

@@ -25,7 +25,6 @@ class _PatientNotificationsScreenState
 
   bool _loading = true;
   String? _error;
-  String? _patientId;
   List<NotificationEventModel> _events = [];
   bool _showOnlyPending = false;
 
@@ -76,7 +75,6 @@ class _PatientNotificationsScreenState
       final list = await _service.fetchByPatient(patientId);
       if (!mounted) return;
       setState(() {
-        _patientId = patientId;
         _events = list;
         _loading = false;
       });

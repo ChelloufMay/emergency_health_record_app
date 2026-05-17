@@ -42,7 +42,8 @@ class CaregiverService {
     await _supabase
         .from('caregiver_permissions')
         .update(permission.toUpdateMap())
-        .eq('id', permission.id!);
+        .eq('id', permission.id!)
+        .eq('patient_id', permission.patientId);
   }
 
   Future<void> revokePermission({
@@ -50,6 +51,6 @@ class CaregiverService {
     required String patientId,
     required String performedByUserId,
   }) async {
-    await _supabase.from('caregiver_permissions').update({'status': 'revoked'}).eq('id', id);
+    await _supabase.from('caregiver_permissions').update({'status': 'revoked'}).eq('id', id).eq('patient_id', patientId);
   }
 }

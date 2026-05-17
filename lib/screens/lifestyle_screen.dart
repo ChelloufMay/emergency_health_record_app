@@ -100,7 +100,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: livesAlone,
+                  initialValue: livesAlone,
                   decoration: const InputDecoration(labelText: 'Lives alone'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -150,7 +150,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                 TextField(controller: smokingYearsController, decoration: const InputDecoration(labelText: 'Smoking years')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: drugs,
+                  initialValue: drugs,
                   decoration: const InputDecoration(labelText: 'Drugs'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -165,7 +165,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                 TextField(controller: drugQuantityController, decoration: const InputDecoration(labelText: 'Drug quantity')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: chicha,
+                  initialValue: chicha,
                   decoration: const InputDecoration(labelText: 'Chicha'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),

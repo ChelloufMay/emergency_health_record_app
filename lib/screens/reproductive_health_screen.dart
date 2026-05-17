@@ -91,7 +91,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
               children: [
                 // This screen is a singleton row in public.reproductive_health.
                 DropdownButtonFormField<bool?>(
-                  value: hasMenstrualCycle,
+                  initialValue: hasMenstrualCycle,
                   decoration: const InputDecoration(labelText: 'Has menstrual cycle'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -102,7 +102,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: cycleRegular,
+                  initialValue: cycleRegular,
                   decoration: const InputDecoration(labelText: 'Cycle regular'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -113,7 +113,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: cyclePainful,
+                  initialValue: cyclePainful,
                   decoration: const InputDecoration(labelText: 'Cycle painful'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
@@ -130,7 +130,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                 TextField(controller: lastPeriodEndController, decoration: const InputDecoration(labelText: 'Last period end', hintText: 'YYYY-MM-DD')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool?>(
-                  value: currentlyPregnant,
+                  initialValue: currentlyPregnant,
                   decoration: const InputDecoration(labelText: 'Currently pregnant'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Unknown')),
