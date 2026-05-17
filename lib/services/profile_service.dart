@@ -84,8 +84,8 @@ class ProfileService {
 
     if (addressId != null || safeProfile.familyDoctorId != null) {
       await _supabase.from('patient_profiles').update({
-        if (addressId != null) ?'address_id': addressId,
-        if (safeProfile.familyDoctorId != null) ?'family_doctor_id': safeProfile.familyDoctorId,
+        'address_id': ?addressId,
+        if (safeProfile.familyDoctorId != null) 'family_doctor_id': safeProfile.familyDoctorId,
       }).eq('id', savedId);
     }
 
