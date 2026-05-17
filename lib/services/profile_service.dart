@@ -27,6 +27,10 @@ class ProfileService {
     required String performedByUserId,
     Map<String, dynamic>? addressFields,
   }) async {
+    if (performedByUserId.trim().isEmpty) {
+      throw Exception('Missing performedByUserId.');
+    }
+
     final appUserId = await _patientService.ensureAppUserId(
       fullName: '${profile.firstName} ${profile.familyName}',
       phone: profile.phone,
@@ -54,12 +58,7 @@ class ProfileService {
       familyDoctorId: profile.familyDoctorId,
     );
 
-    final addressId = await _upsertAddress(
-      addressId: safeProfile.addressId,
-      addressFields: addressFields,
-    );
-
-    // save_my_patient_profile() now owns the core patient row fields.
+    // 1) Save the core patient row first.
     final patientId = await _supabase.rpc(
       'save_my_patient_profile',
       params: {
@@ -76,16 +75,28 @@ class ProfileService {
         '_covid_vaccine_type': safeProfile.covidVaccineType,
       },
     );
-    final savedId = patientId?.toString();
 
-    if (savedId == null) {
+    final savedId = patientId?.toString();
+    if (savedId == null || savedId.isEmpty) {
       throw Exception('Profile save failed.');
     }
 
-    if (addressId != null || safeProfile.familyDoctorId != null) {
+    // 2) Save or update the address only after the core profile exists.
+    final addressId = await _upsertAddress(
+      addressId: safeProfile.addressId,
+      addressFields: addressFields,
+    );
+
+    // 3) Link the address back to the patient profile.
+    if (addressId != null) {
       await _supabase.from('patient_profiles').update({
-        'address_id': ?addressId,
-        if (safeProfile.familyDoctorId != null) 'family_doctor_id': safeProfile.familyDoctorId,
+        'address_id': addressId,
+        if (safeProfile.familyDoctorId != null)
+          'family_doctor_id': safeProfile.familyDoctorId,
+      }).eq('id', savedId);
+    } else if (safeProfile.familyDoctorId != null) {
+      await _supabase.from('patient_profiles').update({
+        'family_doctor_id': safeProfile.familyDoctorId,
       }).eq('id', savedId);
     }
 

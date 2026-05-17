@@ -67,6 +67,7 @@ class _MyAppState extends State<MyApp> {
   final AppLinks _appLinks = AppLinks();
 
   bool _startupHandled = false;
+  bool _initialLinkHandled = false;
 
   @override
   void initState() {
@@ -74,8 +75,6 @@ class _MyAppState extends State<MyApp> {
     _setupAuthListener();
     _setupDeepLinks();
 
-    // On cold start, check whether a session already exists.
-    // If it does, route to the app entry point once.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrapFromExistingSession();
     });
@@ -86,21 +85,17 @@ class _MyAppState extends State<MyApp> {
     _startupHandled = true;
 
     final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
+    if (session != null && !_initialLinkHandled) {
       _goEntry();
     }
   }
 
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-          (data) async {
+      (data) async {
         debugPrint('Auth event: ${data.event}');
-
         switch (data.event) {
           case AuthChangeEvent.signedOut:
-          // Keep sign-out handling here.
-          // LoginScreen already pushes RoleRouterScreen after sign-in,
-          // so we do NOT also redirect on signedIn/initialSession.
             _goLogin();
             break;
           case AuthChangeEvent.signedIn:
@@ -117,21 +112,49 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  void _setupDeepLinks() {
-    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+  Future<void> _setupDeepLinks() async {
+    Future<void> handleUri(Uri uri) async {
       final nav = navigatorKey.currentState;
       if (nav == null) return;
 
-      // Emergency deep links land directly on the emergency screen.
-      if (uri.scheme == 'healthapp' && uri.host == 'emergency') {
-        final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
-        if (payload != null && payload.isNotEmpty) {
-          nav.pushNamed('/emergency', arguments: {'payload': payload});
-        } else {
-          nav.pushNamed('/emergency');
-        }
+      if (uri.scheme != 'healthapp') return;
+
+      if (uri.host == 'auth-callback') {
+        nav.pushNamedAndRemoveUntil('/auth-callback', (route) => false);
+        return;
       }
-    });
+
+      if (uri.host == 'emergency') {
+        final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
+        nav.pushNamedAndRemoveUntil(
+          '/emergency',
+          (route) => false,
+          arguments: (payload != null && payload.isNotEmpty)
+              ? {'payload': payload}
+              : null,
+        );
+      }
+    }
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _initialLinkHandled = true;
+        await handleUri(initialUri);
+      }
+    } catch (e) {
+      debugPrint('Initial deep link error: $e');
+    }
+
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      (uri) {
+        _initialLinkHandled = true;
+        handleUri(uri);
+      },
+      onError: (Object error) {
+        debugPrint('Deep link stream error: $error');
+      },
+    );
   }
 
   void _goEntry() {
@@ -367,9 +390,12 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
           default:
+            if (settings.name != null && settings.name!.contains('auth-callback')) {
+              return MaterialPageRoute(builder: (_) => const AuthCallbackScreen());
+            }
             return MaterialPageRoute(
-              builder: (_) => const Scaffold(
-                body: Center(child: Text('Route not found!')),
+              builder: (_) => Scaffold(
+                body: Center(child: Text('Route not found: ${settings.name}')),
               ),
             );
         }
