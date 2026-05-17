@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
 
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-      (data) async {
+          (data) async {
         debugPrint('Auth event: ${data.event}');
         switch (data.event) {
           case AuthChangeEvent.signedOut:
@@ -120,7 +120,11 @@ class _MyAppState extends State<MyApp> {
       if (uri.scheme != 'healthapp') return;
 
       if (uri.host == 'auth-callback') {
-        nav.pushNamedAndRemoveUntil('/auth-callback', (route) => false);
+        nav.pushNamedAndRemoveUntil(
+          '/auth-callback',
+              (route) => false,
+          arguments: {'uri': uri.toString()},
+        );
         return;
       }
 
@@ -128,7 +132,7 @@ class _MyAppState extends State<MyApp> {
         final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
         nav.pushNamedAndRemoveUntil(
           '/emergency',
-          (route) => false,
+              (route) => false,
           arguments: (payload != null && payload.isNotEmpty)
               ? {'payload': payload}
               : null,
@@ -147,7 +151,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) {
+          (uri) {
         _initialLinkHandled = true;
         handleUri(uri);
       },
@@ -197,15 +201,11 @@ class _MyAppState extends State<MyApp> {
       ),
       initialRoute: '/',
       onGenerateRoute: (settings) {
-        // Named-route arguments are passed as a map.
-        // This is safer than a static routes map when screens need patientId,
-        // canEdit, emergency payloads, or other runtime values.
         final args = settings.arguments is Map
             ? Map<String, dynamic>.from(settings.arguments as Map)
             : <String, dynamic>{};
 
         switch (settings.name) {
-        // Entry flow
           case '/':
             return MaterialPageRoute(builder: (_) => const WelcomeScreen());
           case '/login':
@@ -215,13 +215,11 @@ class _MyAppState extends State<MyApp> {
           case '/entry':
             return MaterialPageRoute(builder: (_) => const RoleRouterScreen());
 
-        // Core patient flow
           case '/home':
             return MaterialPageRoute(builder: (_) => const HomeScreen());
           case '/profile':
             return MaterialPageRoute(builder: (_) => const ProfileScreen());
 
-        // Emergency screen receives a payload from deep links or QR flow.
           case '/emergency':
             return MaterialPageRoute(
               builder: (_) => EmergencyScreen(
@@ -231,7 +229,6 @@ class _MyAppState extends State<MyApp> {
           case '/qr':
             return MaterialPageRoute(builder: (_) => const QrScreen());
 
-        // Access / caregiver flow
           case '/caregivers':
             return MaterialPageRoute(builder: (_) => const CaregiverScreen());
           case '/caregiver_choice':
@@ -267,8 +264,6 @@ class _MyAppState extends State<MyApp> {
           case '/audit_log':
             return MaterialPageRoute(builder: (_) => const AuditLogScreen());
 
-        // Medical record sections
-        // These screens can receive patient-specific navigation context.
           case '/medical_summary':
             return MaterialPageRoute(
               builder: (_) => MedicalSummaryScreen(
@@ -366,7 +361,6 @@ class _MyAppState extends State<MyApp> {
               ),
             );
 
-        // New screens added to match the DB
           case '/patient_risk_predictions':
             return MaterialPageRoute(
               builder: (_) => const PatientRiskPredictionsScreen(),
@@ -385,13 +379,22 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/auth-callback':
-            return MaterialPageRoute(builder: (_) => const AuthCallbackScreen());
+            return MaterialPageRoute(
+              builder: (_) => AuthCallbackScreen(
+                callbackUri: args['uri'] as String?,
+              ),
+            );
           case '/settings':
             return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
           default:
-            if (settings.name != null && settings.name!.contains('auth-callback')) {
-              return MaterialPageRoute(builder: (_) => const AuthCallbackScreen());
+            if (settings.name != null &&
+                settings.name!.contains('auth-callback')) {
+              return MaterialPageRoute(
+                builder: (_) => AuthCallbackScreen(
+                  callbackUri: args['uri'] as String?,
+                ),
+              );
             }
             return MaterialPageRoute(
               builder: (_) => Scaffold(
@@ -405,13 +408,17 @@ class _MyAppState extends State<MyApp> {
 }
 
 class AuthCallbackScreen extends StatefulWidget {
-  const AuthCallbackScreen({super.key});
+  final String? callbackUri;
+
+  const AuthCallbackScreen({super.key, this.callbackUri});
 
   @override
   State<AuthCallbackScreen> createState() => _AuthCallbackScreenState();
 }
 
 class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
+  bool _handled = false;
+
   @override
   void initState() {
     super.initState();
@@ -419,11 +426,24 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _finish() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    final session = Supabase.instance.client.auth.currentSession;
+    if (_handled) return;
+    _handled = true;
+
+    try {
+      final rawUri = widget.callbackUri;
+      if (rawUri != null && rawUri.trim().isNotEmpty) {
+        final uri = Uri.parse(rawUri);
+        await Supabase.instance.client.auth.getSessionFromUrl(uri);
+      }
+    } catch (e) {
+      debugPrint('Auth callback exchange failed: $e');
+    }
+
+    await Future.delayed(const Duration(milliseconds: 250));
 
     if (!mounted) return;
 
+    final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
       Navigator.of(context).pushNamedAndRemoveUntil('/entry', (route) => false);
     } else {

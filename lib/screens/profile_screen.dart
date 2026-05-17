@@ -20,14 +20,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _legalIdController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _familyNameController = TextEditingController();
-  final _bloodTypeController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
-  final _insuranceController = TextEditingController();
-  final _covidVaccineController = TextEditingController();
 
-  final _countryController = TextEditingController();
+  final _countryController = TextEditingController(text: 'Tunisia');
   final _governorateController = TextEditingController();
   final _cityController = TextEditingController();
   final _avenueController = TextEditingController();
@@ -38,9 +35,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _dateOfBirth;
   bool _loading = true;
   bool _saving = false;
+
   String _sex = 'unknown';
+  String? _bloodType;
+  String? _insurancePlan;
+  String? _covidVaccineType;
+
   String? _profileId;
+  String? _addressId;
   String? _userId;
+
+  static const List<String> _bloodTypes = <String>[
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+  ];
+
+  static const List<String> _insurancePlans = <String>[
+    'CNAM',
+    'CNSS',
+    'CNRPS',
+  ];
+
+  static const List<String> _covidVaccines = <String>[
+    'Pfizer-BioNTech (Comirnaty / Tozinameran)',
+    'Moderna (Spikevax / mRNA-1273)',
+    'Oxford-AstraZeneca (Vaxzevria / Covishield / AZD1222)',
+    'Johnson & Johnson (Janssen / Ad26.COV2.S)',
+    'Sputnik V (Gam-COVID-Vac)',
+    'Sinovac (CoronaVac)',
+    'Sinopharm (BBIBP-CorV)',
+  ];
 
   @override
   void initState() {
@@ -53,12 +83,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _legalIdController.dispose();
     _firstNameController.dispose();
     _familyNameController.dispose();
-    _bloodTypeController.dispose();
     _phoneController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
-    _insuranceController.dispose();
-    _covidVaccineController.dispose();
     _countryController.dispose();
     _governorateController.dispose();
     _cityController.dispose();
@@ -69,27 +96,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  String? _normalizeOption(String? value, List<String> options) {
+    if (value == null || value.trim().isEmpty) return null;
+    final trimmed = value.trim();
+    return options.contains(trimmed) ? trimmed : null;
+  }
+
   Future<void> _load() async {
-    // This screen binds to the owner profile tables only:
-    // - patient_profiles via ProfileService
-    // - users via PatientService.ensureAppUserId
     final profile = await _profileService.fetchProfile();
     final identity = await _patientService.resolveIdentity();
 
     if (profile != null) {
       _profileId = profile.id;
+      _addressId = profile.addressId;
       _userId = profile.userId;
+
       _legalIdController.text = profile.legalId ?? '';
       _firstNameController.text = profile.firstName;
       _familyNameController.text = profile.familyName;
       _sex = profile.sex;
       _dateOfBirth = profile.dateOfBirth;
-      _bloodTypeController.text = profile.bloodType ?? '';
+      _bloodType = _normalizeOption(profile.bloodType, _bloodTypes);
       _phoneController.text = profile.phone ?? '';
       _emergencyNameController.text = profile.emergencyContactName ?? '';
       _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
-      _insuranceController.text = profile.insurancePlan ?? '';
-      _covidVaccineController.text = profile.covidVaccineType ?? '';
+      _insurancePlan = _normalizeOption(profile.insurancePlan, _insurancePlans);
+      _covidVaccineType =
+          _normalizeOption(profile.covidVaccineType, _covidVaccines);
+
+      final address = await _profileService.fetchAddress(profile.addressId);
+      if (address != null) {
+        _countryController.text = address.country;
+        _governorateController.text = address.governorate ?? '';
+        _cityController.text = address.city ?? '';
+        _avenueController.text = address.avenue ?? '';
+        _streetController.text = address.street ?? '';
+        _postalCodeController.text = address.postalCode ?? '';
+        _extraDetailsController.text = address.extraDetails ?? '';
+      }
     } else {
       _userId = identity?.appUserId;
     }
@@ -126,9 +170,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _saving = true);
 
     try {
-      // The DB owns the actual patient row. The screen only prepares a model
-      // that matches the patient_profiles columns and lets the service do the
-      // insert/update work.
       final profile = PatientProfileModel(
         id: _profileId,
         userId: userId,
@@ -139,28 +180,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         familyName: _familyNameController.text.trim(),
         sex: _sex,
         dateOfBirth: _dateOfBirth,
-        bloodType: _bloodTypeController.text.trim().isEmpty
-            ? null
-            : _bloodTypeController.text.trim(),
+        bloodType: _bloodType,
         phone: _phoneController.text.trim().isEmpty
             ? null
             : _phoneController.text.trim(),
+        addressId: _addressId,
         emergencyContactName: _emergencyNameController.text.trim().isEmpty
             ? null
             : _emergencyNameController.text.trim(),
         emergencyContactPhone: _emergencyPhoneController.text.trim().isEmpty
             ? null
             : _emergencyPhoneController.text.trim(),
-        insurancePlan: _insuranceController.text.trim().isEmpty
-            ? null
-            : _insuranceController.text.trim(),
-        covidVaccineType: _covidVaccineController.text.trim().isEmpty
-            ? null
-            : _covidVaccineController.text.trim(),
+        insurancePlan: _insurancePlan,
+        covidVaccineType: _covidVaccineType,
       );
 
-      // Address is saved through the profile service so the profile + address
-      // relationship stays consistent with the DB foreign keys.
       final addressFields = <String, dynamic>{
         'country': _countryController.text.trim(),
         'governorate': _governorateController.text.trim(),
@@ -171,14 +205,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'extra_details': _extraDetailsController.text.trim(),
       };
 
-      final savedId = await _profileService.saveProfile(
+      // 1) Save the patient profile through the private_api schema directly.
+      final savedProfileId = await _profileService.saveCoreProfile(
         profile: profile,
         performedByUserId: userId,
+      );
+
+      // 2) Save or update the address.
+      final savedAddressId = await _profileService.saveAddress(
+        addressId: _addressId,
         addressFields: addressFields,
       );
 
+      // 3) Link the address to the patient profile.
+      await _profileService.linkAddressToProfile(
+        patientId: savedProfileId,
+        addressId: savedAddressId,
+      );
+
       if (!mounted) return;
-      setState(() => _profileId = savedId);
+      setState(() {
+        _profileId = savedProfileId;
+        _addressId = savedAddressId;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile saved.')),
@@ -193,6 +242,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    String? hint,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      hint: hint == null ? null : Text(hint),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<String>(
+          value: item,
+          child: Text(item),
+        ),
+      )
+          .toList(),
+      onChanged: onChanged,
+    );
   }
 
   @override
@@ -214,20 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // These fields are the direct owner profile fields from
-            // patient_profiles_enriched / patient_profiles.
-            DropdownButtonFormField<String>(
-              initialValue: _sex,
-              decoration: const InputDecoration(labelText: 'Sex'),
-              items: const [
-                DropdownMenuItem(value: 'male', child: Text('Male')),
-                DropdownMenuItem(value: 'female', child: Text('Female')),
-                DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
-              ],
-              onChanged: (value) =>
-                  setState(() => _sex = value ?? 'unknown'),
-            ),
-            const SizedBox(height: 12),
+            _sectionTitle('Identity'),
             TextFormField(
               controller: _legalIdController,
               decoration: const InputDecoration(labelText: 'Legal ID'),
@@ -247,6 +316,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _sex,
+              decoration: const InputDecoration(labelText: 'Sex'),
+              items: const [
+                DropdownMenuItem(value: 'male', child: Text('Male')),
+                DropdownMenuItem(value: 'female', child: Text('Female')),
+                DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
+              ],
+              onChanged: (value) {
+                setState(() => _sex = value ?? 'unknown');
+              },
+            ),
+            const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Date of birth'),
@@ -261,9 +343,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _bloodTypeController,
-              decoration: const InputDecoration(labelText: 'Blood type'),
+            _buildDropdown(
+              label: 'Blood type',
+              value: _bloodType,
+              items: _bloodTypes,
+              hint: 'Select blood type',
+              onChanged: (value) {
+                setState(() => _bloodType = value);
+              },
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -285,28 +372,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _insuranceController,
-              decoration: const InputDecoration(
-                labelText: 'Insurance plan',
-              ),
+            _buildDropdown(
+              label: 'Insurance plan',
+              value: _insurancePlan,
+              items: _insurancePlans,
+              hint: 'Select insurance plan',
+              onChanged: (value) {
+                setState(() => _insurancePlan = value);
+              },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _covidVaccineController,
-              decoration: const InputDecoration(
-                labelText: 'COVID vaccine type',
-              ),
+            _buildDropdown(
+              label: 'COVID vaccine',
+              value: _covidVaccineType,
+              items: _covidVaccines,
+              hint: 'Select COVID vaccine',
+              onChanged: (value) {
+                setState(() => _covidVaccineType = value);
+              },
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Address',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
+
+            _sectionTitle('Address'),
             TextFormField(
               controller: _countryController,
               decoration: const InputDecoration(labelText: 'Country'),
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -340,6 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 24),
+
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
