@@ -10,6 +10,8 @@ import 'screens/allergies_screen.dart';
 import 'screens/attachments_screen.dart';
 import 'screens/audit_log_screen.dart';
 import 'screens/caregiver_choice_screen.dart';
+import 'screens/caregiver_dashboard_screen.dart';
+import 'screens/caregiver_patient_detail_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/caregiver_screen.dart';
 import 'screens/conditions_screen.dart';
@@ -64,11 +66,29 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription? _linkSubscription;
   final AppLinks _appLinks = AppLinks();
 
+  bool _startupHandled = false;
+
   @override
   void initState() {
     super.initState();
     _setupAuthListener();
     _setupDeepLinks();
+
+    // On cold start, check whether a session already exists.
+    // If it does, route to the app entry point once.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bootstrapFromExistingSession();
+    });
+  }
+
+  Future<void> _bootstrapFromExistingSession() async {
+    if (_startupHandled) return;
+    _startupHandled = true;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      _goEntry();
+    }
   }
 
   void _setupAuthListener() {
@@ -77,19 +97,14 @@ class _MyAppState extends State<MyApp> {
         debugPrint('Auth event: ${data.event}');
 
         switch (data.event) {
-          case AuthChangeEvent.signedIn:
-            if (data.session != null) {
-              _goEntry();
-            }
-            break;
-          case AuthChangeEvent.initialSession:
-            if (data.session != null) {
-              _goEntry();
-            }
-            break;
           case AuthChangeEvent.signedOut:
+          // Keep sign-out handling here.
+          // LoginScreen already pushes RoleRouterScreen after sign-in,
+          // so we do NOT also redirect on signedIn/initialSession.
             _goLogin();
             break;
+          case AuthChangeEvent.signedIn:
+          case AuthChangeEvent.initialSession:
           default:
             break;
         }
@@ -107,6 +122,7 @@ class _MyAppState extends State<MyApp> {
       final nav = navigatorKey.currentState;
       if (nav == null) return;
 
+      // Emergency deep links land directly on the emergency screen.
       if (uri.scheme == 'healthapp' && uri.host == 'emergency') {
         final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
         if (payload != null && payload.isNotEmpty) {
@@ -157,57 +173,206 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       initialRoute: '/',
-      routes: {
+      onGenerateRoute: (settings) {
+        // Named-route arguments are passed as a map.
+        // This is safer than a static routes map when screens need patientId,
+        // canEdit, emergency payloads, or other runtime values.
+        final args = settings.arguments is Map
+            ? Map<String, dynamic>.from(settings.arguments as Map)
+            : <String, dynamic>{};
+
+        switch (settings.name) {
         // Entry flow
-        '/': (context) => const WelcomeScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/entry': (context) => const RoleRouterScreen(),
+          case '/':
+            return MaterialPageRoute(builder: (_) => const WelcomeScreen());
+          case '/login':
+            return MaterialPageRoute(builder: (_) => const LoginScreen());
+          case '/register':
+            return MaterialPageRoute(builder: (_) => const RegisterScreen());
+          case '/entry':
+            return MaterialPageRoute(builder: (_) => const RoleRouterScreen());
 
         // Core patient flow
-        '/home': (context) => const HomeScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/medical_summary': (context) => const MedicalSummaryScreen(),
-        '/emergency': (context) => const EmergencyScreen(),
-        '/qr': (context) => const QrScreen(),
+          case '/home':
+            return MaterialPageRoute(builder: (_) => const HomeScreen());
+          case '/profile':
+            return MaterialPageRoute(builder: (_) => const ProfileScreen());
+
+        // Emergency screen receives a payload from deep links or QR flow.
+          case '/emergency':
+            return MaterialPageRoute(
+              builder: (_) => EmergencyScreen(
+                payload: args['payload'] as String?,
+              ),
+            );
+          case '/qr':
+            return MaterialPageRoute(builder: (_) => const QrScreen());
 
         // Access / caregiver flow
-        '/caregivers': (context) => const CaregiverScreen(),
-        '/caregiver_choice': (context) => const CaregiverChoiceScreen(),
-        '/access_dashboard': (context) => const AccessDashboardScreen(),
-        '/caregiver_profile': (context) => const CaregiverProfileScreen(),
-        '/guardian_profile': (context) => const GuardianProfileScreen(),
-        '/clinician_profile': (context) => const ClinicianProfileScreen(),
-        '/audit_log': (context) => const AuditLogScreen(),
+          case '/caregivers':
+            return MaterialPageRoute(builder: (_) => const CaregiverScreen());
+          case '/caregiver_choice':
+            return MaterialPageRoute(
+              builder: (_) => const CaregiverChoiceScreen(),
+            );
+          case '/access_dashboard':
+            return MaterialPageRoute(
+              builder: (_) => const AccessDashboardScreen(),
+            );
+          case '/caregiver_dashboard':
+            return MaterialPageRoute(
+              builder: (_) => const CaregiverDashboardScreen(),
+            );
+          case '/caregiver_patient_detail':
+            return MaterialPageRoute(
+              builder: (_) => CaregiverPatientDetailScreen(
+                patientId: args['patientId'] as String?,
+              ),
+            );
+          case '/caregiver_profile':
+            return MaterialPageRoute(
+              builder: (_) => const CaregiverProfileScreen(),
+            );
+          case '/guardian_profile':
+            return MaterialPageRoute(
+              builder: (_) => const GuardianProfileScreen(),
+            );
+          case '/clinician_profile':
+            return MaterialPageRoute(
+              builder: (_) => const ClinicianProfileScreen(),
+            );
+          case '/audit_log':
+            return MaterialPageRoute(builder: (_) => const AuditLogScreen());
 
         // Medical record sections
-        '/allergies': (context) => const AllergiesScreen(),
-        '/medications': (context) => const MedicationsScreen(),
-        '/conditions': (context) => const ConditionsScreen(),
-        '/surgeries': (context) => const SurgeriesScreen(),
-        '/hospitalizations': (context) => const HospitalizationsScreen(),
-        '/vaccinations': (context) => const VaccinationsScreen(),
-        '/lifestyle': (context) => const LifestyleScreen(),
-        '/family_history': (context) => const FamilyHistoryScreen(),
-        '/reproductive_health': (context) => const ReproductiveHealthScreen(),
-        '/family_doctor': (context) => const FamilyDoctorScreen(),
-        '/attachments': (context) => const AttachmentsScreen(),
+        // These screens can receive patient-specific navigation context.
+          case '/medical_summary':
+            return MaterialPageRoute(
+              builder: (_) => MedicalSummaryScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/allergies':
+            return MaterialPageRoute(
+              builder: (_) => AllergiesScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/medications':
+            return MaterialPageRoute(
+              builder: (_) => MedicationsScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/conditions':
+            return MaterialPageRoute(
+              builder: (_) => ConditionsScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/surgeries':
+            return MaterialPageRoute(
+              builder: (_) => SurgeriesScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/hospitalizations':
+            return MaterialPageRoute(
+              builder: (_) => HospitalizationsScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/vaccinations':
+            return MaterialPageRoute(
+              builder: (_) => VaccinationsScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/lifestyle':
+            return MaterialPageRoute(
+              builder: (_) => LifestyleScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/family_history':
+            return MaterialPageRoute(
+              builder: (_) => FamilyHistoryScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/reproductive_health':
+            return MaterialPageRoute(
+              builder: (_) => ReproductiveHealthScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/family_doctor':
+            return MaterialPageRoute(
+              builder: (_) => FamilyDoctorScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
+          case '/attachments':
+            return MaterialPageRoute(
+              builder: (_) => AttachmentsScreen(
+                patientId: args['patientId'] as String?,
+                canEdit: args['canEdit'] as bool? ?? false,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
 
         // New screens added to match the DB
-        '/patient_risk_predictions': (context) =>
-        const PatientRiskPredictionsScreen(),
-        '/emergency_access_tokens': (context) =>
-        const EmergencyAccessTokenScreen(),
-        '/verification_labels': (context) =>
-        const VerificationLabelsScreen(),
-        '/patient_notifications': (context) =>
-        const PatientNotificationsScreen(),
+          case '/patient_risk_predictions':
+            return MaterialPageRoute(
+              builder: (_) => const PatientRiskPredictionsScreen(),
+            );
+          case '/emergency_access_tokens':
+            return MaterialPageRoute(
+              builder: (_) => const EmergencyAccessTokenScreen(),
+            );
+          case '/verification_labels':
+            return MaterialPageRoute(
+              builder: (_) => const VerificationLabelsScreen(),
+            );
+          case '/patient_notifications':
+            return MaterialPageRoute(
+              builder: (_) => const PatientNotificationsScreen(),
+            );
 
-        // Optional auth callback route, useful if you later wire one in
-        '/auth-callback': (context) => const AuthCallbackScreen(),
+          case '/auth-callback':
+            return MaterialPageRoute(builder: (_) => const AuthCallbackScreen());
+          case '/settings':
+            return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
-        // Settings
-        '/settings': (context) => const SettingsScreen(),
+          default:
+            return MaterialPageRoute(
+              builder: (_) => const Scaffold(
+                body: Center(child: Text('Route not found!')),
+              ),
+            );
+        }
       },
     );
   }
