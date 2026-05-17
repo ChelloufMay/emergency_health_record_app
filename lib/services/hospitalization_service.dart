@@ -44,6 +44,6 @@ class HospitalizationService {
     required String patientId,
     required String id,
   }) async {
-    await _supabase.from('hospitalizations').delete().eq('id', id);
+    await _supabase.from('hospitalizations').delete().eq('id', id).eq('patient_id', patientId);
   }
 }

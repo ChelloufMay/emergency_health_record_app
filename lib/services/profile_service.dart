@@ -60,44 +60,23 @@ class ProfileService {
     );
 
     // save_my_patient_profile() now owns the core patient row fields.
-    String? savedId;
-    try {
-      final patientId = await _supabase.rpc(
-        'save_my_patient_profile',
-        params: {
-          '_legal_id': safeProfile.legalId,
-          '_first_name': safeProfile.firstName,
-          '_family_name': safeProfile.familyName,
-          '_sex': safeProfile.sex,
-          '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
-          '_blood_type': safeProfile.bloodType,
-          '_phone': safeProfile.phone,
-          '_emergency_contact_name': safeProfile.emergencyContactName,
-          '_emergency_contact_phone': safeProfile.emergencyContactPhone,
-          '_insurance_plan': safeProfile.insurancePlan,
-          '_covid_vaccine_type': safeProfile.covidVaccineType,
-        },
-      );
-      savedId = patientId?.toString();
-    } on PostgrestException {
-      final patientId = await _supabase.rpc(
-        'save_my_patient_profile',
-        params: {
-          '_legal_id': safeProfile.legalId,
-          '_first_name': safeProfile.firstName,
-          '_family_name': safeProfile.familyName,
-          '_sex': safeProfile.sex,
-          '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
-          '_blood_type': safeProfile.bloodType,
-          '_phone': safeProfile.phone,
-          '_emergency_contact_name': safeProfile.emergencyContactName,
-          '_emergency_contact_phone': safeProfile.emergencyContactPhone,
-          '_insurance_plan': safeProfile.insurancePlan,
-          '_covid_vaccine_type': safeProfile.covidVaccineType,
-        },
-      );
-      savedId = patientId?.toString();
-    }
+    final patientId = await _supabase.rpc(
+      'save_my_patient_profile',
+      params: {
+        '_legal_id': safeProfile.legalId,
+        '_first_name': safeProfile.firstName,
+        '_family_name': safeProfile.familyName,
+        '_sex': safeProfile.sex,
+        '_date_of_birth': safeProfile.dateOfBirth?.toIso8601String().split('T').first,
+        '_blood_type': safeProfile.bloodType,
+        '_phone': safeProfile.phone,
+        '_emergency_contact_name': safeProfile.emergencyContactName,
+        '_emergency_contact_phone': safeProfile.emergencyContactPhone,
+        '_insurance_plan': safeProfile.insurancePlan,
+        '_covid_vaccine_type': safeProfile.covidVaccineType,
+      },
+    );
+    final savedId = patientId?.toString();
 
     if (savedId == null) {
       throw Exception('Profile save failed.');
@@ -105,8 +84,8 @@ class ProfileService {
 
     if (addressId != null || safeProfile.familyDoctorId != null) {
       await _supabase.from('patient_profiles').update({
-        if (addressId != null) 'address_id': addressId,
-        if (safeProfile.familyDoctorId != null) 'family_doctor_id': safeProfile.familyDoctorId,
+        if (addressId != null) ?'address_id': addressId,
+        if (safeProfile.familyDoctorId != null) ?'family_doctor_id': safeProfile.familyDoctorId,
       }).eq('id', savedId);
     }
 

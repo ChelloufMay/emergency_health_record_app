@@ -63,7 +63,7 @@ class AttachmentService {
         .eq('id', id)
         .maybeSingle();
 
-    await _supabase.from('attachments').delete().eq('id', id);
+    await _supabase.from('attachments').delete().eq('id', id).eq('patient_id', patientId);
 
     if (row != null) {
       final storagePath = row['storage_path']?.toString();

@@ -48,7 +48,10 @@ class EmergencyAccessTokenService {
     }).eq('id', id);
   }
 
-  Future<void> delete(String id) async {
-    await _supabase.from('emergency_access_tokens').delete().eq('id', id);
+  Future<void> delete({
+    required String patientId,
+    required String id,
+  }) async {
+    await _supabase.from('emergency_access_tokens').delete().eq('id', id).eq('patient_id', patientId);
   }
 }

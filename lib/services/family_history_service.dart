@@ -44,6 +44,6 @@ class FamilyHistoryService {
     required String patientId,
     required String id,
   }) async {
-    await _supabase.from('family_history').delete().eq('id', id);
+    await _supabase.from('family_history').delete().eq('id', id).eq('patient_id', patientId);
   }
 }

@@ -35,7 +35,10 @@ class VerificationLabelService {
     return label.id!;
   }
 
-  Future<void> delete(String id) async {
-    await _supabase.from('verification_labels').delete().eq('id', id);
+  Future<void> delete({
+    required String patientId,
+    required String id,
+  }) async {
+    await _supabase.from('verification_labels').delete().eq('id', id).eq('patient_id', patientId);
   }
 }
