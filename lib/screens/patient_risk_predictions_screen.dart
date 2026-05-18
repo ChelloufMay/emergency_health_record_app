@@ -56,8 +56,9 @@ class _PatientRiskPredictionsScreenState
 
       final parts = <String>[label];
       if (value != null && value.trim().isNotEmpty) parts.add(value);
-      if (weight != null && weight.trim().isNotEmpty)
+      if (weight != null && weight.trim().isNotEmpty) {
         parts.add('weight: $weight');
+      }
       return parts.join(' • ');
     }
     return factor?.toString() ?? '-';
