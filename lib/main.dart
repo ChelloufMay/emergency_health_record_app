@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
 
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-          (data) async {
+      (data) async {
         debugPrint('Auth event: ${data.event}');
         switch (data.event) {
           case AuthChangeEvent.signedOut:
@@ -122,7 +122,7 @@ class _MyAppState extends State<MyApp> {
       if (uri.host == 'auth-callback') {
         nav.pushNamedAndRemoveUntil(
           '/auth-callback',
-              (route) => false,
+          (route) => false,
           arguments: {'uri': uri.toString()},
         );
         return;
@@ -132,7 +132,7 @@ class _MyAppState extends State<MyApp> {
         final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
         nav.pushNamedAndRemoveUntil(
           '/emergency',
-              (route) => false,
+          (route) => false,
           arguments: (payload != null && payload.isNotEmpty)
               ? {'payload': payload}
               : null,
@@ -151,7 +151,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
-          (uri) {
+      (uri) {
         _initialLinkHandled = true;
         handleUri(uri);
       },
@@ -222,9 +222,8 @@ class _MyAppState extends State<MyApp> {
 
           case '/emergency':
             return MaterialPageRoute(
-              builder: (_) => EmergencyScreen(
-                payload: args['payload'] as String?,
-              ),
+              builder: (_) =>
+                  EmergencyScreen(payload: args['payload'] as String?),
             );
           case '/qr':
             return MaterialPageRoute(builder: (_) => const QrScreen());
@@ -380,9 +379,8 @@ class _MyAppState extends State<MyApp> {
 
           case '/auth-callback':
             return MaterialPageRoute(
-              builder: (_) => AuthCallbackScreen(
-                callbackUri: args['uri'] as String?,
-              ),
+              builder: (_) =>
+                  AuthCallbackScreen(callbackUri: args['uri'] as String?),
             );
           case '/settings':
             return MaterialPageRoute(builder: (_) => const SettingsScreen());
@@ -391,9 +389,8 @@ class _MyAppState extends State<MyApp> {
             if (settings.name != null &&
                 settings.name!.contains('auth-callback')) {
               return MaterialPageRoute(
-                builder: (_) => AuthCallbackScreen(
-                  callbackUri: args['uri'] as String?,
-                ),
+                builder: (_) =>
+                    AuthCallbackScreen(callbackUri: args['uri'] as String?),
               );
             }
             return MaterialPageRoute(
