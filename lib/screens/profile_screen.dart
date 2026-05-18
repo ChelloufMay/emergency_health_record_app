@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/patient_profile_model.dart';
 import '../services/patient_service.dart';
+import '../services/patient_session_service.dart';
 import '../services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -102,7 +103,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _load() async {
     try {
-      // Resolve identity first so the screen can still work even if profile fetch fails.
       final identity = await _patientService.resolveIdentity();
       _userId = identity?.appUserId;
 
@@ -132,6 +132,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _covidVaccines,
           );
 
+          final fullName =
+          '${_firstNameController.text.trim()} ${_familyNameController.text.trim()}'
+              .trim();
+
+          if (profile.id != null) {
+            PatientSessionService.instance.setSession(
+              patientId: profile.id!,
+              patientName: fullName.isEmpty ? null : fullName,
+              permission: 'owner',
+            );
+          }
+
           if (profile.addressId != null &&
               profile.addressId!.trim().isNotEmpty) {
             try {
@@ -142,31 +154,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   .maybeSingle();
 
               if (addressRow != null) {
-                _countryController.text = (addressRow['country'] ?? 'Tunisia')
-                    .toString();
-                _governorateController.text = (addressRow['governorate'] ?? '')
-                    .toString();
+                _countryController.text =
+                    (addressRow['country'] ?? 'Tunisia').toString();
+                _governorateController.text =
+                    (addressRow['governorate'] ?? '').toString();
                 _cityController.text = (addressRow['city'] ?? '').toString();
-                _avenueController.text = (addressRow['avenue'] ?? '')
-                    .toString();
-                _streetController.text = (addressRow['street'] ?? '')
-                    .toString();
-                _postalCodeController.text = (addressRow['postal_code'] ?? '')
-                    .toString();
+                _avenueController.text = (addressRow['avenue'] ?? '').toString();
+                _streetController.text = (addressRow['street'] ?? '').toString();
+                _postalCodeController.text =
+                    (addressRow['postal_code'] ?? '').toString();
                 _extraDetailsController.text =
                     (addressRow['extra_details'] ?? '').toString();
               }
             } catch (_) {
-              // If address fetch fails, keep the form usable.
+              // Keep the form usable even if address fetch fails.
             }
           }
         }
       } catch (e) {
-        // Keep the screen usable even if profile fetch fails.
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Could not load profile: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not load profile: $e')),
+          );
         }
       }
     } catch (e) {
@@ -252,9 +261,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (!mounted) return;
+
+      final displayName =
+      '${_firstNameController.text.trim()} ${_familyNameController.text.trim()}'
+          .trim();
+
       setState(() {
         _profileId = savedProfileId;
       });
+
+      PatientSessionService.instance.setSession(
+        patientId: savedProfileId,
+        patientName: displayName.isEmpty ? null : displayName,
+        permission: 'owner',
+      );
 
       ScaffoldMessenger.of(
         context,
@@ -295,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       items: items
           .map(
             (item) => DropdownMenuItem<String>(value: item, child: Text(item)),
-          )
+      )
           .toList(),
       onChanged: onChanged,
     );
@@ -323,163 +343,163 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _sectionTitle('Identity'),
-                  TextFormField(
-                    controller: _legalIdController,
-                    decoration: const InputDecoration(labelText: 'Legal ID'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _firstNameController,
-                    decoration: const InputDecoration(labelText: 'First name'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _familyNameController,
-                    decoration: const InputDecoration(labelText: 'Family name'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _sex,
-                    decoration: const InputDecoration(labelText: 'Sex'),
-                    items: const [
-                      DropdownMenuItem(value: 'male', child: Text('Male')),
-                      DropdownMenuItem(value: 'female', child: Text('Female')),
-                      DropdownMenuItem(
-                        value: 'unknown',
-                        child: Text('Unknown'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _sex = value ?? 'unknown');
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Date of birth'),
-                    subtitle: Text(
-                      _dateOfBirth == null
-                          ? 'Not set'
-                          : _dateOfBirth!.toIso8601String().split('T').first,
-                    ),
-                    trailing: IconButton(
-                      onPressed: _pickBirthDate,
-                      icon: const Icon(Icons.calendar_month),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDropdown(
-                    label: 'Blood type',
-                    value: _bloodType,
-                    items: _bloodTypes,
-                    hint: 'Select blood type',
-                    onChanged: (value) {
-                      setState(() => _bloodType = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(labelText: 'Phone'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emergencyNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Emergency contact name',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emergencyPhoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Emergency contact phone',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDropdown(
-                    label: 'Insurance plan',
-                    value: _insurancePlan,
-                    items: _insurancePlans,
-                    hint: 'Select insurance plan',
-                    onChanged: (value) {
-                      setState(() => _insurancePlan = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDropdown(
-                    label: 'COVID vaccine',
-                    value: _covidVaccineType,
-                    items: _covidVaccines,
-                    hint: 'Select COVID vaccine',
-                    onChanged: (value) {
-                      setState(() => _covidVaccineType = value);
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _sectionTitle('Address'),
-                  TextFormField(
-                    controller: _countryController,
-                    decoration: const InputDecoration(labelText: 'Country'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _governorateController,
-                    decoration: const InputDecoration(labelText: 'Governorate'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _cityController,
-                    decoration: const InputDecoration(labelText: 'City'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _avenueController,
-                    decoration: const InputDecoration(labelText: 'Avenue'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _streetController,
-                    decoration: const InputDecoration(labelText: 'Street'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _postalCodeController,
-                    decoration: const InputDecoration(labelText: 'Postal code'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _extraDetailsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Extra details',
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save profile'),
-                  ),
-                ],
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _sectionTitle('Identity'),
+            TextFormField(
+              controller: _legalIdController,
+              decoration: const InputDecoration(labelText: 'Legal ID'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _firstNameController,
+              decoration: const InputDecoration(labelText: 'First name'),
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _familyNameController,
+              decoration: const InputDecoration(labelText: 'Family name'),
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _sex,
+              decoration: const InputDecoration(labelText: 'Sex'),
+              items: const [
+                DropdownMenuItem(value: 'male', child: Text('Male')),
+                DropdownMenuItem(value: 'female', child: Text('Female')),
+                DropdownMenuItem(
+                  value: 'unknown',
+                  child: Text('Unknown'),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() => _sex = value ?? 'unknown');
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Date of birth'),
+              subtitle: Text(
+                _dateOfBirth == null
+                    ? 'Not set'
+                    : _dateOfBirth!.toIso8601String().split('T').first,
+              ),
+              trailing: IconButton(
+                onPressed: _pickBirthDate,
+                icon: const Icon(Icons.calendar_month),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildDropdown(
+              label: 'Blood type',
+              value: _bloodType,
+              items: _bloodTypes,
+              hint: 'Select blood type',
+              onChanged: (value) {
+                setState(() => _bloodType = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phoneController,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _emergencyNameController,
+              decoration: const InputDecoration(
+                labelText: 'Emergency contact name',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _emergencyPhoneController,
+              decoration: const InputDecoration(
+                labelText: 'Emergency contact phone',
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildDropdown(
+              label: 'Insurance plan',
+              value: _insurancePlan,
+              items: _insurancePlans,
+              hint: 'Select insurance plan',
+              onChanged: (value) {
+                setState(() => _insurancePlan = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildDropdown(
+              label: 'COVID vaccine',
+              value: _covidVaccineType,
+              items: _covidVaccines,
+              hint: 'Select COVID vaccine',
+              onChanged: (value) {
+                setState(() => _covidVaccineType = value);
+              },
+            ),
+            const SizedBox(height: 24),
+            _sectionTitle('Address'),
+            TextFormField(
+              controller: _countryController,
+              decoration: const InputDecoration(labelText: 'Country'),
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _governorateController,
+              decoration: const InputDecoration(labelText: 'Governorate'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _cityController,
+              decoration: const InputDecoration(labelText: 'City'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _avenueController,
+              decoration: const InputDecoration(labelText: 'Avenue'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _streetController,
+              decoration: const InputDecoration(labelText: 'Street'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _postalCodeController,
+              decoration: const InputDecoration(labelText: 'Postal code'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _extraDetailsController,
+              decoration: const InputDecoration(
+                labelText: 'Extra details',
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+                  : const Text('Save profile'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

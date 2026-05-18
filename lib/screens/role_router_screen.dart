@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/patient_session_service.dart';
 import 'caregiver_choice_screen.dart';
 import 'caregiver_dashboard_screen.dart';
 import 'caregiver_profile_screen.dart';
@@ -32,12 +33,9 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
     final authUser = session?.user;
 
     if (authUser == null) {
-      // No auth session means no route can be resolved yet.
       return const LoginScreen();
     }
 
-    // The public.users row is the central identity record used by your DB.
-    // It stores the app role and links auth.users -> public schema.
     final userRow = await client
         .from('users')
         .select('id, role')
@@ -45,25 +43,31 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         .maybeSingle();
 
     if (userRow == null) {
-      // This is the safe fallback when the auth trigger has not populated
-      // public.users yet or the row is still being initialized.
       return const LoginScreen();
     }
 
     final role = (userRow['role'] as String?) ?? 'owner';
 
     if (role == 'owner') {
-      // Owners are routed through patient_profiles.
-      // If the patient profile is missing, go to profile setup.
       final patientProfile = await client
           .from('patient_profiles')
-          .select('id')
+          .select('id, first_name, family_name')
           .eq('user_id', userRow['id'])
           .maybeSingle();
 
       if (patientProfile == null) {
         return const ProfileScreen();
       }
+
+      final first = (patientProfile['first_name']?.toString() ?? '').trim();
+      final last = (patientProfile['family_name']?.toString() ?? '').trim();
+      final fullName = '$first $last'.trim();
+
+      PatientSessionService.instance.setSession(
+        patientId: patientProfile['id'].toString(),
+        patientName: fullName.isEmpty ? null : fullName,
+        permission: 'owner',
+      );
 
       return const HomeScreen();
     }
@@ -75,8 +79,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
           .eq('user_id', userRow['id'])
           .maybeSingle();
 
-      // Caregivers first need their own profile row; after that they land in the
-      // choice/dashboard flow that is tied to access_grants and caregiver_permissions.
       if (caregiverProfile == null) {
         return const CaregiverProfileScreen();
       }
@@ -95,7 +97,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const GuardianProfileScreen();
       }
 
-      // Guardians can still use the shared access dashboard path.
       return const CaregiverDashboardScreen();
     }
 
@@ -110,11 +111,9 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const ClinicianProfileScreen();
       }
 
-      // Clinicians also enter through the access/dashboard path in this app.
       return const CaregiverDashboardScreen();
     }
 
-    // Safe fallback for unknown roles.
     return const LoginScreen();
   }
 
@@ -137,8 +136,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
 
         final destination = snapshot.data ?? const LoginScreen();
 
-        // This screen never stays on top of the stack:
-        // it exists only to route the authenticated user into the correct branch.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           Navigator.pushReplacement(
@@ -147,7 +144,9 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
           );
         });
 
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
       },
     );
   }
