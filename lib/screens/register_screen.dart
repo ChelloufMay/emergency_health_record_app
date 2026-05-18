@@ -35,6 +35,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
+    final passwordError = _validatePassword(_passwordController.text);
+    if (passwordError != null) {
+      setState(() {
+        _error = passwordError;
+        _success = null;
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -51,6 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // These land in auth metadata so the trigger can populate public.users.
           'full_name': _fullNameController.text.trim(),
           'phone': _phoneController.text.trim(),
+          'role': _selectedRole,
         },
       );
 
@@ -62,17 +72,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await Supabase.instance.client
             .from('users')
             .update({
-          'full_name': _fullNameController.text.trim(),
-          'phone': _phoneController.text.trim(),
-          'role': _selectedRole,
-        })
+              'full_name': _fullNameController.text.trim(),
+              'phone': _phoneController.text.trim(),
+              'role': _selectedRole,
+            })
             .eq('auth_user_id', user.id);
       }
 
       if (!mounted) return;
 
       setState(() {
-        _success = 'Account created. Continue to sign in if email confirmation is enabled.';
+        _success =
+            'Account created. Continue to sign in if email confirmation is enabled.';
       });
 
       // If email confirmation is off and the session exists, this takes the user
@@ -81,7 +92,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const RoleRouterScreen()),
-              (route) => false,
+          (route) => false,
         );
       }
     } on AuthException catch (e) {
@@ -93,6 +104,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  String? _validatePassword(String password) {
+    if (password.length <= 8) {
+      return 'Password must be more than 8 characters.';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+    if (!RegExp(r'\d').hasMatch(password)) {
+      return 'Password must contain at least one number.';
+    }
+    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
+      return 'Password must contain at least one symbol.';
+    }
+    return null;
   }
 
   @override
@@ -107,9 +134,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             Text(
               'Create your account',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -155,19 +182,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               initialValue: _selectedRole,
               items: roles
                   .map(
-                    (role) => DropdownMenuItem(
-                  value: role,
-                  child: Text(role),
-                ),
-              )
+                    (role) => DropdownMenuItem(value: role, child: Text(role)),
+                  )
                   .toList(),
               onChanged: _loading
                   ? null
                   : (value) {
-                if (value != null) {
-                  setState(() => _selectedRole = value);
-                }
-              },
+                      if (value != null) {
+                        setState(() => _selectedRole = value);
+                      }
+                    },
               decoration: const InputDecoration(
                 labelText: 'Account role',
                 border: OutlineInputBorder(),
@@ -175,27 +199,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             if (_error != null) ...[
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 12),
             ],
             if (_success != null) ...[
-              Text(
-                _success!,
-                style: const TextStyle(color: Colors.green),
-              ),
+              Text(_success!, style: const TextStyle(color: Colors.green)),
               const SizedBox(height: 12),
             ],
             FilledButton(
               onPressed: _loading ? null : _register,
               child: _loading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Create account'),
             ),
           ],
