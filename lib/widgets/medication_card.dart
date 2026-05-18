@@ -28,17 +28,32 @@ class MedicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final details = <Widget>[
       if (medication.dosage != null && medication.dosage!.isNotEmpty)
-        Text('Dosage: ${medication.dosage}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          'Dosage: ${medication.dosage}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       if (medication.frequency != null && medication.frequency!.isNotEmpty)
-        Text('Frequency: ${medication.frequency}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          'Frequency: ${medication.frequency}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       if (medication.purpose != null && medication.purpose!.isNotEmpty)
-        Text('Purpose: ${medication.purpose}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      Text('Start date: ${_formatDate(medication.startDate)}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      Text('End date: ${_formatDate(medication.endDate)}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      Text('Source: ${medication.source}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          'Purpose: ${medication.purpose}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      Text(
+        'Start date: ${_formatDate(medication.startDate)}',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+      Text(
+        'End date: ${_formatDate(medication.endDate)}',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+      Text(
+        'Source: ${medication.source}',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
     ];
 
     return Card(
@@ -76,7 +91,9 @@ class MedicationCard extends StatelessWidget {
             const SizedBox(height: 4),
             ...details,
             const SizedBox(height: 6),
-            VerificationBadge(status: medication.verificationStatus ?? 'user_entered'),
+            VerificationBadge(
+              status: medication.verificationStatus ?? 'user_entered',
+            ),
           ],
         ),
       ),

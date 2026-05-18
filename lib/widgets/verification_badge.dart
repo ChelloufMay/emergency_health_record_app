@@ -4,10 +4,7 @@ import '../utils/constants.dart';
 class VerificationBadge extends StatelessWidget {
   final String status;
 
-  const VerificationBadge({
-    super.key,
-    required this.status,
-  });
+  const VerificationBadge({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +42,7 @@ class VerificationBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }

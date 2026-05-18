@@ -28,28 +28,27 @@ class AllergyCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(allergy.allergenName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                  child: Text(
+                    allergy.allergenName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
                 VerificationBadge(status: badge),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               '${allergy.allergyType}'
-                  '${allergy.severity != null && allergy.severity!.isNotEmpty ? ' • ${allergy.severity}' : ''}'
-                  '${allergy.reaction != null && allergy.reaction!.isNotEmpty ? '\n${allergy.reaction}' : ''}',
+              '${allergy.severity != null && allergy.severity!.isNotEmpty ? ' • ${allergy.severity}' : ''}'
+              '${allergy.reaction != null && allergy.reaction!.isNotEmpty ? '\n${allergy.reaction}' : ''}',
             ),
             if (canEdit) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  TextButton(
-                    onPressed: onEdit,
-                    child: const Text('Edit'),
-                  ),
-                  TextButton(
-                    onPressed: onDelete,
-                    child: const Text('Delete'),
-                  ),
+                  TextButton(onPressed: onEdit, child: const Text('Edit')),
+                  TextButton(onPressed: onDelete, child: const Text('Delete')),
                 ],
               ),
             ],
