@@ -60,10 +60,10 @@ class Validators {
   // Useful for dropdown-backed fields when you want to keep values aligned
   // with the enums/allowed strings in the database.
   static String? valueInSet(
-      String? value, {
-        required Set<String> allowed,
-        String label = 'Value',
-      }) {
+    String? value, {
+    required Set<String> allowed,
+    String label = 'Value',
+  }) {
     if (value == null || value.trim().isEmpty) return null;
     if (!allowed.contains(value.trim())) {
       return '$label is invalid';
