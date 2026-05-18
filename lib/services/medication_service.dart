@@ -1,19 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/medication_model.dart';
+import 'service_exceptions.dart';
 
 class MedicationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<MedicationModel>> fetchByPatient(String patientId) async {
+    final pid = patientId.trim();
+    if (pid.isEmpty) return [];
+
     final rows = await _supabase
         .from('medications')
         .select()
-        .eq('patient_id', patientId)
+        .eq('patient_id', pid)
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => MedicationModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) =>
+              MedicationModel.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
         .toList();
   }
 
@@ -21,31 +28,58 @@ class MedicationService {
     required MedicationModel medication,
     required String patientId,
   }) async {
-    final payload = MedicationModel(
-      id: medication.id,
-      patientId: patientId,
-      medicationName: medication.medicationName,
-      dosage: medication.dosage,
-      frequency: medication.frequency,
-      purpose: medication.purpose,
-      startDate: medication.startDate,
-      endDate: medication.endDate,
-      source: medication.source,
+    final pid = requireText(patientId, 'patientId');
+    final medicationName = requireText(
+      medication.medicationName,
+      'Medication name',
     );
 
-    if (payload.id == null || payload.id!.isEmpty) {
-      final inserted = await _supabase.from('medications').insert(payload.toInsertMap()).select('id').single();
-      return inserted['id'].toString();
-    }
+    final payload = MedicationModel(
+      id: medication.id,
+      patientId: pid,
+      medicationName: medicationName,
+      dosage: trimToNull(medication.dosage),
+      frequency: trimToNull(medication.frequency),
+      purpose: trimToNull(medication.purpose),
+      startDate: medication.startDate,
+      endDate: medication.endDate,
+      source: medication.source.trim().isEmpty
+          ? 'user'
+          : medication.source.trim(),
+    );
 
-    await _supabase.from('medications').update(payload.toUpdateMap()).eq('id', payload.id!);
-    return payload.id!;
+    try {
+      if (payload.id == null || payload.id!.isEmpty) {
+        final inserted = await _supabase
+            .from('medications')
+            .insert(payload.toInsertMap())
+            .select('id')
+            .single();
+        return inserted['id'].toString();
+      }
+
+      await _supabase
+          .from('medications')
+          .update(payload.toUpdateMap())
+          .eq('id', payload.id!);
+      return payload.id!;
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Medication save'));
+    }
   }
 
-  Future<void> delete({
-    required String patientId,
-    required String id,
-  }) async {
-    await _supabase.from('medications').delete().eq('id', id).eq('patient_id', patientId);
+  Future<void> delete({required String patientId, required String id}) async {
+    final pid = requireText(patientId, 'patientId');
+    final rowId = requireText(id, 'id');
+
+    try {
+      await _supabase
+          .from('medications')
+          .delete()
+          .eq('id', rowId)
+          .eq('patient_id', pid);
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Medication delete'));
+    }
   }
 }

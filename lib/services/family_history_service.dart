@@ -1,19 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/family_history_model.dart';
+import 'service_exceptions.dart';
 
 class FamilyHistoryService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<FamilyHistoryModel>> fetchByPatient(String patientId) async {
+    final pid = patientId.trim();
+    if (pid.isEmpty) return [];
+
     final rows = await _supabase
         .from('family_history')
         .select()
-        .eq('patient_id', patientId)
+        .eq('patient_id', pid)
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => FamilyHistoryModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) =>
+              FamilyHistoryModel.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
         .toList();
   }
 
@@ -21,29 +28,54 @@ class FamilyHistoryService {
     required FamilyHistoryModel familyHistory,
     required String patientId,
   }) async {
-    final payload = FamilyHistoryModel(
-      id: familyHistory.id,
-      patientId: patientId,
-      relation: familyHistory.relation,
-      conditionName: familyHistory.conditionName,
-      category: familyHistory.category,
-      isGenetic: familyHistory.isGenetic,
-      notes: familyHistory.notes,
+    final pid = requireText(patientId, 'patientId');
+    final conditionName = requireText(
+      familyHistory.conditionName,
+      'Condition name',
     );
 
-    if (payload.id == null || payload.id!.isEmpty) {
-      final inserted = await _supabase.from('family_history').insert(payload.toInsertMap()).select('id').single();
-      return inserted['id'].toString();
-    }
+    final payload = FamilyHistoryModel(
+      id: familyHistory.id,
+      patientId: pid,
+      relation: trimToNull(familyHistory.relation),
+      conditionName: conditionName,
+      category: trimToNull(familyHistory.category),
+      isGenetic: familyHistory.isGenetic,
+      notes: trimToNull(familyHistory.notes),
+    );
 
-    await _supabase.from('family_history').update(payload.toUpdateMap()).eq('id', payload.id!);
-    return payload.id!;
+    try {
+      if (payload.id == null || payload.id!.isEmpty) {
+        final inserted = await _supabase
+            .from('family_history')
+            .insert(payload.toInsertMap())
+            .select('id')
+            .single();
+        return inserted['id'].toString();
+      }
+
+      await _supabase
+          .from('family_history')
+          .update(payload.toUpdateMap())
+          .eq('id', payload.id!);
+      return payload.id!;
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Family history save'));
+    }
   }
 
-  Future<void> delete({
-    required String patientId,
-    required String id,
-  }) async {
-    await _supabase.from('family_history').delete().eq('id', id).eq('patient_id', patientId);
+  Future<void> delete({required String patientId, required String id}) async {
+    final pid = requireText(patientId, 'patientId');
+    final rowId = requireText(id, 'id');
+
+    try {
+      await _supabase
+          .from('family_history')
+          .delete()
+          .eq('id', rowId)
+          .eq('patient_id', pid);
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Family history delete'));
+    }
   }
 }

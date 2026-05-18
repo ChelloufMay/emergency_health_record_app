@@ -1,19 +1,25 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/surgery_model.dart';
+import 'service_exceptions.dart';
 
 class SurgeryService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<SurgeryModel>> fetchByPatient(String patientId) async {
+    final pid = patientId.trim();
+    if (pid.isEmpty) return [];
+
     final rows = await _supabase
         .from('surgeries')
         .select()
-        .eq('patient_id', patientId)
+        .eq('patient_id', pid)
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => SurgeryModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) => SurgeryModel.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
         .toList();
   }
 
@@ -21,29 +27,51 @@ class SurgeryService {
     required SurgeryModel surgery,
     required String patientId,
   }) async {
+    final pid = requireText(patientId, 'patientId');
+    final surgeryName = requireText(surgery.surgeryName, 'Surgery name');
+
     final payload = SurgeryModel(
       id: surgery.id,
-      patientId: patientId,
-      surgeryName: surgery.surgeryName,
+      patientId: pid,
+      surgeryName: surgeryName,
       surgeryDate: surgery.surgeryDate,
-      place: surgery.place,
-      prostheticOrImplant: surgery.prostheticOrImplant,
-      notes: surgery.notes,
+      place: trimToNull(surgery.place),
+      prostheticOrImplant: trimToNull(surgery.prostheticOrImplant),
+      notes: trimToNull(surgery.notes),
     );
 
-    if (payload.id == null || payload.id!.isEmpty) {
-      final inserted = await _supabase.from('surgeries').insert(payload.toInsertMap()).select('id').single();
-      return inserted['id'].toString();
-    }
+    try {
+      if (payload.id == null || payload.id!.isEmpty) {
+        final inserted = await _supabase
+            .from('surgeries')
+            .insert(payload.toInsertMap())
+            .select('id')
+            .single();
+        return inserted['id'].toString();
+      }
 
-    await _supabase.from('surgeries').update(payload.toUpdateMap()).eq('id', payload.id!);
-    return payload.id!;
+      await _supabase
+          .from('surgeries')
+          .update(payload.toUpdateMap())
+          .eq('id', payload.id!);
+      return payload.id!;
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Surgery save'));
+    }
   }
 
-  Future<void> delete({
-    required String patientId,
-    required String id,
-  }) async {
-    await _supabase.from('surgeries').delete().eq('id', id).eq('patient_id', patientId);
+  Future<void> delete({required String patientId, required String id}) async {
+    final pid = requireText(patientId, 'patientId');
+    final rowId = requireText(id, 'id');
+
+    try {
+      await _supabase
+          .from('surgeries')
+          .delete()
+          .eq('id', rowId)
+          .eq('patient_id', pid);
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Surgery delete'));
+    }
   }
 }
