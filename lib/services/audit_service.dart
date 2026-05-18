@@ -27,8 +27,8 @@ class AuditService {
   /// Same idea as above, but reads the ranked view if the screen wants
   /// a precomputed newest-first ordering per patient.
   Future<List<AuditLogModel>> getRankedAuditLogsForPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final response = await _client
         .from('audit_logs_ranked')
         .select()

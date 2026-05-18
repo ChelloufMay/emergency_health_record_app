@@ -5,7 +5,9 @@ import '../models/caregiver_permission_model.dart';
 class CaregiverService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<List<CaregiverPermissionModel>> fetchPermissions(String patientId) async {
+  Future<List<CaregiverPermissionModel>> fetchPermissions(
+    String patientId,
+  ) async {
     final rows = await _supabase
         .from('caregiver_permissions')
         .select()
@@ -13,7 +15,11 @@ class CaregiverService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((r) => CaregiverPermissionModel.fromMap(Map<String, dynamic>.from(r as Map)))
+        .map(
+          (r) => CaregiverPermissionModel.fromMap(
+            Map<String, dynamic>.from(r as Map),
+          ),
+        )
         .toList();
   }
 
@@ -51,6 +57,10 @@ class CaregiverService {
     required String patientId,
     required String performedByUserId,
   }) async {
-    await _supabase.from('caregiver_permissions').update({'status': 'revoked'}).eq('id', id).eq('patient_id', patientId);
+    await _supabase
+        .from('caregiver_permissions')
+        .update({'status': 'revoked'})
+        .eq('id', id)
+        .eq('patient_id', patientId);
   }
 }

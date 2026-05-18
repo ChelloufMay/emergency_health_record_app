@@ -13,11 +13,17 @@ class NotificationEventService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => NotificationEventModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) => NotificationEventModel.fromMap(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 
-  Future<List<NotificationEventModel>> fetchPendingByPatient(String patientId) async {
+  Future<List<NotificationEventModel>> fetchPendingByPatient(
+    String patientId,
+  ) async {
     final rows = await _supabase
         .from('notification_events')
         .select()
@@ -26,7 +32,11 @@ class NotificationEventService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => NotificationEventModel.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) => NotificationEventModel.fromMap(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 }

@@ -15,7 +15,8 @@ class PatientSession {
     required this.mode,
   });
 
-  bool get canEdit => mode == PatientAccessMode.owner || mode == PatientAccessMode.edit;
+  bool get canEdit =>
+      mode == PatientAccessMode.owner || mode == PatientAccessMode.edit;
   bool get isEmergencyOnly => mode == PatientAccessMode.emergencyOnly;
 }
 

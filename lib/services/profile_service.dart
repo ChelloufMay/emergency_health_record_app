@@ -58,23 +58,27 @@ class ProfileService {
       familyDoctorId: profile.familyDoctorId,
     );
 
-    final savedPatientId = await _supabase.schema('public').rpc(
-      'save_my_patient_profile',
-      params: {
-        '_legal_id': safeProfile.legalId,
-        '_first_name': safeProfile.firstName,
-        '_family_name': safeProfile.familyName,
-        '_sex': safeProfile.sex,
-        '_date_of_birth':
-        safeProfile.dateOfBirth?.toIso8601String().split('T').first,
-        '_blood_type': safeProfile.bloodType,
-        '_phone': safeProfile.phone,
-        '_emergency_contact_name': safeProfile.emergencyContactName,
-        '_emergency_contact_phone': safeProfile.emergencyContactPhone,
-        '_insurance_plan': safeProfile.insurancePlan,
-        '_covid_vaccine_type': safeProfile.covidVaccineType,
-      },
-    );
+    final savedPatientId = await _supabase
+        .schema('public')
+        .rpc(
+          'save_my_patient_profile',
+          params: {
+            '_legal_id': safeProfile.legalId,
+            '_first_name': safeProfile.firstName,
+            '_family_name': safeProfile.familyName,
+            '_sex': safeProfile.sex,
+            '_date_of_birth': safeProfile.dateOfBirth
+                ?.toIso8601String()
+                .split('T')
+                .first,
+            '_blood_type': safeProfile.bloodType,
+            '_phone': safeProfile.phone,
+            '_emergency_contact_name': safeProfile.emergencyContactName,
+            '_emergency_contact_phone': safeProfile.emergencyContactPhone,
+            '_insurance_plan': safeProfile.insurancePlan,
+            '_covid_vaccine_type': safeProfile.covidVaccineType,
+          },
+        );
 
     final savedId = savedPatientId?.toString();
     if (savedId == null || savedId.isEmpty) {
@@ -97,7 +101,10 @@ class ProfileService {
       }
 
       if (updateData.isNotEmpty) {
-        await _supabase.from('patient_profiles').update(updateData).eq('id', savedId);
+        await _supabase
+            .from('patient_profiles')
+            .update(updateData)
+            .eq('id', savedId);
       }
     }
 
@@ -119,13 +126,17 @@ class ProfileService {
 
     if (existing != null) return existing['id'] as String;
 
-    final inserted = await _supabase.from('patient_profiles').insert({
-      'user_id': userId,
-      'legal_id': legalId,
-      'first_name': firstName,
-      'family_name': familyName,
-      'sex': sex,
-    }).select('id').single();
+    final inserted = await _supabase
+        .from('patient_profiles')
+        .insert({
+          'user_id': userId,
+          'legal_id': legalId,
+          'first_name': firstName,
+          'family_name': familyName,
+          'sex': sex,
+        })
+        .select('id')
+        .single();
 
     return inserted['id'] as String;
   }
@@ -162,11 +173,18 @@ class ProfileService {
     if (!hasAnyValue) return addressId;
 
     if (addressId != null && addressId.isNotEmpty) {
-      await _supabase.from('addresses').update(model.toUpdateMap()).eq('id', addressId);
+      await _supabase
+          .from('addresses')
+          .update(model.toUpdateMap())
+          .eq('id', addressId);
       return addressId;
     }
 
-    final inserted = await _supabase.from('addresses').insert(model.toInsertMap()).select('id').single();
+    final inserted = await _supabase
+        .from('addresses')
+        .insert(model.toInsertMap())
+        .select('id')
+        .single();
     return inserted['id']?.toString();
   }
 }

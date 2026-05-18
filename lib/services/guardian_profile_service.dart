@@ -28,13 +28,10 @@ class GuardianProfileService {
     }
 
     // The row is keyed by user_id and the database keeps it unique.
-    await _supabase.from('guardian_profiles').upsert(
-      {
-        ...model.toInsertMap(),
-        'user_id': appUserId,
-      },
-      onConflict: 'user_id',
-    );
+    await _supabase.from('guardian_profiles').upsert({
+      ...model.toInsertMap(),
+      'user_id': appUserId,
+    }, onConflict: 'user_id');
 
     final row = await _supabase
         .from('guardian_profiles')

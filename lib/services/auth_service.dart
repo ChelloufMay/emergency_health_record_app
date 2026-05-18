@@ -9,7 +9,9 @@ class AuthService {
     String fullName = '',
     String? phone,
   }) async {
-    final safeFullName = fullName.trim().isEmpty ? email.split('@').first : fullName.trim();
+    final safeFullName = fullName.trim().isEmpty
+        ? email.split('@').first
+        : fullName.trim();
 
     // The auth user is created here; the database sync/trigger layer fills public.users.
     return _supabase.auth.signUp(
@@ -27,10 +29,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    return _supabase.auth.signInWithPassword(email: email, password: password);
   }
 
   Future<void> signOut() async {

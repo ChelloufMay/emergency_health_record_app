@@ -25,7 +25,9 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessGrantModel.fromMap(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => AccessGrantModel.fromMap(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
@@ -37,11 +39,15 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessInviteModel.fromMap(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => AccessInviteModel.fromMap(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
-  Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(String patientId) async {
+  Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(
+    String patientId,
+  ) async {
     final rows = await _supabase.rpc(
       'get_active_access_for_patient',
       params: {'_patient_id': patientId},
@@ -93,6 +99,9 @@ class AccessService {
 
   Future<void> revokeGrant(String grantId) async {
     // Revoke the grant row directly; the DB trigger keeps caregiver_permissions in sync.
-    await _supabase.from('access_grants').update({'status': 'revoked'}).eq('id', grantId);
+    await _supabase
+        .from('access_grants')
+        .update({'status': 'revoked'})
+        .eq('id', grantId);
   }
 }

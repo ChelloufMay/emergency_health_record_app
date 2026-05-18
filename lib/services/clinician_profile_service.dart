@@ -27,13 +27,10 @@ class ClinicianProfileService {
     }
 
     // The database enforces one clinician profile per user_id.
-    await _supabase.from('clinician_profiles').upsert(
-      {
-        ...model.toInsertMap(),
-        'user_id': appUserId,
-      },
-      onConflict: 'user_id',
-    );
+    await _supabase.from('clinician_profiles').upsert({
+      ...model.toInsertMap(),
+      'user_id': appUserId,
+    }, onConflict: 'user_id');
 
     final row = await _supabase
         .from('clinician_profiles')
@@ -48,6 +45,9 @@ class ClinicianProfileService {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;
 
-    await _supabase.from('clinician_profiles').delete().eq('user_id', appUserId);
+    await _supabase
+        .from('clinician_profiles')
+        .delete()
+        .eq('user_id', appUserId);
   }
 }

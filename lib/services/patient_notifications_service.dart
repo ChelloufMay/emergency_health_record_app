@@ -8,9 +8,7 @@ import '../models/notification_event_model.dart';
 class PatientNotificationsService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  Future<List<NotificationEventModel>> fetchForPatient(
-      String patientId,
-      ) async {
+  Future<List<NotificationEventModel>> fetchForPatient(String patientId) async {
     final rows = await _client
         .from('notification_events')
         .select('*')

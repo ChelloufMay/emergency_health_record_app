@@ -49,22 +49,28 @@ class PatientService {
     final existing = await fetchCurrentAppUserRow();
     if (existing != null) return existing['id']?.toString();
 
-    final resolvedName = (fullName ??
-        authUser.userMetadata?['full_name']?.toString() ??
-        authUser.userMetadata?['name']?.toString() ??
-        authUser.email?.split('@').first ??
-        'User')
-        .trim();
+    final resolvedName =
+        (fullName ??
+                authUser.userMetadata?['full_name']?.toString() ??
+                authUser.userMetadata?['name']?.toString() ??
+                authUser.email?.split('@').first ??
+                'User')
+            .trim();
     final resolvedPhone = phone?.trim();
 
     try {
-      final inserted = await _supabase.from('users').insert({
-        'auth_user_id': authUser.id,
-        'full_name': resolvedName.isEmpty ? 'User' : resolvedName,
-        'email': authUser.email,
-        if (resolvedPhone != null && resolvedPhone.isNotEmpty) 'phone': resolvedPhone,
-        'role': 'owner',
-      }).select('id').single();
+      final inserted = await _supabase
+          .from('users')
+          .insert({
+            'auth_user_id': authUser.id,
+            'full_name': resolvedName.isEmpty ? 'User' : resolvedName,
+            'email': authUser.email,
+            if (resolvedPhone != null && resolvedPhone.isNotEmpty)
+              'phone': resolvedPhone,
+            'role': 'owner',
+          })
+          .select('id')
+          .single();
 
       return inserted['id']?.toString();
     } on PostgrestException catch (e) {
@@ -172,15 +178,16 @@ class PatientService {
   Future<bool> canAccessPatient(String patientId, String action) async {
     final result = await _supabase.rpc(
       'can_access_patient',
-      params: {
-        '_patient_id': patientId,
-        '_action': action,
-      },
+      params: {'_patient_id': patientId, '_action': action},
     );
     return result == true;
   }
 
-  Future<bool> canAccessPatientSection(String patientId, String section, String action) async {
+  Future<bool> canAccessPatientSection(
+    String patientId,
+    String section,
+    String action,
+  ) async {
     final result = await _supabase.rpc(
       'can_access_patient_section',
       params: {
@@ -204,8 +211,8 @@ class PatientService {
     final row = await _supabase
         .from('patient_profiles_enriched')
         .select(
-      'id, user_id, legal_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at',
-    )
+          'id, user_id, legal_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at',
+        )
         .eq('id', patientId)
         .maybeSingle();
 
@@ -224,7 +231,9 @@ class PatientService {
     return Map<String, dynamic>.from(row);
   }
 
-  Future<Map<String, dynamic>?> resolveEmergencyAccessToken(String token) async {
+  Future<Map<String, dynamic>?> resolveEmergencyAccessToken(
+    String token,
+  ) async {
     final result = await _supabase.rpc(
       'resolve_emergency_access_token',
       params: {'_token': token},

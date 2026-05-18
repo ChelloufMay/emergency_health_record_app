@@ -40,10 +40,9 @@ class CaregiverProfileService {
       mobility: model.mobility,
     ).toInsertMap();
 
-    await _supabase.from('caregiver_profiles').upsert(
-      payload,
-      onConflict: 'user_id',
-    );
+    await _supabase
+        .from('caregiver_profiles')
+        .upsert(payload, onConflict: 'user_id');
 
     final row = await _supabase
         .from('caregiver_profiles')
@@ -58,6 +57,9 @@ class CaregiverProfileService {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;
 
-    await _supabase.from('caregiver_profiles').delete().eq('user_id', appUserId);
+    await _supabase
+        .from('caregiver_profiles')
+        .delete()
+        .eq('user_id', appUserId);
   }
 }
