@@ -10,9 +10,7 @@ class CaregiverChoiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Choose role'),
-      ),
+      appBar: AppBar(title: const Text('Choose role')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

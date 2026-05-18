@@ -131,9 +131,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
 
         if (snapshot.hasError) {
           return Scaffold(
-            body: Center(
-              child: Text('Router error: ${snapshot.error}'),
-            ),
+            body: Center(child: Text('Router error: ${snapshot.error}')),
           );
         }
 
@@ -149,9 +147,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
           );
         });
 
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }

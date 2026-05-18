@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const RoleRouterScreen()),
-            (route) => false,
+        (route) => false,
       );
     } on AuthException catch (e) {
       setState(() => _error = e.message);
@@ -66,9 +66,9 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text(
               'Welcome back',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -94,20 +94,17 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
             if (_error != null) ...[
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 16),
             ],
             FilledButton(
               onPressed: _loading ? null : _signIn,
               child: _loading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Sign in'),
             ),
           ],

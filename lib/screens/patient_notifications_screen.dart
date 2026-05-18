@@ -8,10 +8,7 @@ import '../services/patient_session_service.dart';
 class PatientNotificationsScreen extends StatefulWidget {
   final String? patientId;
 
-  const PatientNotificationsScreen({
-    super.key,
-    this.patientId,
-  });
+  const PatientNotificationsScreen({super.key, this.patientId});
 
   @override
   State<PatientNotificationsScreen> createState() =>
@@ -105,9 +102,7 @@ class _PatientNotificationsScreenState
                     ),
                   ),
                 ),
-                Chip(
-                  label: Text(event.isSent ? 'Sent' : 'Pending'),
-                ),
+                Chip(label: Text(event.isSent ? 'Sent' : 'Pending')),
               ],
             ),
             const SizedBox(height: 8),
@@ -160,45 +155,45 @@ class _PatientNotificationsScreenState
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Show only pending notifications'),
-              value: _showOnlyPending,
-              onChanged: (value) =>
-                  setState(() => _showOnlyPending = value),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Notification timeline',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Show only pending notifications'),
+                    value: _showOnlyPending,
+                    onChanged: (value) =>
+                        setState(() => _showOnlyPending = value),
                   ),
-                ),
-                Text('${visibleEvents.length} shown'),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Notification timeline',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text('${visibleEvents.length} shown'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (visibleEvents.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Text('No notifications yet.'),
+                      ),
+                    )
+                  else
+                    ...visibleEvents.map(_buildEventCard),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            if (visibleEvents.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Text('No notifications yet.'),
-                ),
-              )
-            else
-              ...visibleEvents.map(_buildEventCard),
-          ],
-        ),
-      ),
     );
   }
 }

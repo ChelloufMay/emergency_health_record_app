@@ -101,7 +101,8 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
         _avenueController.text = address['avenue']?.toString() ?? '';
         _streetController.text = address['street']?.toString() ?? '';
         _postalCodeController.text = address['postal_code']?.toString() ?? '';
-        _extraDetailsController.text = address['extra_details']?.toString() ?? '';
+        _extraDetailsController.text =
+            address['extra_details']?.toString() ?? '';
       }
     }
 
@@ -134,9 +135,15 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
       'governorate': _governorateController.text.trim().isEmpty
           ? null
           : _governorateController.text.trim(),
-      'city': _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      'avenue': _avenueController.text.trim().isEmpty ? null : _avenueController.text.trim(),
-      'street': _streetController.text.trim().isEmpty ? null : _streetController.text.trim(),
+      'city': _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      'avenue': _avenueController.text.trim().isEmpty
+          ? null
+          : _avenueController.text.trim(),
+      'street': _streetController.text.trim().isEmpty
+          ? null
+          : _streetController.text.trim(),
       'postal_code': _postalCodeController.text.trim().isEmpty
           ? null
           : _postalCodeController.text.trim(),
@@ -146,7 +153,11 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
     };
 
     if (_addressId == null) {
-      final inserted = await _supabase.from('addresses').insert(payload).select('id').single();
+      final inserted = await _supabase
+          .from('addresses')
+          .insert(payload)
+          .select('id')
+          .single();
       return inserted['id']?.toString();
     }
 
@@ -166,34 +177,42 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
         id: _profileId,
         userId: appUserId ?? '',
         fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         addressId: addressId,
-        licenseNumber: _licenseController.text.trim().isEmpty ? null : _licenseController.text.trim(),
+        licenseNumber: _licenseController.text.trim().isEmpty
+            ? null
+            : _licenseController.text.trim(),
         specialization: _specializationController.text.trim().isEmpty
             ? null
             : _specializationController.text.trim(),
         facilityName: _facilityNameController.text.trim().isEmpty
             ? null
             : _facilityNameController.text.trim(),
-        workPhone: _workPhoneController.text.trim().isEmpty ? null : _workPhoneController.text.trim(),
+        workPhone: _workPhoneController.text.trim().isEmpty
+            ? null
+            : _workPhoneController.text.trim(),
         isVerified: _isVerified,
         verificationNote: _verificationNoteController.text.trim().isEmpty
             ? null
             : _verificationNoteController.text.trim(),
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       _profileId = await _service.saveMine(model);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Clinician profile saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Clinician profile saved.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -241,117 +260,126 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           if (_profileId != null)
-            IconButton(onPressed: _saving ? null : _delete, icon: const Icon(Icons.delete)),
+            IconButton(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete),
+            ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // This screen mirrors public.clinician_profiles.
-          TextField(
-            controller: _fullNameController,
-            decoration: const InputDecoration(labelText: 'Full name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Phone'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _licenseController,
-            decoration: const InputDecoration(labelText: 'License number'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _specializationController,
-            decoration: const InputDecoration(labelText: 'Specialization'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _facilityNameController,
-            decoration: const InputDecoration(labelText: 'Facility name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _workPhoneController,
-            decoration: const InputDecoration(labelText: 'Work phone'),
-          ),
-          const SizedBox(height: 12),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _isVerified,
-            title: const Text('Verified clinician'),
-            onChanged: (value) => setState(() => _isVerified = value),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _verificationNoteController,
-            decoration: const InputDecoration(labelText: 'Verification note'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            decoration: const InputDecoration(labelText: 'Notes'),
-            maxLines: 3,
-          ),
-          const Divider(height: 32),
-          const Text(
-            'Address',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _countryController,
-            decoration: const InputDecoration(labelText: 'Country'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _governorateController,
-            decoration: const InputDecoration(labelText: 'Governorate'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cityController,
-            decoration: const InputDecoration(labelText: 'City'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _avenueController,
-            decoration: const InputDecoration(labelText: 'Avenue'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _streetController,
-            decoration: const InputDecoration(labelText: 'Street'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _postalCodeController,
-            decoration: const InputDecoration(labelText: 'Postal code'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _extraDetailsController,
-            decoration: const InputDecoration(labelText: 'Extra details'),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Save clinician profile'),
-          ),
-        ],
-      ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // This screen mirrors public.clinician_profiles.
+                TextField(
+                  controller: _fullNameController,
+                  decoration: const InputDecoration(labelText: 'Full name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _licenseController,
+                  decoration: const InputDecoration(
+                    labelText: 'License number',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _specializationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Specialization',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _facilityNameController,
+                  decoration: const InputDecoration(labelText: 'Facility name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _workPhoneController,
+                  decoration: const InputDecoration(labelText: 'Work phone'),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _isVerified,
+                  title: const Text('Verified clinician'),
+                  onChanged: (value) => setState(() => _isVerified = value),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _verificationNoteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Verification note',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                ),
+                const Divider(height: 32),
+                const Text(
+                  'Address',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _countryController,
+                  decoration: const InputDecoration(labelText: 'Country'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _governorateController,
+                  decoration: const InputDecoration(labelText: 'Governorate'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(labelText: 'City'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _avenueController,
+                  decoration: const InputDecoration(labelText: 'Avenue'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _streetController,
+                  decoration: const InputDecoration(labelText: 'Street'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _postalCodeController,
+                  decoration: const InputDecoration(labelText: 'Postal code'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _extraDetailsController,
+                  decoration: const InputDecoration(labelText: 'Extra details'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save clinician profile'),
+                ),
+              ],
+            ),
     );
   }
 }

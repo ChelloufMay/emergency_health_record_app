@@ -28,7 +28,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   List<AuditLogModel> _logs = [];
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    return widget.patientId ??
+        PatientSessionService.instance.current?.patientId;
   }
 
   @override
@@ -79,10 +80,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       appBar: AppBar(
         title: const Text('Audit log'),
         actions: [
-          IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
-          ),
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: _loading
@@ -92,27 +90,27 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           : _logs.isEmpty
           ? const Center(child: Text('No audit logs found.'))
           : ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _logs.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final log = _logs[index];
-          return Card(
-            child: ListTile(
-              title: Text(_summary(log)),
-              subtitle: Text(
-                [
-                  'When: ${log.timestamp?.toIso8601String() ?? 'Unknown'}',
-                  'Performed by: ${log.performedByUserId ?? 'System'}',
-                  if ((log.breakGlassReason ?? '').trim().isNotEmpty)
-                    'Reason: ${log.breakGlassReason}',
-                ].join('\n'),
-              ),
-              isThreeLine: true,
+              padding: const EdgeInsets.all(16),
+              itemCount: _logs.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final log = _logs[index];
+                return Card(
+                  child: ListTile(
+                    title: Text(_summary(log)),
+                    subtitle: Text(
+                      [
+                        'When: ${log.timestamp?.toIso8601String() ?? 'Unknown'}',
+                        'Performed by: ${log.performedByUserId ?? 'System'}',
+                        if ((log.breakGlassReason ?? '').trim().isNotEmpty)
+                          'Reason: ${log.breakGlassReason}',
+                      ].join('\n'),
+                    ),
+                    isThreeLine: true,
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

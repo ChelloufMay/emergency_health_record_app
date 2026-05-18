@@ -51,9 +51,9 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
       _patientName = summary == null
           ? session.patientName
           : [
-        summary['first_name']?.toString() ?? '',
-        summary['family_name']?.toString() ?? '',
-      ].join(' ').trim();
+              summary['first_name']?.toString() ?? '',
+              summary['family_name']?.toString() ?? '',
+            ].join(' ').trim();
       _grants = grants;
       _invites = invites;
       _loading = false;
@@ -84,9 +84,18 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                   initialValue: invitedRole,
                   decoration: const InputDecoration(labelText: 'Role'),
                   items: const [
-                    DropdownMenuItem(value: 'caregiver', child: Text('Caregiver')),
-                    DropdownMenuItem(value: 'guardian', child: Text('Guardian')),
-                    DropdownMenuItem(value: 'clinician', child: Text('Clinician')),
+                    DropdownMenuItem(
+                      value: 'caregiver',
+                      child: Text('Caregiver'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'guardian',
+                      child: Text('Guardian'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'clinician',
+                      child: Text('Clinician'),
+                    ),
                   ],
                   onChanged: (v) => invitedRole = v ?? 'caregiver',
                 ),
@@ -97,7 +106,10 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
                   items: const [
                     DropdownMenuItem(value: 'read', child: Text('Read')),
                     DropdownMenuItem(value: 'edit', child: Text('Edit')),
-                    DropdownMenuItem(value: 'emergency_only', child: Text('Emergency only')),
+                    DropdownMenuItem(
+                      value: 'emergency_only',
+                      child: Text('Emergency only'),
+                    ),
                   ],
                   onChanged: (v) => permission = v ?? 'read',
                 ),
@@ -139,18 +151,20 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
         invitedEmail: emailController.text.trim(),
         invitedRole: invitedRole,
         permission: permission,
-        notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+        notes: notesController.text.trim().isEmpty
+            ? null
+            : notesController.text.trim(),
       );
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invite sent.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invite sent.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invite failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Invite failed: $e')));
     } finally {
       emailController.dispose();
       notesController.dispose();
@@ -163,79 +177,88 @@ class _CaregiverScreenState extends State<CaregiverScreen> {
       appBar: AppBar(
         title: const Text('Access management'),
         actions: [
-          IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
-          ),
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
       floatingActionButton: _patientId == null
           ? null
           : FloatingActionButton(
-        onPressed: _showInviteDialog,
-        child: const Icon(Icons.person_add),
-      ),
+              onPressed: _showInviteDialog,
+              child: const Icon(Icons.person_add),
+            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _patientId == null
           ? const Center(child: Text('Select a patient session first.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.person),
-                title: Text(_patientName ?? 'Patient'),
-                subtitle: Text('Patient ID: $_patientId'),
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.person),
+                      title: Text(_patientName ?? 'Patient'),
+                      subtitle: Text('Patient ID: $_patientId'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Access grants',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_grants.isEmpty)
+                    const Text('No grants yet.')
+                  else
+                    ..._grants.map((grant) {
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.verified_user_outlined),
+                          title: Text(
+                            '${grant.granteeRole} • ${grant.permission}',
+                          ),
+                          subtitle: Text(
+                            [
+                              'User: ${grant.granteeUserId}',
+                              'Status: ${grant.status}',
+                              if (grant.expiresAt != null)
+                                'Expires: ${grant.expiresAt}',
+                            ].join('\n'),
+                          ),
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Invites',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_invites.isEmpty)
+                    const Text('No invites yet.')
+                  else
+                    ..._invites.map((invite) {
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.mail_outline),
+                          title: Text(
+                            '${invite.invitedRole} • ${invite.permission}',
+                          ),
+                          subtitle: Text(
+                            [
+                              'Email: ${invite.invitedEmail}',
+                              'Status: ${invite.status}',
+                              if (invite.expiresAt != null)
+                                'Expires: ${invite.expiresAt}',
+                            ].join('\n'),
+                          ),
+                        ),
+                      );
+                    }),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text('Access grants', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            if (_grants.isEmpty)
-              const Text('No grants yet.')
-            else
-              ..._grants.map((grant) {
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.verified_user_outlined),
-                    title: Text('${grant.granteeRole} • ${grant.permission}'),
-                    subtitle: Text(
-                      [
-                        'User: ${grant.granteeUserId}',
-                        'Status: ${grant.status}',
-                        if (grant.expiresAt != null) 'Expires: ${grant.expiresAt}',
-                      ].join('\n'),
-                    ),
-                  ),
-                );
-              }),
-            const SizedBox(height: 16),
-            const Text('Invites', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            if (_invites.isEmpty)
-              const Text('No invites yet.')
-            else
-              ..._invites.map((invite) {
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.mail_outline),
-                    title: Text('${invite.invitedRole} • ${invite.permission}'),
-                    subtitle: Text(
-                      [
-                        'Email: ${invite.invitedEmail}',
-                        'Status: ${invite.status}',
-                        if (invite.expiresAt != null) 'Expires: ${invite.expiresAt}',
-                      ].join('\n'),
-                    ),
-                  ),
-                );
-              }),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -9,10 +9,7 @@ import '../services/patient_session_service.dart';
 class EmergencyAccessTokenScreen extends StatefulWidget {
   final String? patientId;
 
-  const EmergencyAccessTokenScreen({
-    super.key,
-    this.patientId,
-  });
+  const EmergencyAccessTokenScreen({super.key, this.patientId});
 
   @override
   State<EmergencyAccessTokenScreen> createState() =>
@@ -24,8 +21,9 @@ class _EmergencyAccessTokenScreenState
   final EmergencyAccessTokenService _service = EmergencyAccessTokenService();
   final PatientService _patientService = PatientService();
 
-  final TextEditingController _expiryDaysController =
-  TextEditingController(text: '30');
+  final TextEditingController _expiryDaysController = TextEditingController(
+    text: '30',
+  );
   final TextEditingController _notesController = TextEditingController();
 
   bool _loading = true;
@@ -110,9 +108,9 @@ class _EmergencyAccessTokenScreenState
   Future<void> _copyToken(String token) async {
     await Clipboard.setData(ClipboardData(text: token));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Token copied to clipboard.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Token copied to clipboard.')));
   }
 
   Future<void> _createToken() async {
@@ -146,14 +144,14 @@ class _EmergencyAccessTokenScreenState
         _tokens = [created, ..._tokens];
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Emergency token created.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Emergency token created.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Create failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Create failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -166,15 +164,15 @@ class _EmergencyAccessTokenScreenState
     try {
       await _service.revoke(tokenId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token revoked.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Token revoked.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Revoke failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Revoke failed: $e')));
     }
   }
 
@@ -199,9 +197,7 @@ class _EmergencyAccessTokenScreenState
                     ),
                   ),
                 ),
-                Chip(
-                  label: Text(isActive ? 'Active' : 'Revoked'),
-                ),
+                Chip(label: Text(isActive ? 'Active' : 'Revoked')),
               ],
             ),
             const SizedBox(height: 8),
@@ -260,71 +256,69 @@ class _EmergencyAccessTokenScreenState
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Create a new break-glass token',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _expiryDaysController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Expiry in days',
-                helperText: 'Use 0 or leave empty to keep the DB default.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Optional note for this token',
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _saving ? null : _createToken,
-              icon: const Icon(Icons.add),
-              label: _saving
-                  ? const Text('Creating...')
-                  : const Text('Create token'),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Tokens',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text(
+                    'Create a new break-glass token',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _expiryDaysController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Expiry in days',
+                      helperText:
+                          'Use 0 or leave empty to keep the DB default.',
                     ),
                   ),
-                ),
-                Text('${_tokens.length} total'),
-              ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _notesController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes',
+                      hintText: 'Optional note for this token',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _createToken,
+                    icon: const Icon(Icons.add),
+                    label: _saving
+                        ? const Text('Creating...')
+                        : const Text('Create token'),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Tokens',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text('${_tokens.length} total'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_tokens.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 24),
+                      child: Center(
+                        child: Text('No emergency access tokens yet.'),
+                      ),
+                    )
+                  else
+                    ..._tokens.map(_buildTokenCard),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            if (_tokens.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 24),
-                child: Center(
-                  child: Text('No emergency access tokens yet.'),
-                ),
-              )
-            else
-              ..._tokens.map(_buildTokenCard),
-          ],
-        ),
-      ),
     );
   }
 }

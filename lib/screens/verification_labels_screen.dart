@@ -8,10 +8,7 @@ import '../services/verification_label_service.dart';
 class VerificationLabelsScreen extends StatefulWidget {
   final String? patientId;
 
-  const VerificationLabelsScreen({
-    super.key,
-    this.patientId,
-  });
+  const VerificationLabelsScreen({super.key, this.patientId});
 
   @override
   State<VerificationLabelsScreen> createState() =>
@@ -28,9 +25,9 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
   final TextEditingController _fieldNameController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _enteredByRoleController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController _enteredByCredentialsController =
-  TextEditingController();
+      TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -161,7 +158,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         enteredByRole: _enteredByRoleController.text.trim().isEmpty
             ? null
             : _enteredByRoleController.text.trim(),
-        enteredByCredentials: _enteredByCredentialsController.text.trim().isEmpty
+        enteredByCredentials:
+            _enteredByCredentialsController.text.trim().isEmpty
             ? null
             : _enteredByCredentialsController.text.trim(),
         enteredByUserId: userId,
@@ -174,17 +172,18 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-          Text(_editingId == null ? 'Label created.' : 'Label updated.'),
+          content: Text(
+            _editingId == null ? 'Label created.' : 'Label updated.',
+          ),
         ),
       );
       _clearForm();
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -194,15 +193,15 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     try {
       await _service.delete(patientId: _patientId!, id: id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Label deleted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Label deleted.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -216,7 +215,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
           [
             'Entity: ${label.entityId}',
             'Status: ${label.status}',
-            if ((label.comment ?? '').trim().isNotEmpty) 'Comment: ${label.comment}',
+            if ((label.comment ?? '').trim().isNotEmpty)
+              'Comment: ${label.comment}',
           ].join('\n'),
         ),
         isThreeLine: true,
@@ -259,166 +259,163 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if (_canEdit) ...[
-              Text(
-                _editingId == null ? 'Add label' : 'Edit label',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _entityTypeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Entity type',
-                        hintText: 'allergies, medications, diagnoses...',
-                      ),
-                      validator: (v) =>
-                      (v == null || v.trim().isEmpty)
-                          ? 'Required'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _entityIdController,
-                      decoration: const InputDecoration(
-                        labelText: 'Entity ID',
-                      ),
-                      validator: (v) =>
-                      (v == null || v.trim().isEmpty)
-                          ? 'Required'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _fieldNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Field name',
-                      ),
-                      validator: (v) =>
-                      (v == null || v.trim().isEmpty)
-                          ? 'Required'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _status,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'unverified',
-                          child: Text('Unverified'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'user_entered',
-                          child: Text('User entered'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'caregiver_entered',
-                          child: Text('Caregiver entered'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'clinician_verified',
-                          child: Text('Clinician verified'),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _status = value ?? 'unverified'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _commentController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Comment',
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (_canEdit) ...[
+                    Text(
+                      _editingId == null ? 'Add label' : 'Edit label',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _enteredByRoleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Entered by role',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _enteredByCredentialsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Entered by credentials',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: _saving ? null : _save,
-                            icon: const Icon(Icons.save),
-                            label: Text(
-                              _editingId == null ? 'Create' : 'Update',
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _entityTypeController,
+                            decoration: const InputDecoration(
+                              labelText: 'Entity type',
+                              hintText: 'allergies, medications, diagnoses...',
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _entityIdController,
+                            decoration: const InputDecoration(
+                              labelText: 'Entity ID',
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _fieldNameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Field name',
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: _status,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'unverified',
+                                child: Text('Unverified'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'user_entered',
+                                child: Text('User entered'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'caregiver_entered',
+                                child: Text('Caregiver entered'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'clinician_verified',
+                                child: Text('Clinician verified'),
+                              ),
+                            ],
+                            onChanged: (value) =>
+                                setState(() => _status = value ?? 'unverified'),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _commentController,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Comment',
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton(
-                          onPressed: _clearForm,
-                          child: const Text('Clear'),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _enteredByRoleController,
+                            decoration: const InputDecoration(
+                              labelText: 'Entered by role',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _enteredByCredentialsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Entered by credentials',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: _saving ? null : _save,
+                                  icon: const Icon(Icons.save),
+                                  label: Text(
+                                    _editingId == null ? 'Create' : 'Update',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton(
+                                onPressed: _clearForm,
+                                child: const Text('Clear'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 24),
+                  ] else ...[
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'You can view verification labels, but edits are disabled for this patient section.',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
-                ),
-              ),
-              const SizedBox(height: 24),
-            ] else ...[
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'You can view verification labels, but edits are disabled for this patient section.',
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Existing labels',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text('${_labels.length} total'),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  if (_labels.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Text('No verification labels yet.'),
+                      ),
+                    )
+                  else
+                    ..._labels.map(_buildRow),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Existing labels',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Text('${_labels.length} total'),
-              ],
             ),
-            const SizedBox(height: 12),
-            if (_labels.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Text('No verification labels yet.'),
-                ),
-              )
-            else
-              ..._labels.map(_buildRow),
-          ],
-        ),
-      ),
     );
   }
 }

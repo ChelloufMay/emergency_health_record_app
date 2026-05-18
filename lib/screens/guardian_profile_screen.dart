@@ -90,7 +90,8 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
         _avenueController.text = address['avenue']?.toString() ?? '';
         _streetController.text = address['street']?.toString() ?? '';
         _postalCodeController.text = address['postal_code']?.toString() ?? '';
-        _extraDetailsController.text = address['extra_details']?.toString() ?? '';
+        _extraDetailsController.text =
+            address['extra_details']?.toString() ?? '';
       }
     }
 
@@ -123,9 +124,15 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
       'governorate': _governorateController.text.trim().isEmpty
           ? null
           : _governorateController.text.trim(),
-      'city': _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      'avenue': _avenueController.text.trim().isEmpty ? null : _avenueController.text.trim(),
-      'street': _streetController.text.trim().isEmpty ? null : _streetController.text.trim(),
+      'city': _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      'avenue': _avenueController.text.trim().isEmpty
+          ? null
+          : _avenueController.text.trim(),
+      'street': _streetController.text.trim().isEmpty
+          ? null
+          : _streetController.text.trim(),
       'postal_code': _postalCodeController.text.trim().isEmpty
           ? null
           : _postalCodeController.text.trim(),
@@ -135,7 +142,11 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
     };
 
     if (_addressId == null) {
-      final inserted = await _supabase.from('addresses').insert(payload).select('id').single();
+      final inserted = await _supabase
+          .from('addresses')
+          .insert(payload)
+          .select('id')
+          .single();
       return inserted['id']?.toString();
     }
 
@@ -161,22 +172,26 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
         legalAuthorityNote: _legalAuthorityController.text.trim().isEmpty
             ? null
             : _legalAuthorityController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         addressId: addressId,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       _profileId = await _service.saveMine(model);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guardian profile saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Guardian profile saved.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -220,95 +235,102 @@ class _GuardianProfileScreenState extends State<GuardianProfileScreen> {
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           if (_profileId != null)
-            IconButton(onPressed: _saving ? null : _delete, icon: const Icon(Icons.delete)),
+            IconButton(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete),
+            ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // This screen mirrors public.guardian_profiles.
-          TextField(
-            controller: _fullNameController,
-            decoration: const InputDecoration(labelText: 'Full name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _relationshipController,
-            decoration: const InputDecoration(labelText: 'Relationship to patient'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _legalAuthorityController,
-            decoration: const InputDecoration(labelText: 'Legal authority note'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Phone'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            decoration: const InputDecoration(labelText: 'Notes'),
-            maxLines: 3,
-          ),
-          const Divider(height: 32),
-          const Text(
-            'Address',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _countryController,
-            decoration: const InputDecoration(labelText: 'Country'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _governorateController,
-            decoration: const InputDecoration(labelText: 'Governorate'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cityController,
-            decoration: const InputDecoration(labelText: 'City'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _avenueController,
-            decoration: const InputDecoration(labelText: 'Avenue'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _streetController,
-            decoration: const InputDecoration(labelText: 'Street'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _postalCodeController,
-            decoration: const InputDecoration(labelText: 'Postal code'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _extraDetailsController,
-            decoration: const InputDecoration(labelText: 'Extra details'),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Save guardian profile'),
-          ),
-        ],
-      ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // This screen mirrors public.guardian_profiles.
+                TextField(
+                  controller: _fullNameController,
+                  decoration: const InputDecoration(labelText: 'Full name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _relationshipController,
+                  decoration: const InputDecoration(
+                    labelText: 'Relationship to patient',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _legalAuthorityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Legal authority note',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                ),
+                const Divider(height: 32),
+                const Text(
+                  'Address',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _countryController,
+                  decoration: const InputDecoration(labelText: 'Country'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _governorateController,
+                  decoration: const InputDecoration(labelText: 'Governorate'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(labelText: 'City'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _avenueController,
+                  decoration: const InputDecoration(labelText: 'Avenue'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _streetController,
+                  decoration: const InputDecoration(labelText: 'Street'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _postalCodeController,
+                  decoration: const InputDecoration(labelText: 'Postal code'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _extraDetailsController,
+                  decoration: const InputDecoration(labelText: 'Extra details'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save guardian profile'),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -8,10 +8,7 @@ import '../services/patient_session_service.dart';
 class PatientRiskPredictionsScreen extends StatefulWidget {
   final String? patientId;
 
-  const PatientRiskPredictionsScreen({
-    super.key,
-    this.patientId,
-  });
+  const PatientRiskPredictionsScreen({super.key, this.patientId});
 
   @override
   State<PatientRiskPredictionsScreen> createState() =>
@@ -49,7 +46,8 @@ class _PatientRiskPredictionsScreenState
   String _describeFactor(dynamic factor) {
     if (factor is Map) {
       final map = Map<String, dynamic>.from(factor);
-      final label = map['label']?.toString() ??
+      final label =
+          map['label']?.toString() ??
           map['name']?.toString() ??
           map['factor']?.toString() ??
           'Factor';
@@ -58,7 +56,8 @@ class _PatientRiskPredictionsScreenState
 
       final parts = <String>[label];
       if (value != null && value.trim().isNotEmpty) parts.add(value);
-      if (weight != null && weight.trim().isNotEmpty) parts.add('weight: $weight');
+      if (weight != null && weight.trim().isNotEmpty)
+        parts.add('weight: $weight');
       return parts.join(' • ');
     }
     return factor?.toString() ?? '-';
@@ -93,7 +92,9 @@ class _PatientRiskPredictionsScreenState
       }
 
       final identity = await _patientService.resolveIdentity();
-      _patientName = identity?.patientProfileId != null ? 'Patient profile ${identity!.patientProfileId}' : null;
+      _patientName = identity?.patientProfileId != null
+          ? 'Patient profile ${identity!.patientProfileId}'
+          : null;
 
       final list = await _service.fetchByPatient(patientId);
       if (!mounted) return;
@@ -110,8 +111,10 @@ class _PatientRiskPredictionsScreenState
     }
   }
 
-  Widget _buildPredictionCard(PatientRiskPredictionModel prediction,
-      {bool highlighted = false}) {
+  Widget _buildPredictionCard(
+    PatientRiskPredictionModel prediction, {
+    bool highlighted = false,
+  }) {
     final mainFactors = prediction.mainFactors;
     final snapshot = prediction.inputSnapshot;
 
@@ -213,42 +216,42 @@ class _PatientRiskPredictionsScreenState
           ? Center(child: Text(_error!))
           : _predictions.isEmpty
           ? const Center(
-        child: Text('No risk predictions have been recorded yet.'),
-      )
+              child: Text('No risk predictions have been recorded yet.'),
+            )
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if ((_patientName ?? '').trim().isNotEmpty) ...[
-              Text(
-                _patientName!,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (current != null) _buildPredictionCard(current, highlighted: true),
-            const SizedBox(height: 16),
-            const Text(
-              'History',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if ((_patientName ?? '').trim().isNotEmpty) ...[
+                    Text(
+                      _patientName!,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (current != null)
+                    _buildPredictionCard(current, highlighted: true),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'History',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._predictions
+                      .skip(1)
+                      .map(
+                        (prediction) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildPredictionCard(prediction),
+                        ),
+                      ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            ..._predictions.skip(1).map(
-                  (prediction) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildPredictionCard(prediction),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -9,10 +9,7 @@ import '../services/patient_session_service.dart';
 class AccessDashboardScreen extends StatefulWidget {
   final String? patientId;
 
-  const AccessDashboardScreen({
-    super.key,
-    this.patientId,
-  });
+  const AccessDashboardScreen({super.key, this.patientId});
 
   @override
   State<AccessDashboardScreen> createState() => _AccessDashboardScreenState();
@@ -27,7 +24,8 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
   String? _myEmail;
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    return widget.patientId ??
+        PatientSessionService.instance.current?.patientId;
   }
 
   @override
@@ -63,10 +61,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     return grouped;
   }
 
-  Future<void> _showPatientSheet(
-      String patientId, {
-        String? title,
-      }) async {
+  Future<void> _showPatientSheet(String patientId, {String? title}) async {
     final grantsFuture = _accessService.fetchPatientGrants(patientId);
     final invitesFuture = _accessService.fetchPatientInvites(patientId);
 
@@ -114,7 +109,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       const Text('No active grants')
                     else
                       ...grants.map(
-                            (grant) => Card(
+                        (grant) => Card(
                           child: ListTile(
                             title: Text(
                               '${grant.granteeRole} • ${grant.permission}',
@@ -124,7 +119,9 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                             ),
                             trailing: IconButton(
                               onPressed: () async {
-                                await _accessService.revokeGrant(grant.id ?? '');
+                                await _accessService.revokeGrant(
+                                  grant.id ?? '',
+                                );
                                 if (!context.mounted) return;
                                 Navigator.of(context).pop(true);
                               },
@@ -144,7 +141,8 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       const Text('No invites')
                     else
                       ...invites.map((invite) {
-                        final canSelfAccept = _myEmail != null &&
+                        final canSelfAccept =
+                            _myEmail != null &&
                             _myEmail!.trim().isNotEmpty &&
                             invite.invitedEmail.trim().toLowerCase() ==
                                 _myEmail!.trim().toLowerCase();
@@ -220,130 +218,127 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
       appBar: AppBar(
         title: const Text('Access dashboard'),
         actions: [
-          IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
-          ),
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : patientId != null
           ? FutureBuilder(
-        future: Future.wait([
-          _accessService.fetchPatientGrants(patientId),
-          _accessService.fetchPatientInvites(patientId),
-        ]),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+              future: Future.wait([
+                _accessService.fetchPatientGrants(patientId),
+                _accessService.fetchPatientInvites(patientId),
+              ]),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          final data = snapshot.data as List<dynamic>;
-          final grants = data[0] as List<AccessGrantModel>;
-          final invites = data[1] as List<AccessInviteModel>;
+                final data = snapshot.data as List<dynamic>;
+                final grants = data[0] as List<AccessGrantModel>;
+                final invites = data[1] as List<AccessInviteModel>;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: Padding(
+                return ListView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Current patient',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Patient ID: $patientId'),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: () => _showPatientSheet(patientId),
-                        child: const Text('Open access details'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Active grants',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              if (grants.isEmpty)
-                const Text('No active grants')
-              else
-                ...grants.map(
-                      (grant) => Card(
-                    child: ListTile(
-                      title: Text(
-                        '${grant.granteeRole} • ${grant.permission}',
-                      ),
-                      subtitle: Text(
-                        'Status: ${grant.status} • Expires: ${grant.expiresAt?.toIso8601String() ?? 'Never'}',
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Current patient',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Patient ID: $patientId'),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: () => _showPatientSheet(patientId),
+                              child: const Text('Open access details'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              const Text(
-                'Invites',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              if (invites.isEmpty)
-                const Text('No invites')
-              else
-                ...invites.map(
-                      (invite) => Card(
-                    child: ListTile(
-                      title: Text(
-                        '${invite.invitedRole} • ${invite.permission}',
-                      ),
-                      subtitle: Text(
-                        'Email: ${invite.invitedEmail}\nStatus: ${invite.status}\nToken: ${invite.inviteToken ?? 'missing'}',
-                      ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Active grants',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ),
-                ),
-            ],
-          );
-        },
-      )
+                    const SizedBox(height: 8),
+                    if (grants.isEmpty)
+                      const Text('No active grants')
+                    else
+                      ...grants.map(
+                        (grant) => Card(
+                          child: ListTile(
+                            title: Text(
+                              '${grant.granteeRole} • ${grant.permission}',
+                            ),
+                            subtitle: Text(
+                              'Status: ${grant.status} • Expires: ${grant.expiresAt?.toIso8601String() ?? 'Never'}',
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Invites',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    if (invites.isEmpty)
+                      const Text('No invites')
+                    else
+                      ...invites.map(
+                        (invite) => Card(
+                          child: ListTile(
+                            title: Text(
+                              '${invite.invitedRole} • ${invite.permission}',
+                            ),
+                            subtitle: Text(
+                              'Email: ${invite.invitedEmail}\nStatus: ${invite.status}\nToken: ${invite.inviteToken ?? 'missing'}',
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            )
           : grouped.isEmpty
           ? const Center(child: Text('No access rows found.'))
           : ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: grouped.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final entry = grouped.entries.elementAt(index);
-          final rows = entry.value;
-          final first = rows.first;
+              padding: const EdgeInsets.all(16),
+              itemCount: grouped.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final entry = grouped.entries.elementAt(index);
+                final rows = entry.value;
+                final first = rows.first;
 
-          final firstName = first['first_name']?.toString() ?? '';
-          final familyName = first['family_name']?.toString() ?? '';
-          final age = first['age_years']?.toString() ?? 'Unknown';
-          final sex = first['sex']?.toString() ?? 'Unknown';
-          final bloodType = first['blood_type']?.toString() ?? 'Unknown';
+                final firstName = first['first_name']?.toString() ?? '';
+                final familyName = first['family_name']?.toString() ?? '';
+                final age = first['age_years']?.toString() ?? 'Unknown';
+                final sex = first['sex']?.toString() ?? 'Unknown';
+                final bloodType = first['blood_type']?.toString() ?? 'Unknown';
 
-          return Card(
-            child: ListTile(
-              title: Text('$firstName $familyName'.trim()),
-              subtitle: Text(
-                'Age: $age • Sex: $sex • Blood type: $bloodType\nAccess rows: ${rows.length}',
-              ),
-              onTap: () => _showPatientSheet(
-                entry.key,
-                title: '$firstName $familyName'.trim(),
-              ),
+                return Card(
+                  child: ListTile(
+                    title: Text('$firstName $familyName'.trim()),
+                    subtitle: Text(
+                      'Age: $age • Sex: $sex • Blood type: $bloodType\nAccess rows: ${rows.length}',
+                    ),
+                    onTap: () => _showPatientSheet(
+                      entry.key,
+                      title: '$firstName $familyName'.trim(),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

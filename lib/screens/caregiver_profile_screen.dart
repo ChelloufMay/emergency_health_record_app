@@ -88,7 +88,8 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
         _avenueController.text = address['avenue']?.toString() ?? '';
         _streetController.text = address['street']?.toString() ?? '';
         _postalCodeController.text = address['postal_code']?.toString() ?? '';
-        _extraDetailsController.text = address['extra_details']?.toString() ?? '';
+        _extraDetailsController.text =
+            address['extra_details']?.toString() ?? '';
       }
     }
 
@@ -125,9 +126,15 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
       'governorate': _governorateController.text.trim().isEmpty
           ? null
           : _governorateController.text.trim(),
-      'city': _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      'avenue': _avenueController.text.trim().isEmpty ? null : _avenueController.text.trim(),
-      'street': _streetController.text.trim().isEmpty ? null : _streetController.text.trim(),
+      'city': _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      'avenue': _avenueController.text.trim().isEmpty
+          ? null
+          : _avenueController.text.trim(),
+      'street': _streetController.text.trim().isEmpty
+          ? null
+          : _streetController.text.trim(),
       'postal_code': _postalCodeController.text.trim().isEmpty
           ? null
           : _postalCodeController.text.trim(),
@@ -137,7 +144,11 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     };
 
     if (_addressId == null) {
-      final inserted = await _supabase.from('addresses').insert(payload).select('id').single();
+      final inserted = await _supabase
+          .from('addresses')
+          .insert(payload)
+          .select('id')
+          .single();
       return inserted['id']?.toString();
     }
 
@@ -153,12 +164,15 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
 
       final model = CaregiverProfileModel(
         id: _profileId,
-        userId: '', // The service replaces this with the authenticated app user id.
+        userId:
+            '', // The service replaces this with the authenticated app user id.
         fullName: _fullNameController.text.trim(),
         relationshipToPatient: _relationshipController.text.trim().isEmpty
             ? null
             : _relationshipController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         addressId: addressId,
         proximity: _proximity,
         attendance: _attendance,
@@ -170,14 +184,14 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
       _profileId = await _service.saveMine(model);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Caregiver profile saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Caregiver profile saved.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -221,138 +235,156 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           if (_profileId != null)
-            IconButton(onPressed: _saving ? null : _delete, icon: const Icon(Icons.delete)),
+            IconButton(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete),
+            ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // This screen mirrors public.caregiver_profiles.
-          TextField(
-            controller: _fullNameController,
-            decoration: const InputDecoration(labelText: 'Full name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _relationshipController,
-            decoration: const InputDecoration(labelText: 'Relationship to patient'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Phone'),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _proximity,
-            decoration: const InputDecoration(labelText: 'Proximity'),
-            items: const [
-              DropdownMenuItem(value: 'cohabitant', child: Text('Cohabitant')),
-              DropdownMenuItem(value: 'near', child: Text('Near')),
-              DropdownMenuItem(value: 'far', child: Text('Far')),
-            ],
-            onChanged: (value) => setState(() => _proximity = value),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _attendance,
-            decoration: const InputDecoration(labelText: 'Attendance'),
-            items: const [
-              DropdownMenuItem(value: 'daily', child: Text('Daily')),
-              DropdownMenuItem(
-                value: 'doctor_visits_only',
-                child: Text('Doctor visits only'),
-              ),
-              DropdownMenuItem(
-                value: 'phone_checkups',
-                child: Text('Phone checkups'),
-              ),
-              DropdownMenuItem(
-                value: 'long_periods_between_visits',
-                child: Text('Long periods between visits'),
-              ),
-            ],
-            onChanged: (value) => setState(() => _attendance = value),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<bool?>(
-            initialValue: _canDrive,
-            decoration: const InputDecoration(labelText: 'Can drive'),
-            items: const [
-              DropdownMenuItem(value: null, child: Text('Unknown')),
-              DropdownMenuItem(value: true, child: Text('Yes')),
-              DropdownMenuItem(value: false, child: Text('No')),
-            ],
-            onChanged: (value) => setState(() => _canDrive = value),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _mobility,
-            decoration: const InputDecoration(labelText: 'Mobility'),
-            items: const [
-              DropdownMenuItem(value: 'independent', child: Text('Independent')),
-              DropdownMenuItem(value: 'cane', child: Text('Cane')),
-              DropdownMenuItem(value: 'wheelchair', child: Text('Wheelchair')),
-              DropdownMenuItem(value: 'needs_help', child: Text('Needs help')),
-            ],
-            onChanged: (value) => setState(() => _mobility = value ?? 'independent'),
-          ),
-          const Divider(height: 32),
-          const Text(
-            'Address',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _countryController,
-            decoration: const InputDecoration(labelText: 'Country'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _governorateController,
-            decoration: const InputDecoration(labelText: 'Governorate'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cityController,
-            decoration: const InputDecoration(labelText: 'City'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _avenueController,
-            decoration: const InputDecoration(labelText: 'Avenue'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _streetController,
-            decoration: const InputDecoration(labelText: 'Street'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _postalCodeController,
-            decoration: const InputDecoration(labelText: 'Postal code'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _extraDetailsController,
-            decoration: const InputDecoration(labelText: 'Extra details'),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Save caregiver profile'),
-          ),
-        ],
-      ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // This screen mirrors public.caregiver_profiles.
+                TextField(
+                  controller: _fullNameController,
+                  decoration: const InputDecoration(labelText: 'Full name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _relationshipController,
+                  decoration: const InputDecoration(
+                    labelText: 'Relationship to patient',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _proximity,
+                  decoration: const InputDecoration(labelText: 'Proximity'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'cohabitant',
+                      child: Text('Cohabitant'),
+                    ),
+                    DropdownMenuItem(value: 'near', child: Text('Near')),
+                    DropdownMenuItem(value: 'far', child: Text('Far')),
+                  ],
+                  onChanged: (value) => setState(() => _proximity = value),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _attendance,
+                  decoration: const InputDecoration(labelText: 'Attendance'),
+                  items: const [
+                    DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                    DropdownMenuItem(
+                      value: 'doctor_visits_only',
+                      child: Text('Doctor visits only'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'phone_checkups',
+                      child: Text('Phone checkups'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'long_periods_between_visits',
+                      child: Text('Long periods between visits'),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() => _attendance = value),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<bool?>(
+                  initialValue: _canDrive,
+                  decoration: const InputDecoration(labelText: 'Can drive'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Unknown')),
+                    DropdownMenuItem(value: true, child: Text('Yes')),
+                    DropdownMenuItem(value: false, child: Text('No')),
+                  ],
+                  onChanged: (value) => setState(() => _canDrive = value),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _mobility,
+                  decoration: const InputDecoration(labelText: 'Mobility'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'independent',
+                      child: Text('Independent'),
+                    ),
+                    DropdownMenuItem(value: 'cane', child: Text('Cane')),
+                    DropdownMenuItem(
+                      value: 'wheelchair',
+                      child: Text('Wheelchair'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'needs_help',
+                      child: Text('Needs help'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _mobility = value ?? 'independent'),
+                ),
+                const Divider(height: 32),
+                const Text(
+                  'Address',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _countryController,
+                  decoration: const InputDecoration(labelText: 'Country'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _governorateController,
+                  decoration: const InputDecoration(labelText: 'Governorate'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(labelText: 'City'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _avenueController,
+                  decoration: const InputDecoration(labelText: 'Avenue'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _streetController,
+                  decoration: const InputDecoration(labelText: 'Street'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _postalCodeController,
+                  decoration: const InputDecoration(labelText: 'Postal code'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _extraDetailsController,
+                  decoration: const InputDecoration(labelText: 'Extra details'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save caregiver profile'),
+                ),
+              ],
+            ),
     );
   }
 }
