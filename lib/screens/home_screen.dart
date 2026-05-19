@@ -169,16 +169,17 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
               if (!mounted) return;
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/login', (route) => false);
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/login',
+                    (route) => false,
+              );
             },
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
           ),
         ],
       ),
-      // CHANGED: responsive layout prevents the overflow warnings.
+      // Responsive layout so cards adapt better across devices.
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
@@ -219,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
                         ),
                         Text(
-                          'Address: ${((_summary?['address_country']?.toString() ?? '')).trim().isEmpty ? 'Not set' : [_summary?['address_country']?.toString(), _summary?['address_governorate']?.toString(), _summary?['address_city']?.toString()].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
+                          'Address: ${((_summary?['address_country']?.toString() ?? '').trim().isEmpty) ? 'Not set' : [_summary?['address_country']?.toString(), _summary?['address_governorate']?.toString(), _summary?['address_city']?.toString()].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
                         ),
                       ],
                       const SizedBox(height: 12),
