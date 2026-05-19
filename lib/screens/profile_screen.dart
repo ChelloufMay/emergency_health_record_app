@@ -39,7 +39,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   bool _saving = false;
 
-  String _sex = 'unknown';
+  // CHANGED: sex is now nullable so "unknown" from the DB does not appear as a choice.
+  String? _sex;
   String? _bloodType;
   String? _insurancePlan;
   String? _covidVaccineType;
@@ -61,15 +62,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const List<String> _insurancePlans = <String>['CNAM', 'CNSS', 'CNRPS'];
 
-  static const List<String> _covidVaccines = <String>[
-    'Pfizer-BioNTech (Comirnaty / Tozinameran)',
-    'Moderna (Spikevax / mRNA-1273)',
+  // CHANGED: short labels for display to avoid overflow, while storing the full value.
+  static const Map<String, String> _covidVaccines = <String, String>{
+    'Pfizer': 'Pfizer-BioNTech (Comirnaty / Tozinameran)',
+    'Moderna': 'Moderna (Spikevax / mRNA-1273)',
+    'AstraZeneca':
     'Oxford-AstraZeneca (Vaxzevria / Covishield / AZD1222)',
-    'Johnson & Johnson (Janssen / Ad26.COV2.S)',
-    'Sputnik V (Gam-COVID-Vac)',
-    'Sinovac (CoronaVac)',
-    'Sinopharm (BBIBP-CorV)',
-  ];
+    'J&J': 'Johnson & Johnson (Janssen / Ad26.COV2.S)',
+    'Sputnik V': 'Sputnik V (Gam-COVID-Vac)',
+    'CoronaVac': 'Sinovac (CoronaVac)',
+    'Sinopharm': 'Sinopharm (BBIBP-CorV)',
+  };
 
   @override
   void initState() {
@@ -117,7 +120,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _legalIdController.text = profile.legalId ?? '';
           _firstNameController.text = profile.firstName;
           _familyNameController.text = profile.familyName;
-          _sex = profile.sex;
+
+          // CHANGED: only keep male/female, otherwise show nothing.
+          _sex = (profile.sex == 'male' || profile.sex == 'female')
+              ? profile.sex
+              : null;
+
           _dateOfBirth = profile.dateOfBirth;
           _bloodType = _normalizeOption(profile.bloodType, _bloodTypes);
           _phoneController.text = profile.phone ?? '';
@@ -129,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
           _covidVaccineType = _normalizeOption(
             profile.covidVaccineType,
-            _covidVaccines,
+            _covidVaccines.values.toList(),
           );
 
           final fullName =
@@ -222,12 +230,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = PatientProfileModel(
         id: _profileId,
         userId: userId,
+        // CHANGED: keep legal ID in the model, but true encryption must happen at DB/service level.
         legalId: _legalIdController.text.trim().isEmpty
             ? null
             : _legalIdController.text.trim(),
         firstName: _firstNameController.text.trim(),
         familyName: _familyNameController.text.trim(),
-        sex: _sex,
+        sex: _sex ?? 'unknown',
         dateOfBirth: _dateOfBirth,
         bloodType: _bloodType,
         phone: _phoneController.text.trim().isEmpty
@@ -307,14 +316,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required List<String> items,
     required void Function(String?) onChanged,
     String? hint,
+    bool requiredField = false,
   }) {
     return DropdownButtonFormField<String>(
+      isExpanded: true,
+      menuMaxHeight: 300,
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       hint: hint == null ? null : Text(hint),
+      validator: requiredField
+          ? (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'Please fill all the required fields';
+        }
+        return null;
+      }
+          : null,
       items: items
           .map(
-            (item) => DropdownMenuItem<String>(value: item, child: Text(item)),
+            (item) => DropdownMenuItem<String>(
+          value: item,
+          child: Text(item, overflow: TextOverflow.ellipsis),
+        ),
       )
           .toList(),
       onChanged: onChanged,
@@ -351,6 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextFormField(
               controller: _legalIdController,
               decoration: const InputDecoration(labelText: 'Legal ID'),
+              // CHANGED: keep a note here because real encryption must be handled by DB/service code.
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -368,18 +392,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _sex,
+              isExpanded: true,
+              menuMaxHeight: 220,
+              initialValue: (_sex == 'male' || _sex == 'female')
+                  ? _sex
+                  : null,
               decoration: const InputDecoration(labelText: 'Sex'),
               items: const [
                 DropdownMenuItem(value: 'male', child: Text('Male')),
                 DropdownMenuItem(value: 'female', child: Text('Female')),
-                DropdownMenuItem(
-                  value: 'unknown',
-                  child: Text('Unknown'),
-                ),
               ],
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please fill all the required fields';
+                }
+                return null;
+              },
               onChanged: (value) {
-                setState(() => _sex = value ?? 'unknown');
+                setState(() => _sex = value);
               },
             ),
             const SizedBox(height: 12),
@@ -439,7 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildDropdown(
               label: 'COVID vaccine',
               value: _covidVaccineType,
-              items: _covidVaccines,
+              items: _covidVaccines.values.toList(),
               hint: 'Select COVID vaccine',
               onChanged: (value) {
                 setState(() => _covidVaccineType = value);

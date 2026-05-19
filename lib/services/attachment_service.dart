@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/attachment_model.dart';
@@ -18,21 +20,55 @@ class AttachmentService {
 
     return (rows as List)
         .map(
-          (row) =>
-              AttachmentModel.fromMap(Map<String, dynamic>.from(row as Map)),
-        )
+          (row) => AttachmentModel.fromMap(Map.from(row as Map)),
+    )
         .toList();
   }
 
   String buildStoragePath({
     required String patientId,
     required String fileName,
+    String? extension,
   }) {
     final pid = requireText(patientId, 'patientId');
     final safeName = requireText(fileName, 'File name')
         .replaceAll(RegExp(r'\s+'), '_')
         .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    return '$pid/$safeName';
+
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ext = (extension ?? '').trim();
+    final safeExt = ext.isEmpty ? '' : '.${ext.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}';
+
+    return '$pid/${ts}_$safeName$safeExt';
+  }
+
+  // CHANGED: upload the actual file bytes to Supabase Storage.
+  Future<String> uploadFile({
+    required String patientId,
+    required String fileName,
+    required Uint8List bytes,
+    String? extension,
+  }) async {
+    final storagePath = buildStoragePath(
+      patientId: patientId,
+      fileName: fileName,
+      extension: extension,
+    );
+
+    try {
+      await _supabase.storage.from('attachments').uploadBinary(
+        storagePath,
+        bytes,
+        fileOptions: const FileOptions(
+          upsert: true,
+        ),
+      );
+      return storagePath;
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(e, 'Attachment upload'));
+    } on StorageException catch (e) {
+      throw Exception('Attachment upload failed: ${e.message}');
+    }
   }
 
   Future<String> save({
@@ -83,6 +119,21 @@ class AttachmentService {
       return payload.id!;
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Attachment save'));
+    }
+  }
+
+  // CHANGED: return a URL that can be opened by the device.
+  Future<String> getOpenUrl(String storagePath) async {
+    final path = requireText(storagePath, 'storagePath');
+
+    try {
+      return await _supabase.storage.from('attachments').createSignedUrl(
+        path,
+        60 * 10,
+      );
+    } on StorageException {
+      // Fallback for public buckets.
+      return _supabase.storage.from('attachments').getPublicUrl(path);
     }
   }
 
