@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/reproductive_health_model.dart';
 import '../services/patient_session_service.dart';
 import '../services/reproductive_health_service.dart';
+import '../utils/field_helpers.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
 class ReproductiveHealthScreen extends StatefulWidget {
@@ -47,8 +49,8 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     }
 
     final item = await _service.fetchByPatient(patientId);
-
     if (!mounted) return;
+
     setState(() {
       _patientId = patientId;
       _item = item;
@@ -63,55 +65,41 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
 
     final current = _item;
 
-    final painLevelController = TextEditingController(
-      text: current?.painLevel ?? '',
-    );
-    final lastPeriodStartController = TextEditingController(
-      text: current?.lastPeriodStart?.toIso8601String().split('T').first ?? '',
-    );
-    final lastPeriodEndController = TextEditingController(
-      text: current?.lastPeriodEnd?.toIso8601String().split('T').first ?? '',
-    );
-    final pregnancyTermController = TextEditingController(
-      text: current?.pregnancyTermWeeks?.toString() ?? '',
-    );
-    final gestityController = TextEditingController(
-      text: current?.gestity?.toString() ?? '',
-    );
-    final parityController = TextEditingController(
-      text: current?.parity?.toString() ?? '',
-    );
-    final abortionsController = TextEditingController(
-      text: current?.abortions?.toString() ?? '',
-    );
-    final pubertyAgeController = TextEditingController(
-      text: current?.pubertyAge?.toString() ?? '',
-    );
-    final breastExamController = TextEditingController(
-      text: current?.breastExamNotes ?? '',
-    );
-    final pregnancyHistoryController = TextEditingController(
-      text: current?.pregnancyHistory ?? '',
-    );
-    final birthHistoryController = TextEditingController(
-      text: current?.birthHistory ?? '',
-    );
-    final abortionHistoryController = TextEditingController(
-      text: current?.abortionHistory ?? '',
-    );
-
     bool? hasMenstrualCycle = current?.hasMenstrualCycle;
     bool? cycleRegular = current?.cycleRegular;
     bool? cyclePainful = current?.cyclePainful;
     bool? currentlyPregnant = current?.currentlyPregnant;
 
+    final painLevelValue = double.tryParse(current?.painLevel ?? '') ?? 0;
+    double painLevel = painLevelValue.clamp(0, 10).toDouble();
+
+    DateTime? lastPeriodStart = current?.lastPeriodStart;
+    DateTime? lastPeriodEnd = current?.lastPeriodEnd;
+
+    final pregnancyTermWeeksController =
+    TextEditingController(text: current?.pregnancyTermWeeks?.toString() ?? '');
+    final gestityController =
+    TextEditingController(text: current?.gestity?.toString() ?? '');
+    final parityController =
+    TextEditingController(text: current?.parity?.toString() ?? '');
+    final abortionsController =
+    TextEditingController(text: current?.abortions?.toString() ?? '');
+    final pubertyAgeController =
+    TextEditingController(text: current?.pubertyAge?.toString() ?? '');
+    final breastExamNotesController =
+    TextEditingController(text: current?.breastExamNotes ?? '');
+    final pregnancyHistoryController =
+    TextEditingController(text: current?.pregnancyHistory ?? '');
+    final birthHistoryController =
+    TextEditingController(text: current?.birthHistory ?? '');
+    final abortionHistoryController =
+    TextEditingController(text: current?.abortionHistory ?? '');
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
-          title: current == null
-              ? 'Add reproductive health'
-              : 'Edit reproductive health',
+          title: current == null ? 'Add reproductive health' : 'Edit reproductive health',
           validate: () => null,
           onSave: () async {
             final model = ReproductiveHealthModel(
@@ -120,26 +108,18 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
               hasMenstrualCycle: hasMenstrualCycle,
               cycleRegular: cycleRegular,
               cyclePainful: cyclePainful,
-              painLevel: painLevelController.text.trim().isEmpty
-                  ? null
-                  : painLevelController.text.trim(),
-              lastPeriodStart: lastPeriodStartController.text.trim().isEmpty
-                  ? null
-                  : DateTime.tryParse(lastPeriodStartController.text.trim()),
-              lastPeriodEnd: lastPeriodEndController.text.trim().isEmpty
-                  ? null
-                  : DateTime.tryParse(lastPeriodEndController.text.trim()),
+              painLevel: painLevel.round().toString(),
+              lastPeriodStart: lastPeriodStart,
+              lastPeriodEnd: lastPeriodEnd,
               currentlyPregnant: currentlyPregnant,
-              pregnancyTermWeeks: int.tryParse(
-                pregnancyTermController.text.trim(),
-              ),
+              pregnancyTermWeeks: int.tryParse(pregnancyTermWeeksController.text.trim()),
               gestity: int.tryParse(gestityController.text.trim()),
               parity: int.tryParse(parityController.text.trim()),
               abortions: int.tryParse(abortionsController.text.trim()),
               pubertyAge: int.tryParse(pubertyAgeController.text.trim()),
-              breastExamNotes: breastExamController.text.trim().isEmpty
+              breastExamNotes: breastExamNotesController.text.trim().isEmpty
                   ? null
-                  : breastExamController.text.trim(),
+                  : breastExamNotesController.text.trim(),
               pregnancyHistory: pregnancyHistoryController.text.trim().isEmpty
                   ? null
                   : pregnancyHistoryController.text.trim(),
@@ -150,174 +130,237 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                   ? null
                   : abortionHistoryController.text.trim(),
             );
-
             await _service.save(
               reproductiveHealth: model,
               patientId: patientId,
             );
           },
           contentBuilder: (_, saving) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<bool?>(
-                  initialValue: hasMenstrualCycle,
-                  decoration: const InputDecoration(
-                    labelText: 'Has menstrual cycle',
+            DropdownButtonFormField<bool?> boolField(
+                String label,
+                bool? value,
+                void Function(bool?) onChanged,
+                ) {
+              return DropdownButtonFormField<bool?>(
+                initialValue: value,
+                decoration: InputDecoration(labelText: label),
+                items: const [
+                  DropdownMenuItem<bool?>(
+                    value: null,
+                    child: Text('None'),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Unknown')),
-                    DropdownMenuItem(value: true, child: Text('Yes')),
-                    DropdownMenuItem(value: false, child: Text('No')),
-                  ],
-                  onChanged: saving ? null : (v) => hasMenstrualCycle = v,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<bool?>(
-                  initialValue: cycleRegular,
-                  decoration: const InputDecoration(labelText: 'Cycle regular'),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Unknown')),
-                    DropdownMenuItem(value: true, child: Text('Yes')),
-                    DropdownMenuItem(value: false, child: Text('No')),
-                  ],
-                  onChanged: saving ? null : (v) => cycleRegular = v,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<bool?>(
-                  initialValue: cyclePainful,
-                  decoration: const InputDecoration(labelText: 'Cycle painful'),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Unknown')),
-                    DropdownMenuItem(value: true, child: Text('Yes')),
-                    DropdownMenuItem(value: false, child: Text('No')),
-                  ],
-                  onChanged: saving ? null : (v) => cyclePainful = v,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: painLevelController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Pain level'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: lastPeriodStartController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Last period start',
-                    hintText: 'YYYY-MM-DD',
+                  DropdownMenuItem<bool?>(
+                    value: true,
+                    child: Text('Yes'),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: lastPeriodEndController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Last period end',
-                    hintText: 'YYYY-MM-DD',
+                  DropdownMenuItem<bool?>(
+                    value: false,
+                    child: Text('No'),
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<bool?>(
-                  initialValue: currentlyPregnant,
-                  decoration: const InputDecoration(
-                    labelText: 'Currently pregnant',
+                ],
+                onChanged: saving ? null : onChanged,
+              );
+            }
+
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      boolField('Has menstrual cycle', hasMenstrualCycle, (v) {
+                        setDialogState(() => hasMenstrualCycle = v);
+                      }),
+                      const SizedBox(height: 12),
+                      boolField('Cycle regular', cycleRegular, (v) {
+                        setDialogState(() => cycleRegular = v);
+                      }),
+                      const SizedBox(height: 12),
+                      boolField('Cycle painful', cyclePainful, (v) {
+                        setDialogState(() => cyclePainful = v);
+                      }),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text('Pain level'),
+                          ),
+                          Text(painLevel.round().toString()),
+                        ],
+                      ),
+                      Slider(
+                        value: painLevel,
+                        min: 0,
+                        max: 10,
+                        divisions: 10,
+                        label: painLevel.round().toString(),
+                        onChanged: saving
+                            ? null
+                            : (v) => setDialogState(() => painLevel = v),
+                      ),
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Last period start'),
+                        subtitle: Text(
+                          lastPeriodStart == null
+                              ? 'Not set'
+                              : lastPeriodStart!.toIso8601String().split('T').first,
+                        ),
+                        trailing: IconButton(
+                          onPressed: saving
+                              ? null
+                              : () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                              initialDate: lastPeriodStart ?? DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() => lastPeriodStart = picked);
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_month),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Last period end'),
+                        subtitle: Text(
+                          lastPeriodEnd == null
+                              ? 'Not set'
+                              : lastPeriodEnd!.toIso8601String().split('T').first,
+                        ),
+                        trailing: IconButton(
+                          onPressed: saving
+                              ? null
+                              : () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                              initialDate: lastPeriodEnd ?? DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() => lastPeriodEnd = picked);
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_month),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      boolField('Currently pregnant', currentlyPregnant, (v) {
+                        setDialogState(() => currentlyPregnant = v);
+                      }),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: pregnancyTermWeeksController,
+                        enabled: !saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Pregnancy term weeks',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: gestityController,
+                        enabled: !saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Gestity',
+                          hintText: 'Total number of pregnancies',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: parityController,
+                        enabled: !saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Parity',
+                          hintText: 'Number of births after viability',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: abortionsController,
+                        enabled: !saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Abortions',
+                          hintText: 'Number of pregnancy losses',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: pubertyAgeController,
+                        enabled: !saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Puberty age',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: breastExamNotesController,
+                        enabled: !saving,
+                        decoration: const InputDecoration(
+                          labelText: 'Breast exam notes',
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: pregnancyHistoryController,
+                        enabled: !saving,
+                        decoration: const InputDecoration(
+                          labelText: 'Pregnancy history',
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: birthHistoryController,
+                        enabled: !saving,
+                        decoration: const InputDecoration(
+                          labelText: 'Birth history',
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: abortionHistoryController,
+                        enabled: !saving,
+                        decoration: const InputDecoration(
+                          labelText: 'Abortion history',
+                        ),
+                        maxLines: 3,
+                      ),
+                    ],
                   ),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Unknown')),
-                    DropdownMenuItem(value: true, child: Text('Yes')),
-                    DropdownMenuItem(value: false, child: Text('No')),
-                  ],
-                  onChanged: saving ? null : (v) => currentlyPregnant = v,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pregnancyTermController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Pregnancy term weeks',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: gestityController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Gestity'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: parityController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Parity'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: abortionsController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Abortions'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pubertyAgeController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Puberty age'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: breastExamController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Breast exam notes',
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pregnancyHistoryController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Pregnancy history',
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: birthHistoryController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Birth history'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: abortionHistoryController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Abortion history',
-                  ),
-                  maxLines: 2,
-                ),
-              ],
+                );
+              },
             );
           },
         );
       },
     );
 
-    painLevelController.dispose();
-    lastPeriodStartController.dispose();
-    lastPeriodEndController.dispose();
-    pregnancyTermController.dispose();
+    pregnancyTermWeeksController.dispose();
     gestityController.dispose();
     parityController.dispose();
     abortionsController.dispose();
     pubertyAgeController.dispose();
-    breastExamController.dispose();
+    breastExamNotesController.dispose();
     pregnancyHistoryController.dispose();
     birthHistoryController.dispose();
     abortionHistoryController.dispose();
 
-    if (saved == true) await _load();
+    if (saved == true) {
+      await _load();
+    }
   }
 
   Future<void> _delete() async {
@@ -325,7 +368,17 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
+    // CHANGED: confirmation before delete
+    final confirmed = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Delete reproductive health record?',
+      message: 'This action cannot be undone.',
+    );
+
+    if (!confirmed || !mounted) return;
+
     await _service.delete(patientId: patientId);
+    if (!mounted) return;
     await _load();
   }
 
@@ -352,46 +405,48 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: ListTile(
-                    title: const Text('Reproductive health record'),
-                    subtitle: Text(
-                      item == null
-                          ? 'No record'
-                          : [
-                              if (item.hasMenstrualCycle != null)
-                                'Has menstrual cycle: ${item.hasMenstrualCycle}',
-                              if (item.cycleRegular != null)
-                                'Cycle regular: ${item.cycleRegular}',
-                              if (item.cyclePainful != null)
-                                'Cycle painful: ${item.cyclePainful}',
-                              if ((item.painLevel ?? '').isNotEmpty)
-                                'Pain level: ${item.painLevel}',
-                              if (item.lastPeriodStart != null)
-                                'Last period start: ${item.lastPeriodStart!.toIso8601String().split('T').first}',
-                              if (item.lastPeriodEnd != null)
-                                'Last period end: ${item.lastPeriodEnd!.toIso8601String().split('T').first}',
-                              if (item.currentlyPregnant != null)
-                                'Currently pregnant: ${item.currentlyPregnant}',
-                              if (item.pregnancyTermWeeks != null)
-                                'Pregnancy term weeks: ${item.pregnancyTermWeeks}',
-                              if (item.gestity != null)
-                                'Gestity: ${item.gestity}',
-                              if (item.parity != null) 'Parity: ${item.parity}',
-                              if (item.abortions != null)
-                                'Abortions: ${item.abortions}',
-                              if (item.pubertyAge != null)
-                                'Puberty age: ${item.pubertyAge}',
-                              if ((item.breastExamNotes ?? '').isNotEmpty)
-                                'Breast exam notes: ${item.breastExamNotes}',
-                            ].join('\n'),
-                    ),
-                  ),
-                ),
-              ],
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: ListTile(
+              title: const Text('Reproductive health'),
+              subtitle: Text(
+                item == null
+                    ? 'No record'
+                    : [
+                  'Has menstrual cycle: ${yesNo(item.hasMenstrualCycle)}',
+                  'Cycle regular: ${yesNo(item.cycleRegular)}',
+                  'Cycle painful: ${yesNo(item.cyclePainful)}',
+                  'Pain level: ${displayUnknownAsNone(item.painLevel)}',
+                  if (item.lastPeriodStart != null)
+                    'Last period start: ${item.lastPeriodStart!.toIso8601String().split('T').first}',
+                  if (item.lastPeriodEnd != null)
+                    'Last period end: ${item.lastPeriodEnd!.toIso8601String().split('T').first}',
+                  'Currently pregnant: ${yesNo(item.currentlyPregnant)}',
+                  if (item.pregnancyTermWeeks != null)
+                    'Pregnancy term weeks: ${item.pregnancyTermWeeks}',
+                  if (item.gestity != null)
+                    'Gestity: ${item.gestity}',
+                  if (item.parity != null)
+                    'Parity: ${item.parity}',
+                  if (item.abortions != null)
+                    'Abortions: ${item.abortions}',
+                  if (item.pubertyAge != null)
+                    'Puberty age: ${item.pubertyAge}',
+                  if ((item.breastExamNotes ?? '').isNotEmpty)
+                    'Breast exam notes: ${item.breastExamNotes}',
+                  if ((item.pregnancyHistory ?? '').isNotEmpty)
+                    'Pregnancy history: ${item.pregnancyHistory}',
+                  if ((item.birthHistory ?? '').isNotEmpty)
+                    'Birth history: ${item.birthHistory}',
+                  if ((item.abortionHistory ?? '').isNotEmpty)
+                    'Abortion history: ${item.abortionHistory}',
+                ].join('\n'),
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }

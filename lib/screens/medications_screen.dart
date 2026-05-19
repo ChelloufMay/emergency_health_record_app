@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/medication_model.dart';
 import '../services/medication_service.dart';
 import '../services/patient_session_service.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
 class MedicationsScreen extends StatefulWidget {
@@ -55,30 +56,38 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     });
   }
 
+  Future<void> _pickDate({
+    required BuildContext context,
+    required DateTime? initialDate,
+    required ValueChanged<DateTime> onPicked,
+  }) async {
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      initialDate: initialDate ?? DateTime.now(),
+    );
+    if (picked != null) onPicked(picked);
+  }
+
   Future<void> _openEditor({MedicationModel? initial}) async {
     if (!widget.canEdit) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController = TextEditingController(
-      text: initial?.medicationName ?? '',
-    );
+    final nameController =
+    TextEditingController(text: initial?.medicationName ?? '');
     final dosageController = TextEditingController(text: initial?.dosage ?? '');
-    final frequencyController = TextEditingController(
-      text: initial?.frequency ?? '',
-    );
-    final purposeController = TextEditingController(
-      text: initial?.purpose ?? '',
-    );
-    final startDateController = TextEditingController(
-      text: initial?.startDate?.toIso8601String().split('T').first ?? '',
-    );
-    final endDateController = TextEditingController(
-      text: initial?.endDate?.toIso8601String().split('T').first ?? '',
-    );
+    final frequencyController =
+    TextEditingController(text: initial?.frequency ?? '');
+    final purposeController =
+    TextEditingController(text: initial?.purpose ?? '');
+
+    DateTime? startDate = initial?.startDate;
+    DateTime? endDate = initial?.endDate;
     String source = initial?.source ?? 'user';
 
-    final saved = await showDialog<bool>(
+    final saved = await showDialog(
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
@@ -100,82 +109,107 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
               purpose: purposeController.text.trim().isEmpty
                   ? null
                   : purposeController.text.trim(),
-              startDate: startDateController.text.trim().isEmpty
-                  ? null
-                  : DateTime.tryParse(startDateController.text.trim()),
-              endDate: endDateController.text.trim().isEmpty
-                  ? null
-                  : DateTime.tryParse(endDateController.text.trim()),
+              startDate: startDate,
+              endDate: endDate,
               source: source,
             );
-
             await _service.save(medication: model, patientId: patientId);
           },
-          contentBuilder: (_, saving) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Medication name',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dosageController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Dosage'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: frequencyController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Frequency'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: purposeController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Purpose'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: startDateController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Start date',
-                    hintText: 'YYYY-MM-DD',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: endDateController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'End date',
-                    hintText: 'YYYY-MM-DD',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: source,
-                  decoration: const InputDecoration(labelText: 'Source'),
-                  items: const [
-                    DropdownMenuItem(value: 'user', child: Text('User')),
-                    DropdownMenuItem(
-                      value: 'caregiver',
-                      child: Text('Caregiver'),
+          contentBuilder: (context, saving) {
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(
+                        labelText: 'Medication name',
+                      ),
                     ),
-                    DropdownMenuItem(
-                      value: 'clinician',
-                      child: Text('Clinician'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dosageController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(labelText: 'Dosage'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: frequencyController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(labelText: 'Frequency'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: purposeController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(labelText: 'Purpose'),
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Start date'),
+                      subtitle: Text(
+                        startDate == null
+                            ? 'Not set'
+                            : startDate!.toIso8601String().split('T').first,
+                      ),
+                      trailing: IconButton(
+                        onPressed: saving
+                            ? null
+                            : () => _pickDate(
+                          context: context,
+                          initialDate: startDate,
+                          onPicked: (d) {
+                            setDialogState(() => startDate = d);
+                          },
+                        ),
+                        icon: const Icon(Icons.calendar_month),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('End date'),
+                      subtitle: Text(
+                        endDate == null
+                            ? 'Not set'
+                            : endDate!.toIso8601String().split('T').first,
+                      ),
+                      trailing: IconButton(
+                        onPressed: saving
+                            ? null
+                            : () => _pickDate(
+                          context: context,
+                          initialDate: endDate,
+                          onPicked: (d) {
+                            setDialogState(() => endDate = d);
+                          },
+                        ),
+                        icon: const Icon(Icons.calendar_month),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: source,
+                      decoration: const InputDecoration(labelText: 'Source'),
+                      items: const [
+                        DropdownMenuItem(value: 'user', child: Text('User')),
+                        DropdownMenuItem(
+                          value: 'caregiver',
+                          child: Text('Caregiver'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'clinician',
+                          child: Text('Clinician'),
+                        ),
+                      ],
+                      onChanged: saving ? null : (v) => source = v ?? 'user',
                     ),
                   ],
-                  onChanged: saving ? null : (v) => source = v ?? 'user',
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -186,8 +220,6 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     dosageController.dispose();
     frequencyController.dispose();
     purposeController.dispose();
-    startDateController.dispose();
-    endDateController.dispose();
 
     if (saved == true) await _load();
   }
@@ -197,7 +229,16 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
+    final confirmed = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Delete medication?',
+      message: 'This action cannot be undone.',
+    );
+
+    if (!confirmed || !mounted) return;
+
     await _service.delete(patientId: patientId, id: item.id!);
+    if (!mounted) return;
     await _load();
   }
 
@@ -220,57 +261,57 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(item.medicationName),
-                      subtitle: Text(
-                        [
-                          if ((item.dosage ?? '').isNotEmpty)
-                            'Dosage: ${item.dosage}',
-                          if ((item.frequency ?? '').isNotEmpty)
-                            'Frequency: ${item.frequency}',
-                          if ((item.purpose ?? '').isNotEmpty)
-                            'Purpose: ${item.purpose}',
-                          if (item.startDate != null)
-                            'Start: ${item.startDate!.toIso8601String().split('T').first}',
-                          if (item.endDate != null)
-                            'End: ${item.endDate!.toIso8601String().split('T').first}',
-                          if ((item.source).isNotEmpty)
-                            'Source: ${item.source}',
-                        ].join('\n'),
-                      ),
-                      trailing: widget.canEdit
-                          ? PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'edit') {
-                                  await _openEditor(initial: item);
-                                } else if (value == 'delete') {
-                                  await _deleteItem(item);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
-                            )
-                          : null,
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                title: Text(item.medicationName),
+                subtitle: Text(
+                  [
+                    if ((item.dosage ?? '').isNotEmpty)
+                      'Dosage: ${item.dosage}',
+                    if ((item.frequency ?? '').isNotEmpty)
+                      'Frequency: ${item.frequency}',
+                    if ((item.purpose ?? '').isNotEmpty)
+                      'Purpose: ${item.purpose}',
+                    if (item.startDate != null)
+                      'Start: ${item.startDate!.toIso8601String().split('T').first}',
+                    if (item.endDate != null)
+                      'End: ${item.endDate!.toIso8601String().split('T').first}',
+                    if ((item.source).isNotEmpty)
+                      'Source: ${item.source}',
+                  ].join('\n'),
+                ),
+                trailing: widget.canEdit
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit'),
                     ),
-                  );
-                },
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete'),
+                    ),
+                  ],
+                )
+                    : null,
               ),
-            ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

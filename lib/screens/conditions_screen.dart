@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/medical_condition_model.dart';
 import '../services/medical_condition_service.dart';
 import '../services/patient_session_service.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
 class ConditionsScreen extends StatefulWidget {
@@ -60,25 +61,20 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController = TextEditingController(
-      text: initial?.conditionName ?? '',
-    );
-    final diagnosisPlaceController = TextEditingController(
-      text: initial?.diagnosisPlace ?? '',
-    );
-    final followUpDoctorController = TextEditingController(
-      text: initial?.followUpDoctor ?? '',
-    );
-    final treatmentController = TextEditingController(
-      text: initial?.treatment ?? '',
-    );
+    final nameController =
+    TextEditingController(text: initial?.conditionName ?? '');
+    final diagnosisPlaceController =
+    TextEditingController(text: initial?.diagnosisPlace ?? '');
+    final followUpDoctorController =
+    TextEditingController(text: initial?.followUpDoctor ?? '');
+    final treatmentController =
+    TextEditingController(text: initial?.treatment ?? '');
     final notesController = TextEditingController(text: initial?.notes ?? '');
-    final diagnosisDateController = TextEditingController(
-      text: initial?.diagnosisDate?.toIso8601String().split('T').first ?? '',
-    );
+
+    DateTime? diagnosisDate = initial?.diagnosisDate;
     String type = initial?.type ?? 'chronic';
 
-    final saved = await showDialog<bool>(
+    final saved = await showDialog(
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
@@ -92,9 +88,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
               patientId: patientId,
               conditionName: nameController.text.trim(),
               type: type,
-              diagnosisDate: diagnosisDateController.text.trim().isEmpty
-                  ? null
-                  : DateTime.tryParse(diagnosisDateController.text.trim()),
+              diagnosisDate: diagnosisDate,
               diagnosisPlace: diagnosisPlaceController.text.trim().isEmpty
                   ? null
                   : diagnosisPlaceController.text.trim(),
@@ -108,69 +102,93 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                   ? null
                   : notesController.text.trim(),
             );
-
             await _service.save(condition: model, patientId: patientId);
           },
-          contentBuilder: (_, saving) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Condition name',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: 'Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'chronic', child: Text('Chronic')),
-                    DropdownMenuItem(value: 'acute', child: Text('Acute')),
+          contentBuilder: (context, saving) {
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(
+                        labelText: 'Condition name',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: type,
+                      decoration: const InputDecoration(labelText: 'Type'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'chronic',
+                          child: Text('Chronic'),
+                        ),
+                        DropdownMenuItem(value: 'acute', child: Text('Acute')),
+                      ],
+                      onChanged: saving ? null : (v) => type = v ?? 'chronic',
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Diagnosis date'),
+                      subtitle: Text(
+                        diagnosisDate == null
+                            ? 'Not set'
+                            : diagnosisDate!.toIso8601String().split('T').first,
+                      ),
+                      trailing: IconButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                            initialDate: diagnosisDate ?? DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => diagnosisDate = picked);
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: diagnosisPlaceController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(
+                        labelText: 'Diagnosis place',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: followUpDoctorController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(
+                        labelText: 'Follow up doctor',
+                        hintText: "doctor's name",
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: treatmentController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(labelText: 'Treatment'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      enabled: !saving,
+                      decoration: const InputDecoration(labelText: 'Notes'),
+                      maxLines: 3,
+                    ),
                   ],
-                  onChanged: saving ? null : (v) => type = v ?? 'chronic',
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: diagnosisDateController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Diagnosis date',
-                    hintText: 'YYYY-MM-DD',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: diagnosisPlaceController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Diagnosis place',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: followUpDoctorController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Follow-up doctor',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: treatmentController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Treatment'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  enabled: !saving,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  maxLines: 3,
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -182,7 +200,6 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     followUpDoctorController.dispose();
     treatmentController.dispose();
     notesController.dispose();
-    diagnosisDateController.dispose();
 
     if (saved == true) await _load();
   }
@@ -192,7 +209,16 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
+    final confirmed = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Delete condition?',
+      message: 'This action cannot be undone.',
+    );
+
+    if (!confirmed || !mounted) return;
+
     await _service.delete(patientId: patientId, id: item.id!);
+    if (!mounted) return;
     await _load();
   }
 
@@ -215,54 +241,54 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(item.conditionName),
-                      subtitle: Text(
-                        [
-                          'Type: ${item.type}',
-                          if (item.diagnosisDate != null)
-                            'Diagnosis date: ${item.diagnosisDate!.toIso8601String().split('T').first}',
-                          if ((item.diagnosisPlace ?? '').isNotEmpty)
-                            'Place: ${item.diagnosisPlace}',
-                          if ((item.followUpDoctor ?? '').isNotEmpty)
-                            'Doctor: ${item.followUpDoctor}',
-                          if ((item.treatment ?? '').isNotEmpty)
-                            'Treatment: ${item.treatment}',
-                        ].join('\n'),
-                      ),
-                      trailing: widget.canEdit
-                          ? PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'edit') {
-                                  await _openEditor(initial: item);
-                                } else if (value == 'delete') {
-                                  await _deleteItem(item);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
-                            )
-                          : null,
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                title: Text(item.conditionName),
+                subtitle: Text(
+                  [
+                    'Type: ${item.type}',
+                    if (item.diagnosisDate != null)
+                      'Diagnosis date: ${item.diagnosisDate!.toIso8601String().split('T').first}',
+                    if ((item.diagnosisPlace ?? '').isNotEmpty)
+                      'Place: ${item.diagnosisPlace}',
+                    if ((item.followUpDoctor ?? '').isNotEmpty)
+                      'Doctor: ${item.followUpDoctor}',
+                    if ((item.treatment ?? '').isNotEmpty)
+                      'Treatment: ${item.treatment}',
+                  ].join('\n'),
+                ),
+                trailing: widget.canEdit
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit'),
                     ),
-                  );
-                },
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete'),
+                    ),
+                  ],
+                )
+                    : null,
               ),
-            ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

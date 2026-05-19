@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/allergy_model.dart';
 import '../services/allergy_service.dart';
 import '../services/patient_session_service.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
 class AllergiesScreen extends StatefulWidget {
@@ -35,9 +36,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   String? _resolvePatientId() {
-    // Keep every section screen tied to the same patient context.
-    return widget.patientId ??
-        PatientSessionService.instance.current?.patientId;
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   Future<void> _load() async {
@@ -63,19 +62,16 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final allergenController = TextEditingController(
-      text: initial?.allergenName ?? '',
-    );
-    final reactionController = TextEditingController(
-      text: initial?.reaction ?? '',
-    );
-    final severityController = TextEditingController(
-      text: initial?.severity ?? '',
-    );
+    final allergenController =
+    TextEditingController(text: initial?.allergenName ?? '');
+    final reactionController =
+    TextEditingController(text: initial?.reaction ?? '');
+    final severityController =
+    TextEditingController(text: initial?.severity ?? '');
     String allergyType = initial?.allergyType ?? 'other';
     String source = initial?.source ?? 'user';
 
-    final saved = await showDialog<bool>(
+    final saved = await showDialog(
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
@@ -92,12 +88,12 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
               reaction: reactionController.text.trim().isEmpty
                   ? null
                   : reactionController.text.trim(),
+              // CHANGED: severity is now chosen from a list in the UI.
               severity: severityController.text.trim().isEmpty
                   ? null
                   : severityController.text.trim(),
               source: source,
             );
-
             await _service.save(allergy: model, patientId: patientId);
           },
           contentBuilder: (_, saving) {
@@ -130,10 +126,20 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   decoration: const InputDecoration(labelText: 'Reaction'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: severityController,
-                  enabled: !saving,
+                DropdownButtonFormField<String>(
+                  // CHANGED: severity uses a list instead of free text.
+                  initialValue: severityController.text.trim().isEmpty
+                      ? null
+                      : severityController.text.trim(),
                   decoration: const InputDecoration(labelText: 'Severity'),
+                  items: const [
+                    DropdownMenuItem(value: 'mild', child: Text('Mild')),
+                    DropdownMenuItem(value: 'moderate', child: Text('Moderate')),
+                    DropdownMenuItem(value: 'severe', child: Text('Severe')),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (v) => severityController.text = v ?? '',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -171,7 +177,16 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
+    final confirmed = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Delete allergy?',
+      message: 'This action cannot be undone.',
+    );
+
+    if (!confirmed || !mounted) return;
+
     await _service.delete(patientId: patientId, id: item.id!);
+    if (!mounted) return;
     await _load();
   }
 
@@ -194,52 +209,52 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(item.allergenName),
-                      subtitle: Text(
-                        [
-                          'Type: ${item.allergyType}',
-                          if ((item.reaction ?? '').isNotEmpty)
-                            'Reaction: ${item.reaction}',
-                          if ((item.severity ?? '').isNotEmpty)
-                            'Severity: ${item.severity}',
-                          if ((item.source).isNotEmpty)
-                            'Source: ${item.source}',
-                        ].join('\n'),
-                      ),
-                      trailing: widget.canEdit
-                          ? PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'edit') {
-                                  await _openEditor(initial: item);
-                                } else if (value == 'delete') {
-                                  await _deleteItem(item);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
-                            )
-                          : null,
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return Card(
+              child: ListTile(
+                title: Text(item.allergenName),
+                subtitle: Text(
+                  [
+                    'Type: ${item.allergyType}',
+                    if ((item.reaction ?? '').isNotEmpty)
+                      'Reaction: ${item.reaction}',
+                    if ((item.severity ?? '').isNotEmpty)
+                      'Severity: ${item.severity}',
+                    if ((item.source).isNotEmpty)
+                      'Source: ${item.source}',
+                  ].join('\n'),
+                ),
+                trailing: widget.canEdit
+                    ? PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      await _openEditor(initial: item);
+                    } else if (value == 'delete') {
+                      await _deleteItem(item);
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit'),
                     ),
-                  );
-                },
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete'),
+                    ),
+                  ],
+                )
+                    : null,
               ),
-            ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
