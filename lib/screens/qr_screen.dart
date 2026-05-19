@@ -35,11 +35,10 @@ class _QrScreenState extends State<QrScreen> {
   EmergencyAccessTokenModel? _tokenRow;
   String _qrData = '';
   final _notesController = TextEditingController();
-  final _expiresAtController = TextEditingController();
+  DateTime? _selectedExpiresAt;
 
   String? _resolvePatientId() {
-    return widget.patientId ??
-        PatientSessionService.instance.current?.patientId;
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   Map<String, dynamic> _buildQrEnvelope({
@@ -54,14 +53,57 @@ class _QrScreenState extends State<QrScreen> {
       'issued_at': DateTime.now().toIso8601String(),
     };
 
-    // The DB now returns the same shape from resolve_emergency_access_token().
-    // Keeping this snapshot in the QR gives the emergency screen useful
-    // fallback data if a scan happens with poor connectivity.
+    // Keep a compact offline snapshot in the QR payload so emergency view still has something useful if the device is offline.
     if (summary != null) {
       envelope['offline_summary'] = summary;
     }
 
     return envelope;
+  }
+
+  String _buildEmergencyLink({
+    required String token,
+    required String patientId,
+    required Map<String, dynamic>? summary,
+  }) {
+    final payload = EmergencyPayloadService.encodePayload(
+      _buildQrEnvelope(token: token, patientId: patientId, summary: summary),
+    );
+
+    // Deep link, so the QR opens the app instead of exposing raw text in UI.
+    return Uri(
+      scheme: 'healthapp',
+      host: 'emergency',
+      queryParameters: {'payload': payload},
+    ).toString();
+  }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) return 'Not set';
+    final local = value.toLocal();
+    final yyyy = local.year.toString().padLeft(4, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  Future<void> _pickExpiryDate() async {
+    final now = DateTime.now();
+    final initialDate = _selectedExpiresAt ?? now.add(const Duration(days: 30));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 3650)),
+      helpText: 'Select expiry date',
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      _selectedExpiresAt = picked;
+    });
   }
 
   @override
@@ -73,7 +115,6 @@ class _QrScreenState extends State<QrScreen> {
   @override
   void dispose() {
     _notesController.dispose();
-    _expiresAtController.dispose();
     super.dispose();
   }
 
@@ -89,9 +130,6 @@ class _QrScreenState extends State<QrScreen> {
       return;
     }
 
-    // The owner QR should now represent the emergency token lifecycle,
-    // not just a patient ID. The QR payload is a small JSON envelope that
-    // carries the token string and can be decoded by the emergency screen.
     final summary = await _patientService.fetchEmergencySummary(patientId);
 
     final rows = await _supabase
@@ -113,15 +151,16 @@ class _QrScreenState extends State<QrScreen> {
       _patientId = patientId;
       _summary = summary;
       _tokenRow = tokenRow;
+
+      // QR stores a deep link, not a raw base64 block shown in the UI.
       _qrData = tokenRow?.token == null
           ? ''
-          : EmergencyPayloadService.encodePayload(
-              _buildQrEnvelope(
-                token: tokenRow!.token!,
-                patientId: patientId,
-                summary: summary,
-              ),
-            );
+          : _buildEmergencyLink(
+        token: tokenRow!.token!,
+        patientId: patientId,
+        summary: summary,
+      );
+
       _loading = false;
     });
   }
@@ -133,20 +172,27 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      final parsedExpiry = _expiresAtController.text.trim().isEmpty
+      // The user picks a calendar date, not a raw ISO text string.
+      final parsedExpiry = _selectedExpiresAt == null
           ? null
-          : DateTime.tryParse(_expiresAtController.text.trim());
+          : DateTime(
+        _selectedExpiresAt!.year,
+        _selectedExpiresAt!.month,
+        _selectedExpiresAt!.day,
+        23,
+        59,
+        59,
+      );
 
-      // Insert minimal fields only; the DB generates the token value.
       final response = await _supabase
           .from('emergency_access_tokens')
           .insert({
-            'patient_id': patientId,
-            'notes': _notesController.text.trim().isEmpty
-                ? null
-                : _notesController.text.trim(),
-            'expires_at': parsedExpiry?.toIso8601String(),
-          })
+        'patient_id': patientId,
+        'notes': _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
+        'expires_at': parsedExpiry?.toIso8601String(),
+      })
           .select()
           .single();
 
@@ -159,23 +205,21 @@ class _QrScreenState extends State<QrScreen> {
         _tokenRow = tokenRow;
         _qrData = tokenRow.token == null
             ? ''
-            : EmergencyPayloadService.encodePayload(
-                _buildQrEnvelope(
-                  token: tokenRow.token!,
-                  patientId: patientId,
-                  summary: _summary,
-                ),
-              );
+            : _buildEmergencyLink(
+          token: tokenRow.token!,
+          patientId: patientId,
+          summary: _summary,
+        );
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Emergency token created.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Emergency token created.')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Token creation failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Token creation failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -188,25 +232,26 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      await _supabase
-          .from('emergency_access_tokens')
-          .update({
-            'is_active': false,
-            'revoked_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', tokenId);
+      await _supabase.from('emergency_access_tokens').update({
+        'is_active': false,
+        'revoked_at': DateTime.now().toIso8601String(),
+      }).eq('id', tokenId);
 
       await _load();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Emergency token revoked.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Emergency token revoked. Scans should no longer resolve as active.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Revoke failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Revoke failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -216,9 +261,9 @@ class _QrScreenState extends State<QrScreen> {
     if (_qrData.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: _qrData));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('QR payload copied.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('QR link copied.')),
+    );
   }
 
   @override
@@ -240,110 +285,124 @@ class _QrScreenState extends State<QrScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patientName.isEmpty
-                              ? 'Emergency access token'
-                              : patientName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Patient ID: $_patientId'),
-                        Text(
-                          'Current token: ${_tokenRow?.token ?? 'No active token'}',
-                        ),
-                        Text(
-                          'Status: ${_tokenRow == null ? 'none' : (_tokenRow!.isActive ? 'active' : 'revoked')}',
-                        ),
-                        Text(
-                          'Expires: ${_tokenRow?.expiresAt?.toIso8601String() ?? 'Not set'}',
-                        ),
-                        Text(
-                          'Created at: ${_tokenRow?.createdAt?.toIso8601String() ?? 'Unknown'}',
-                        ),
-                      ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patientName.isEmpty
+                        ? 'Emergency access token'
+                        : patientName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (_qrData.isNotEmpty)
-                  Center(
-                    child: Column(
-                      children: [
-                        // This QR encodes the token envelope, not a raw patient ID.
-                        QrImageView(data: _qrData, size: 240),
-                        const SizedBox(height: 16),
-                        SelectableText(_qrData, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _copyQrData,
-                          icon: const Icon(Icons.copy),
-                          label: const Text('Copy QR payload'),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 8),
+                  Text('Patient ID: $_patientId'),
+                  Text(
+                    'Current token: ${_tokenRow?.token ?? 'No active token'}',
                   ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Create / update token',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes',
-                    hintText: 'Optional reason or context',
+                  Text(
+                    'Status: ${_tokenRow == null ? 'none' : (_tokenRow!.isActive ? 'active' : 'revoked')}',
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _expiresAtController,
-                  decoration: const InputDecoration(
-                    labelText: 'Expires at',
-                    hintText: 'ISO datetime, for example 2026-05-16T18:00:00',
+                  Text(
+                    'Expires: ${_tokenRow?.expiresAt?.toIso8601String() ?? 'Not set'}',
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _saving ? null : _createToken,
-                        child: _saving
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Create token'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving || _tokenRow?.id == null
-                            ? null
-                            : _revokeToken,
-                        child: const Text('Revoke token'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  Text(
+                    'Created at: ${_tokenRow?.createdAt?.toIso8601String() ?? 'Unknown'}',
+                  ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: 16),
+          if (_qrData.isNotEmpty)
+            Center(
+              child: Column(
+                children: [
+                  // QR opens the deep link, not a raw visible token block.
+                  QrImageView(data: _qrData, size: 240),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Scan this code with the phone camera or a QR reader.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _copyQrData,
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copy QR link'),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
+          const Text(
+            'Create / update token',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notesController,
+            decoration: const InputDecoration(
+              labelText: 'Notes',
+              hintText: 'Optional reason or context',
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: _pickExpiryDate,
+            borderRadius: BorderRadius.circular(12),
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Expiry date',
+                helperText: 'Pick a date from the calendar',
+                border: OutlineInputBorder(),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  _formatDate(_selectedExpiresAt),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _saving ? null : _createToken,
+                  child: _saving
+                      ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text('Create token'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saving || _tokenRow?.id == null
+                      ? null
+                      : _revokeToken,
+                  child: const Text('Revoke token'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
