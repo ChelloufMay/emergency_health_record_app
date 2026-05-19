@@ -21,9 +21,8 @@ class _EmergencyAccessTokenScreenState
   final EmergencyAccessTokenService _service = EmergencyAccessTokenService();
   final PatientService _patientService = PatientService();
 
-  final TextEditingController _expiryDaysController = TextEditingController(
-    text: '30',
-  );
+  // Replaced the raw days text field with a proper calendar date picker.
+  DateTime? _selectedExpiryDate = DateTime.now().add(const Duration(days: 30));
   final TextEditingController _notesController = TextEditingController();
 
   bool _loading = true;
@@ -40,7 +39,6 @@ class _EmergencyAccessTokenScreenState
 
   @override
   void dispose() {
-    _expiryDaysController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -53,6 +51,14 @@ class _EmergencyAccessTokenScreenState
     final hh = dateTime.hour.toString().padLeft(2, '0');
     final mm = dateTime.minute.toString().padLeft(2, '0');
     return '$y-$m-$d $hh:$mm';
+  }
+
+  String _formatDate(DateTime? dateTime) {
+    if (dateTime == null) return 'Use DB default';
+    final y = dateTime.year.toString().padLeft(4, '0');
+    final m = dateTime.month.toString().padLeft(2, '0');
+    final d = dateTime.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   String _shortToken(String? token) {
@@ -71,6 +77,20 @@ class _EmergencyAccessTokenScreenState
 
     final identity = await _patientService.resolveIdentity();
     return identity?.patientProfileId;
+  }
+
+  Future<void> _pickExpiryDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 3650)),
+      initialDate: _selectedExpiryDate ?? now.add(const Duration(days: 30)),
+      helpText: 'Select expiry date',
+    );
+
+    if (picked == null) return;
+    setState(() => _selectedExpiryDate = picked);
   }
 
   Future<void> _load() async {
@@ -108,16 +128,15 @@ class _EmergencyAccessTokenScreenState
   Future<void> _copyToken(String token) async {
     await Clipboard.setData(ClipboardData(text: token));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Token copied to clipboard.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Token copied to clipboard.')),
+    );
   }
 
   Future<void> _createToken() async {
     final patientId = _patientId;
     if (patientId == null || patientId.isEmpty) return;
 
-    final expiryDays = int.tryParse(_expiryDaysController.text.trim()) ?? 30;
     final notes = _notesController.text.trim();
 
     setState(() => _saving = true);
@@ -125,9 +144,18 @@ class _EmergencyAccessTokenScreenState
     try {
       final currentUser = await _patientService.fetchCurrentAppUserRow();
       final createdByUserId = currentUser?['id']?.toString();
-      final expiresAt = expiryDays > 0
-          ? DateTime.now().add(Duration(days: expiryDays))
-          : null;
+
+      // Use a date picked from the calendar and convert it to a timestamp.
+      final expiresAt = _selectedExpiryDate == null
+          ? null
+          : DateTime(
+        _selectedExpiryDate!.year,
+        _selectedExpiryDate!.month,
+        _selectedExpiryDate!.day,
+        23,
+        59,
+        59,
+      );
 
       final created = await _service.create(
         patientId: patientId,
@@ -137,21 +165,19 @@ class _EmergencyAccessTokenScreenState
       );
 
       if (!mounted) return;
-      _expiryDaysController.text = '30';
       _notesController.clear();
-
       setState(() {
         _tokens = [created, ..._tokens];
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Emergency token created.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Emergency token created.')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Create failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Create failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -164,15 +190,15 @@ class _EmergencyAccessTokenScreenState
     try {
       await _service.revoke(tokenId);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Token revoked.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Token revoked.')),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Revoke failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Revoke failed: $e')),
+      );
     }
   }
 
@@ -256,69 +282,78 @@ class _EmergencyAccessTokenScreenState
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  const Text(
-                    'Create a new break-glass token',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _expiryDaysController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Expiry in days',
-                      helperText:
-                          'Use 0 or leave empty to keep the DB default.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes',
-                      hintText: 'Optional note for this token',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _saving ? null : _createToken,
-                    icon: const Icon(Icons.add),
-                    label: _saving
-                        ? const Text('Creating...')
-                        : const Text('Create token'),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Tokens',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text('${_tokens.length} total'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_tokens.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 24),
-                      child: Center(
-                        child: Text('No emergency access tokens yet.'),
-                      ),
-                    )
-                  else
-                    ..._tokens.map(_buildTokenCard),
-                ],
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Create a new break-glass token',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickExpiryDate,
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Expiry date',
+                  helperText: 'Pick a date from the calendar',
+                  border: OutlineInputBorder(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(_formatDate(_selectedExpiryDate)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notesController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                hintText: 'Optional note for this token',
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _saving ? null : _createToken,
+              icon: const Icon(Icons.add),
+              label: _saving
+                  ? const Text('Creating...')
+                  : const Text('Create token'),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Tokens',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text('${_tokens.length} total'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_tokens.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 24),
+                child: Center(
+                  child: Text('No emergency access tokens yet.'),
+                ),
+              )
+            else
+              ..._tokens.map(_buildTokenCard),
+          ],
+        ),
+      ),
     );
   }
 }
