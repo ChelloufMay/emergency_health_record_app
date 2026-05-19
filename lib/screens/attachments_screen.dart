@@ -42,8 +42,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
   }
 
   String? _resolvePatientId() {
-    return widget.patientId ??
-        PatientSessionService.instance.current?.patientId;
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   Future<void> _load() async {
@@ -64,7 +63,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     });
   }
 
-  // CHANGED: attachment upload flow now picks a real file and uploads it to Storage.
+  // CHANGED: upload flow now supports a real file picker and storage upload.
   Future<void> _openEditor({AttachmentModel? initial}) async {
     if (!widget.canEdit) return;
     final patientId = _patientId;
@@ -132,7 +131,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
       setDialogState(() {});
     }
 
-    Future<void> pickDocumentDate(StateSetter setDialogState) async {
+    Future<void> pickDate(StateSetter setDialogState) async {
       final picked = await showDatePicker(
         context: context,
         firstDate: DateTime(1900),
@@ -228,10 +227,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                     ),
                     if (pickedFileName != null) ...[
                       const SizedBox(height: 8),
-                      Text(
-                        pickedFileName!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      Text(pickedFileName!, style: const TextStyle(fontSize: 12)),
                     ],
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -282,9 +278,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                             : documentDate!.toIso8601String().split('T').first,
                       ),
                       trailing: IconButton(
-                        onPressed: saving
-                            ? null
-                            : () => pickDocumentDate(setDialogState),
+                        onPressed: saving ? null : () => pickDate(setDialogState),
                         icon: const Icon(Icons.calendar_month),
                       ),
                     ),
@@ -309,9 +303,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     storagePathController.dispose();
     descriptionController.dispose();
 
-    if (saved == true) {
-      await _load();
-    }
+    if (saved == true) await _load();
   }
 
   // CHANGED: delete now asks for confirmation first.
@@ -333,13 +325,11 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     await _load();
   }
 
-  // CHANGED: open file using a signed/public URL from Storage.
   Future<void> _openItem(AttachmentModel item) async {
     try {
       final url = await _service.getOpenUrl(item.storagePath);
-      final uri = Uri.parse(url);
       final launched = await launchUrl(
-        uri,
+        Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {

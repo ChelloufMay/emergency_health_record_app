@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // CHANGED: responsive ListView + Wrap removes cramped cards and overflow.
+      // CHANGED: responsive layout prevents the overflow warnings.
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(

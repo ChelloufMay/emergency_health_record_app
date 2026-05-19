@@ -19,9 +19,7 @@ class AttachmentService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map(
-          (row) => AttachmentModel.fromMap(Map.from(row as Map)),
-    )
+        .map((row) => AttachmentModel.fromMap(Map.from(row as Map)))
         .toList();
   }
 
@@ -34,15 +32,13 @@ class AttachmentService {
     final safeName = requireText(fileName, 'File name')
         .replaceAll(RegExp(r'\s+'), '_')
         .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-
-    final ts = DateTime.now().millisecondsSinceEpoch;
     final ext = (extension ?? '').trim();
-    final safeExt = ext.isEmpty ? '' : '.${ext.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}';
+    final safeExt =
+    ext.isEmpty ? '' : '.${ext.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}';
 
-    return '$pid/${ts}_$safeName$safeExt';
+    return '$pid/${DateTime.now().millisecondsSinceEpoch}_$safeName$safeExt';
   }
 
-  // CHANGED: upload the actual file bytes to Supabase Storage.
   Future<String> uploadFile({
     required String patientId,
     required String fileName,
@@ -59,9 +55,7 @@ class AttachmentService {
       await _supabase.storage.from('attachments').uploadBinary(
         storagePath,
         bytes,
-        fileOptions: const FileOptions(
-          upsert: true,
-        ),
+        fileOptions: const FileOptions(upsert: true),
       );
       return storagePath;
     } on PostgrestException catch (e) {
@@ -79,9 +73,8 @@ class AttachmentService {
     final pid = requireText(patientId, 'patientId');
     final uploaderId = requireText(performedByUserId, 'performedByUserId');
     final fileName = requireText(attachment.fileName, 'File name');
-    final fileKind = attachment.fileKind.trim().isEmpty
-        ? 'other'
-        : attachment.fileKind.trim();
+    final fileKind =
+    attachment.fileKind.trim().isEmpty ? 'other' : attachment.fileKind.trim();
     final storagePath = attachment.storagePath.trim().isNotEmpty
         ? attachment.storagePath.trim()
         : buildStoragePath(patientId: pid, fileName: fileName);
@@ -122,7 +115,6 @@ class AttachmentService {
     }
   }
 
-  // CHANGED: return a URL that can be opened by the device.
   Future<String> getOpenUrl(String storagePath) async {
     final path = requireText(storagePath, 'storagePath');
 
@@ -132,7 +124,6 @@ class AttachmentService {
         60 * 10,
       );
     } on StorageException {
-      // Fallback for public buckets.
       return _supabase.storage.from('attachments').getPublicUrl(path);
     }
   }
@@ -144,7 +135,7 @@ class AttachmentService {
     try {
       final row = await _supabase
           .from('attachments')
-          .select('storage_path, file_name')
+          .select('storage_path')
           .eq('id', rowId)
           .maybeSingle();
 
@@ -154,11 +145,9 @@ class AttachmentService {
           .eq('id', rowId)
           .eq('patient_id', pid);
 
-      if (row != null) {
-        final storagePath = row['storage_path']?.toString();
-        if (storagePath != null && storagePath.isNotEmpty) {
-          await _supabase.storage.from('attachments').remove([storagePath]);
-        }
+      final storagePath = row?['storage_path']?.toString();
+      if (storagePath != null && storagePath.isNotEmpty) {
+        await _supabase.storage.from('attachments').remove([storagePath]);
       }
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Attachment delete'));
