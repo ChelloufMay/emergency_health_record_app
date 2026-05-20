@@ -14,12 +14,16 @@ import 'screens/caregiver_dashboard_screen.dart';
 import 'screens/caregiver_patient_detail_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/caregiver_screen.dart';
-import 'screens/conditions_screen.dart';
+import 'screens/clinician_choice_screen.dart';
+import 'screens/clinician_dashboard_screen.dart';
 import 'screens/clinician_profile_screen.dart';
+import 'screens/conditions_screen.dart';
 import 'screens/emergency_access_token_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/family_doctor_screen.dart';
 import 'screens/family_history_screen.dart';
+import 'screens/guardian_choice_screen.dart';
+import 'screens/guardian_dashboard_screen.dart';
 import 'screens/guardian_profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/hospitalizations_screen.dart';
@@ -27,6 +31,8 @@ import 'screens/lifestyle_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/medical_summary_screen.dart';
 import 'screens/medications_screen.dart';
+import 'screens/password_reset_screen.dart';
+import 'screens/patient_detail_screen.dart';
 import 'screens/patient_notifications_screen.dart';
 import 'screens/patient_risk_predictions_screen.dart';
 import 'screens/profile_screen.dart';
@@ -92,11 +98,14 @@ class _MyAppState extends State<MyApp> {
 
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-      (data) async {
+          (data) async {
         debugPrint('Auth event: ${data.event}');
         switch (data.event) {
           case AuthChangeEvent.signedOut:
             _goLogin();
+            break;
+          case AuthChangeEvent.passwordRecovery:
+            _goResetPassword();
             break;
           case AuthChangeEvent.signedIn:
           case AuthChangeEvent.initialSession:
@@ -120,10 +129,17 @@ class _MyAppState extends State<MyApp> {
       if (uri.scheme != 'healthapp') return;
 
       if (uri.host == 'auth-callback') {
+        final isRecovery = uri.queryParameters['type'] == 'recovery' ||
+            uri.queryParameters['recovery'] == 'true' ||
+            uri.toString().contains('type=recovery');
+
         nav.pushNamedAndRemoveUntil(
-          '/auth-callback',
-          (route) => false,
-          arguments: {'uri': uri.toString()},
+          isRecovery ? '/reset-password' : '/auth-callback',
+              (route) => false,
+          arguments: {
+            'uri': uri.toString(),
+            'isRecovery': isRecovery,
+          },
         );
         return;
       }
@@ -132,7 +148,7 @@ class _MyAppState extends State<MyApp> {
         final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
         nav.pushNamedAndRemoveUntil(
           '/emergency',
-          (route) => false,
+              (route) => false,
           arguments: (payload != null && payload.isNotEmpty)
               ? {'payload': payload}
               : null,
@@ -151,7 +167,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) {
+          (uri) {
         _initialLinkHandled = true;
         handleUri(uri);
       },
@@ -177,6 +193,15 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  void _goResetPassword() {
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _goResetPassword());
+      return;
+    }
+    nav.pushNamedAndRemoveUntil('/reset-password', (route) => false);
   }
 
   @override
@@ -208,15 +233,19 @@ class _MyAppState extends State<MyApp> {
         switch (settings.name) {
           case '/':
             return MaterialPageRoute(builder: (_) => const WelcomeScreen());
+
           case '/login':
             return MaterialPageRoute(builder: (_) => const LoginScreen());
+
           case '/register':
             return MaterialPageRoute(builder: (_) => const RegisterScreen());
+
           case '/entry':
             return MaterialPageRoute(builder: (_) => const RoleRouterScreen());
 
           case '/home':
             return MaterialPageRoute(builder: (_) => const HomeScreen());
+
           case '/profile':
             return MaterialPageRoute(builder: (_) => const ProfileScreen());
 
@@ -225,41 +254,80 @@ class _MyAppState extends State<MyApp> {
               builder: (_) =>
                   EmergencyScreen(payload: args['payload'] as String?),
             );
+
           case '/qr':
             return MaterialPageRoute(builder: (_) => const QrScreen());
 
           case '/caregivers':
             return MaterialPageRoute(builder: (_) => const CaregiverScreen());
+
           case '/caregiver_choice':
             return MaterialPageRoute(
               builder: (_) => const CaregiverChoiceScreen(),
             );
+
+          case '/guardian_choice':
+            return MaterialPageRoute(
+              builder: (_) => const GuardianChoiceScreen(),
+            );
+
+          case '/clinician_choice':
+            return MaterialPageRoute(
+              builder: (_) => const ClinicianChoiceScreen(),
+            );
+
           case '/access_dashboard':
             return MaterialPageRoute(
               builder: (_) => const AccessDashboardScreen(),
             );
+
           case '/caregiver_dashboard':
             return MaterialPageRoute(
               builder: (_) => const CaregiverDashboardScreen(),
             );
+
+          case '/guardian_dashboard':
+            return MaterialPageRoute(
+              builder: (_) => const GuardianDashboardScreen(),
+            );
+
+          case '/clinician_dash!board':
+            return MaterialPageRoute(
+              builder: (_) => const ClinicianDashboardScreen(),
+            );
+
+          case '/patient_detail':
+            return MaterialPageRoute(
+              builder: (_) => PatientDetailScreen(
+                patientId: args['patientId'] as String? ?? '',
+                patientName: args['patientName'] as String? ?? 'Patient',
+                permission: args['permission'] as String? ?? 'read',
+                roleLabel: args['roleLabel'] as String? ?? 'unknown',
+              ),
+            );
+
           case '/caregiver_patient_detail':
             return MaterialPageRoute(
               builder: (_) => CaregiverPatientDetailScreen(
                 patientId: args['patientId'] as String?,
               ),
             );
+
           case '/caregiver_profile':
             return MaterialPageRoute(
               builder: (_) => const CaregiverProfileScreen(),
             );
+
           case '/guardian_profile':
             return MaterialPageRoute(
               builder: (_) => const GuardianProfileScreen(),
             );
+
           case '/clinician_profile':
             return MaterialPageRoute(
               builder: (_) => const ClinicianProfileScreen(),
             );
+
           case '/audit_log':
             return MaterialPageRoute(builder: (_) => const AuditLogScreen());
 
@@ -271,6 +339,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/allergies':
             return MaterialPageRoute(
               builder: (_) => AllergiesScreen(
@@ -279,6 +348,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/medications':
             return MaterialPageRoute(
               builder: (_) => MedicationsScreen(
@@ -287,6 +357,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/conditions':
             return MaterialPageRoute(
               builder: (_) => ConditionsScreen(
@@ -295,6 +366,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/surgeries':
             return MaterialPageRoute(
               builder: (_) => SurgeriesScreen(
@@ -303,6 +375,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/hospitalizations':
             return MaterialPageRoute(
               builder: (_) => HospitalizationsScreen(
@@ -311,6 +384,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/vaccinations':
             return MaterialPageRoute(
               builder: (_) => VaccinationsScreen(
@@ -319,6 +393,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/lifestyle':
             return MaterialPageRoute(
               builder: (_) => LifestyleScreen(
@@ -327,6 +402,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/family_history':
             return MaterialPageRoute(
               builder: (_) => FamilyHistoryScreen(
@@ -335,6 +411,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/reproductive_health':
             return MaterialPageRoute(
               builder: (_) => ReproductiveHealthScreen(
@@ -343,6 +420,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/family_doctor':
             return MaterialPageRoute(
               builder: (_) => FamilyDoctorScreen(
@@ -351,6 +429,7 @@ class _MyAppState extends State<MyApp> {
                 isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
               ),
             );
+
           case '/attachments':
             return MaterialPageRoute(
               builder: (_) => AttachmentsScreen(
@@ -364,14 +443,17 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               builder: (_) => const PatientRiskPredictionsScreen(),
             );
+
           case '/emergency_access_tokens':
             return MaterialPageRoute(
               builder: (_) => const EmergencyAccessTokenScreen(),
             );
+
           case '/verification_labels':
             return MaterialPageRoute(
               builder: (_) => const VerificationLabelsScreen(),
             );
+
           case '/patient_notifications':
             return MaterialPageRoute(
               builder: (_) => const PatientNotificationsScreen(),
@@ -379,9 +461,15 @@ class _MyAppState extends State<MyApp> {
 
           case '/auth-callback':
             return MaterialPageRoute(
-              builder: (_) =>
-                  AuthCallbackScreen(callbackUri: args['uri'] as String?),
+              builder: (_) => AuthCallbackScreen(
+                callbackUri: args['uri'] as String?,
+                isRecovery: args['isRecovery'] as bool? ?? false,
+              ),
             );
+
+          case '/reset-password':
+            return MaterialPageRoute(builder: (_) => const PasswordResetScreen());
+
           case '/settings':
             return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
@@ -389,10 +477,13 @@ class _MyAppState extends State<MyApp> {
             if (settings.name != null &&
                 settings.name!.contains('auth-callback')) {
               return MaterialPageRoute(
-                builder: (_) =>
-                    AuthCallbackScreen(callbackUri: args['uri'] as String?),
+                builder: (_) => AuthCallbackScreen(
+                  callbackUri: args['uri'] as String?,
+                  isRecovery: args['isRecovery'] as bool? ?? false,
+                ),
               );
             }
+
             return MaterialPageRoute(
               builder: (_) => Scaffold(
                 body: Center(child: Text('Route not found: ${settings.name}')),
@@ -406,8 +497,13 @@ class _MyAppState extends State<MyApp> {
 
 class AuthCallbackScreen extends StatefulWidget {
   final String? callbackUri;
+  final bool isRecovery;
 
-  const AuthCallbackScreen({super.key, this.callbackUri});
+  const AuthCallbackScreen({
+    super.key,
+    this.callbackUri,
+    this.isRecovery = false,
+  });
 
   @override
   State<AuthCallbackScreen> createState() => _AuthCallbackScreenState();
@@ -430,7 +526,9 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       final rawUri = widget.callbackUri;
       if (rawUri != null && rawUri.trim().isNotEmpty) {
         final uri = Uri.parse(rawUri);
-        await Supabase.instance.client.auth.getSessionFromUrl(uri);
+        if (!widget.isRecovery) {
+          await Supabase.instance.client.auth.getSessionFromUrl(uri);
+        }
       }
     } catch (e) {
       debugPrint('Auth callback exchange failed: $e');
@@ -439,6 +537,14 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     await Future.delayed(const Duration(milliseconds: 250));
 
     if (!mounted) return;
+
+    if (widget.isRecovery) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/reset-password',
+            (route) => false,
+      );
+      return;
+    }
 
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {

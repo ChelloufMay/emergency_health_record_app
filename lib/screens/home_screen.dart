@@ -168,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
-              if (!mounted) return;
+              if (!context.mounted) return;
               Navigator.of(context).pushNamedAndRemoveUntil(
                 '/login',
                     (route) => false,

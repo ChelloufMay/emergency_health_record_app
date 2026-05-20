@@ -348,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
-              if (!mounted) return;
+              if (!context.mounted) return;
               Navigator.of(
                 context,
               ).pushNamedAndRemoveUntil('/login', (route) => false);

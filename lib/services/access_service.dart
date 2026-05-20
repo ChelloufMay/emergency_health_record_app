@@ -2,19 +2,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/access_grant_model.dart';
 import '../models/access_invite_model.dart';
+import '../models/patient_access_row_model.dart';
 
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<List<Map<String, dynamic>>> fetchMyAccessDashboardRows() async {
-    // CHANGED: keeps the dashboard backed by the DB view already used by the app.
+  Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
     final rows = await _supabase
         .from('patient_access_dashboard')
         .select()
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
+        .map((row) => PatientAccessRowModel.fromMap(
+      Map<String, dynamic>.from(row as Map),
+    ))
         .toList();
   }
 
@@ -26,7 +28,9 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessGrantModel.fromMap(Map<String, dynamic>.from(e as Map)))
+        .map((e) => AccessGrantModel.fromMap(
+      Map<String, dynamic>.from(e as Map),
+    ))
         .toList();
   }
 
@@ -38,11 +42,12 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessInviteModel.fromMap(Map<String, dynamic>.from(e as Map)))
+        .map((e) => AccessInviteModel.fromMap(
+      Map<String, dynamic>.from(e as Map),
+    ))
         .toList();
   }
 
-  // CHANGED: useful for invite receivers who just want to see their pending items.
   Future<List<AccessInviteModel>> fetchMyPendingInvites() async {
     final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
     if (email == null || email.isEmpty) return const [];
@@ -55,7 +60,9 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessInviteModel.fromMap(Map<String, dynamic>.from(e as Map)))
+        .map((e) => AccessInviteModel.fromMap(
+      Map<String, dynamic>.from(e as Map),
+    ))
         .toList();
   }
 
@@ -70,6 +77,7 @@ class AccessService {
     if (rows is List) {
       return rows.map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
+
     return const [];
   }
 
@@ -92,6 +100,7 @@ class AccessService {
         '_notes': notes,
       },
     );
+
     return result.toString();
   }
 
@@ -100,6 +109,7 @@ class AccessService {
       'accept_access_invite',
       params: {'_invite_token': inviteToken},
     );
+
     return result.toString();
   }
 
@@ -108,6 +118,7 @@ class AccessService {
       'reject_access_invite',
       params: {'_invite_token': inviteToken},
     );
+
     return result.toString();
   }
 

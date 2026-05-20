@@ -1,86 +1,19 @@
 import 'package:flutter/material.dart';
-
-import '../services/auth_service.dart';
+import 'role_hub_screen.dart';
 
 class CaregiverChoiceScreen extends StatelessWidget {
   const CaregiverChoiceScreen({super.key});
 
-  Future<void> _signOut(BuildContext context) async {
-    await AuthService().signOut();
-    if (!context.mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-  }
-
-  void _open(BuildContext context, String routeName) {
-    Navigator.pushNamed(context, routeName);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // CHANGED: caregiver hub only.
-      appBar: AppBar(
-        title: const Text('Caregiver hub'),
-        actions: [
-          IconButton(
-            onPressed: () => _open(context, '/settings'),
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-          ),
-          IconButton(
-            onPressed: () => _signOut(context),
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Use this hub to reach your dashboard, pending invites, profile, and settings.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.dashboard_outlined),
-              title: const Text('Caregiver dashboard'),
-              subtitle: const Text('Patients you are responsible for'),
-              onTap: () => _open(context, '/caregiver_dashboard'),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.inbox_outlined),
-              title: const Text('Invites & access'),
-              subtitle: const Text('Accept or reject pending invites'),
-              onTap: () => _open(context, '/access_dashboard'),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.badge_outlined),
-              title: const Text('Caregiver profile'),
-              subtitle: const Text('Edit caregiver profile data'),
-              onTap: () => _open(context, '/caregiver_profile'),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
-              subtitle: const Text('Change password, recovery, sign out'),
-              onTap: () => _open(context, '/settings'),
-            ),
-          ),
-        ],
-      ),
+    return const RoleHubScreen(
+      title: 'Caregiver hub',
+      description:
+      'Use this hub to reach your caregiver dashboard, pending invites, profile, and settings.',
+      dashboardRoute: '/caregiver_dashboard',
+      accessRoute: '/access_dashboard',
+      profileRoute: '/caregiver_profile',
+      settingsRoute: '/settings',
     );
   }
 }

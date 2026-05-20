@@ -4,9 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/patient_session_service.dart';
 import 'caregiver_choice_screen.dart';
 import 'caregiver_profile_screen.dart';
-import 'clinician_choice_screen.dart'; // NEW
+import 'clinician_choice_screen.dart';
 import 'clinician_profile_screen.dart';
-import 'guardian_choice_screen.dart'; // NEW
+import 'guardian_choice_screen.dart';
 import 'guardian_profile_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -33,9 +33,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
     final session = client.auth.currentSession;
     final authUser = session?.user;
 
-    if (authUser == null) {
-      return const LoginScreen();
-    }
+    if (authUser == null) return const LoginScreen();
 
     final userRow = await client
         .from('users')
@@ -43,9 +41,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
 
-    if (userRow == null) {
-      return const LoginScreen();
-    }
+    if (userRow == null) return const LoginScreen();
 
     final role = (userRow['role'] as String?) ?? 'owner';
 
@@ -84,7 +80,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const CaregiverProfileScreen();
       }
 
-      // CHANGED: caregiver lands on caregiver hub.
       return const CaregiverChoiceScreen();
     }
 
@@ -99,7 +94,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const GuardianProfileScreen();
       }
 
-      // CHANGED: guardian lands on guardian hub.
       return const GuardianChoiceScreen();
     }
 
@@ -114,7 +108,6 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const ClinicianProfileScreen();
       }
 
-      // CHANGED: clinician lands on clinician hub.
       return const ClinicianChoiceScreen();
     }
 
