@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final AuthService _authService = AuthService();
 
   String? _fullName;
   String? _email;
@@ -49,16 +50,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // CHANGED: password updates go through AuthService so the flow is shared.
   Future<void> _showChangePasswordDialog() async {
     final formKey = GlobalKey<FormState>();
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
-
     bool obscurePassword = true;
     bool obscureConfirm = true;
     bool saving = false;
 
-    await showDialog<void>(
+    await showDialog(
       context: context,
       barrierDismissible: !saving,
       builder: (dialogContext) {
@@ -66,24 +67,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           builder: (dialogContext, setDialogState) {
             Future<void> submit() async {
               if (!(formKey.currentState?.validate() ?? false)) return;
-
               setDialogState(() => saving = true);
 
               try {
-                await _supabase.auth.updateUser(
-                  UserAttributes(password: passwordController.text.trim()),
-                );
-
+                await _authService.updatePassword(passwordController.text.trim());
                 if (!dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
-
                 _showSnack('Password updated successfully.');
-              } on AuthException catch (e) {
-                if (!mounted) return;
-                setDialogState(() => saving = false);
-                _showSnack(e.message, error: true);
               } catch (e) {
-                if (!mounted) return;
                 setDialogState(() => saving = false);
                 _showSnack('Could not update password: $e', error: true);
               }
@@ -119,9 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         validator: (value) {
                           final v = value?.trim() ?? '';
                           if (v.isEmpty) return 'Enter a new password';
-                          if (v.length < 8) {
-                            return 'Use at least 8 characters';
-                          }
+                          if (v.length < 8) return 'Use at least 8 characters';
                           return null;
                         },
                       ),
@@ -184,6 +173,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     confirmController.dispose();
   }
 
+  // CHANGED: recovery email is available from settings for every role.
+  Future<void> _sendRecoveryEmail() async {
+    final email = _email?.trim();
+    if (email == null || email.isEmpty) {
+      _showSnack('No email found for this account.', error: true);
+      return;
+    }
+
+    try {
+      await _authService.sendPasswordResetEmail(email: email);
+      _showSnack('Password reset email sent.');
+    } catch (e) {
+      _showSnack('Could not send recovery email: $e', error: true);
+    }
+  }
+
   Future<void> _signOut() async {
     final confirmed = await _confirm(
       title: 'Sign out',
@@ -193,17 +198,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (!confirmed) return;
 
-    await AuthService().signOut();
+    await _authService.signOut();
     if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
 
   Future<void> _deleteAccount() async {
     final confirmed = await _confirm(
       title: 'Delete account',
-      message:
-      'This will permanently delete your account and all health records. '
+      message: 'This will permanently delete your account and all health records.\n\n'
           'This cannot be undone.\n\nContact support to proceed.',
       confirmLabel: 'I understand',
       destructive: true,
@@ -239,6 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+
     return result ?? false;
   }
 
@@ -275,14 +280,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
   }) =>
       ListTile(
-        leading: Icon(
-          icon,
-          color: iconColor ?? Theme.of(context).colorScheme.primary,
-        ),
+        leading: Icon(icon, color: iconColor ?? Theme.of(context).colorScheme.primary),
         title: Text(title, style: TextStyle(color: titleColor)),
         subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing:
-        trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
+        trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
       );
 
@@ -374,7 +375,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-
           _sectionHeader('Profile'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -388,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _tile(
                   icon: Icons.person_outline,
                   title: 'Edit profile',
-                  subtitle: 'Name, blood type, emergency contact',
+                  subtitle: 'Update your personal profile',
                   onTap: () => Navigator.pushNamed(context, '/profile'),
                 ),
                 _divider(),
@@ -396,8 +396,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(
@@ -409,7 +408,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-
           _sectionHeader('Access & Caregivers'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -424,8 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.people_outline,
                   title: 'Caregivers',
                   subtitle: 'Manage who can view or edit your record',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/caregivers'),
+                  onTap: () => Navigator.pushNamed(context, '/caregivers'),
                 ),
                 _divider(),
                 _tile(
@@ -437,7 +434,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-
           _sectionHeader('Security'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -456,6 +452,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 _divider(),
                 _tile(
+                  icon: Icons.email_outlined,
+                  title: 'Send password recovery email',
+                  subtitle: 'Send a reset link to the current email',
+                  onTap: _sendRecoveryEmail,
+                ),
+                _divider(),
+                _tile(
                   icon: Icons.shield_outlined,
                   title: 'Data protection',
                   subtitle: 'Protected by Supabase Auth + RLS',
@@ -468,7 +471,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-
           _sectionHeader('About'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -507,7 +509,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-
           _sectionHeader('Account'),
           Card(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),

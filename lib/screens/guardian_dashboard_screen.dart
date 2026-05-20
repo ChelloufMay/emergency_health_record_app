@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
-class CaregiverChoiceScreen extends StatelessWidget {
-  const CaregiverChoiceScreen({super.key});
+class GuardianDashboardScreen extends StatelessWidget {
+  const GuardianDashboardScreen({super.key});
 
   Future<void> _signOut(BuildContext context) async {
     await AuthService().signOut();
@@ -11,19 +11,15 @@ class CaregiverChoiceScreen extends StatelessWidget {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
-  void _open(BuildContext context, String routeName) {
-    Navigator.pushNamed(context, routeName);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CHANGED: caregiver hub only.
+      // NEW FILE: guardian gets a separate dashboard instead of the caregiver one.
       appBar: AppBar(
-        title: const Text('Caregiver hub'),
+        title: const Text('Guardian dashboard'),
         actions: [
           IconButton(
-            onPressed: () => _open(context, '/settings'),
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
           ),
@@ -41,7 +37,8 @@ class CaregiverChoiceScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Use this hub to reach your dashboard, pending invites, profile, and settings.',
+                'Guardian access depends on the DB permission attached to each patient. '
+                    'Use the access dashboard to review the invites and the patients you can see.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -49,34 +46,26 @@ class CaregiverChoiceScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.dashboard_outlined),
-              title: const Text('Caregiver dashboard'),
-              subtitle: const Text('Patients you are responsible for'),
-              onTap: () => _open(context, '/caregiver_dashboard'),
-            ),
-          ),
-          Card(
-            child: ListTile(
               leading: const Icon(Icons.inbox_outlined),
               title: const Text('Invites & access'),
-              subtitle: const Text('Accept or reject pending invites'),
-              onTap: () => _open(context, '/access_dashboard'),
+              subtitle: const Text('Accept, reject, or review shared access'),
+              onTap: () => Navigator.pushNamed(context, '/access_dashboard'),
             ),
           ),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.badge_outlined),
-              title: const Text('Caregiver profile'),
-              subtitle: const Text('Edit caregiver profile data'),
-              onTap: () => _open(context, '/caregiver_profile'),
+              leading: const Icon(Icons.family_restroom_outlined),
+              title: const Text('Guardian profile'),
+              subtitle: const Text('Edit your guardian profile'),
+              onTap: () => Navigator.pushNamed(context, '/guardian_profile'),
             ),
           ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              subtitle: const Text('Change password, recovery, sign out'),
-              onTap: () => _open(context, '/settings'),
+              subtitle: const Text('Password, recovery, sign out'),
+              onTap: () => Navigator.pushNamed(context, '/settings'),
             ),
           ),
         ],

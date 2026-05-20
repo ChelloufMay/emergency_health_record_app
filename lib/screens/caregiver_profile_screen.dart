@@ -185,7 +185,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
       );
 
       // New caregivers should land on their dashboard immediately.
-      Navigator.pushReplacementNamed(context, '/caregiver_dashboard');
+      Navigator.pushReplacementNamed(context, '/caregiver_choice');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

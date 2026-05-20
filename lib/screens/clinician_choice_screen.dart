@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
-class CaregiverChoiceScreen extends StatelessWidget {
-  const CaregiverChoiceScreen({super.key});
+class ClinicianChoiceScreen extends StatelessWidget {
+  const ClinicianChoiceScreen({super.key});
 
   Future<void> _signOut(BuildContext context) async {
     await AuthService().signOut();
@@ -18,9 +18,9 @@ class CaregiverChoiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CHANGED: caregiver hub only.
+      // NEW: clinician hub, same structure as caregiver/guardian hubs.
       appBar: AppBar(
-        title: const Text('Caregiver hub'),
+        title: const Text('Clinician hub'),
         actions: [
           IconButton(
             onPressed: () => _open(context, '/settings'),
@@ -41,7 +41,7 @@ class CaregiverChoiceScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Use this hub to reach your dashboard, pending invites, profile, and settings.',
+                'Clinicians can review the patients they are linked to and only edit what the DB permission allows.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -50,9 +50,9 @@ class CaregiverChoiceScreen extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.dashboard_outlined),
-              title: const Text('Caregiver dashboard'),
-              subtitle: const Text('Patients you are responsible for'),
-              onTap: () => _open(context, '/caregiver_dashboard'),
+              title: const Text('Clinician dashboard'),
+              subtitle: const Text('Patients you can access'),
+              onTap: () => _open(context, '/clinician_dashboard'),
             ),
           ),
           Card(
@@ -65,17 +65,17 @@ class CaregiverChoiceScreen extends StatelessWidget {
           ),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.badge_outlined),
-              title: const Text('Caregiver profile'),
-              subtitle: const Text('Edit caregiver profile data'),
-              onTap: () => _open(context, '/caregiver_profile'),
+              leading: const Icon(Icons.local_hospital_outlined),
+              title: const Text('Clinician profile'),
+              subtitle: const Text('Edit clinician profile data'),
+              onTap: () => _open(context, '/clinician_profile'),
             ),
           ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              subtitle: const Text('Change password, recovery, sign out'),
+              subtitle: const Text('Password, recovery, sign out'),
               onTap: () => _open(context, '/settings'),
             ),
           ),

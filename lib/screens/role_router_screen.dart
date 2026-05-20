@@ -3,9 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/patient_session_service.dart';
 import 'caregiver_choice_screen.dart';
-import 'caregiver_dashboard_screen.dart';
 import 'caregiver_profile_screen.dart';
+import 'clinician_choice_screen.dart'; // NEW
 import 'clinician_profile_screen.dart';
+import 'guardian_choice_screen.dart'; // NEW
 import 'guardian_profile_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -83,6 +84,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const CaregiverProfileScreen();
       }
 
+      // CHANGED: caregiver lands on caregiver hub.
       return const CaregiverChoiceScreen();
     }
 
@@ -97,7 +99,8 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const GuardianProfileScreen();
       }
 
-      return const CaregiverDashboardScreen();
+      // CHANGED: guardian lands on guardian hub.
+      return const GuardianChoiceScreen();
     }
 
     if (role == 'clinician') {
@@ -111,7 +114,8 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
         return const ClinicianProfileScreen();
       }
 
-      return const CaregiverDashboardScreen();
+      // CHANGED: clinician lands on clinician hub.
+      return const ClinicianChoiceScreen();
     }
 
     return const LoginScreen();
