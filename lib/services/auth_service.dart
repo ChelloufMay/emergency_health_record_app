@@ -55,6 +55,19 @@ class AuthService {
     );
   }
 
+  // CHANGED: secure deletion request via Edge Function.
+  Future<void> requestAccountDeletion({String? reason}) async {
+    final res = await _supabase.functions.invoke(
+      'request-account-deletion',
+      body: {
+        'reason': reason?.trim().isEmpty == true ? null : reason?.trim(),
+      },
+    );
+    if (res.status < 200 || res.status >= 300) {
+      throw Exception('Deletion request failed');
+    }
+  }
+
   User? get currentUser => _supabase.auth.currentUser;
   Session? get currentSession => _supabase.auth.currentSession;
 }

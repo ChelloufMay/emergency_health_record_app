@@ -33,8 +33,12 @@ class RoleHubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CHANGED: all roles use the same hub pattern.
       appBar: AppBar(
+        leading: Navigator.of(context).canPop()
+            ? BackButton(
+          onPressed: () => Navigator.pop(context),
+        )
+            : null,
         title: Text(title),
         actions: [
           IconButton(

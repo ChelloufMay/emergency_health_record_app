@@ -97,8 +97,12 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CHANGED: same dashboard structure for caregiver/guardian/clinician.
       appBar: AppBar(
+        leading: Navigator.of(context).canPop()
+            ? BackButton(
+          onPressed: () => Navigator.pop(context),
+        )
+            : null,
         title: Text(widget.title),
         actions: [
           IconButton(
@@ -141,9 +145,8 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                     invite.raw['invite_token']?.toString() ??
                     invite.raw['token']?.toString() ??
                     '';
-                final patientName =
-                    invite.raw['patient_name']?.toString() ??
-                        'Unknown patient';
+                final patientName = invite.raw['patient_name']?.toString() ??
+                    'Unknown patient';
                 final permission =
                     invite.raw['permission']?.toString() ?? 'read';
 
@@ -155,16 +158,14 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                       spacing: 8,
                       children: [
                         IconButton(
-                          onPressed: token.isEmpty
-                              ? null
-                              : () => _acceptInvite(token),
+                          onPressed:
+                          token.isEmpty ? null : () => _acceptInvite(token),
                           icon: const Icon(Icons.check),
                           tooltip: 'Accept',
                         ),
                         IconButton(
-                          onPressed: token.isEmpty
-                              ? null
-                              : () => _rejectInvite(token),
+                          onPressed:
+                          token.isEmpty ? null : () => _rejectInvite(token),
                           icon: const Icon(Icons.close),
                           tooltip: 'Reject',
                         ),

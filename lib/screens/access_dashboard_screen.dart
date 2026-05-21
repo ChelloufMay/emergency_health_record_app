@@ -38,12 +38,12 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     setState(() => _loading = true);
 
     try {
-      final rows = await _accessService.fetchMyAccessDashboardRows();
+      final rows = await _accessService.fetchMyAccessDashboardRowMaps();
       final myUserRow = await _patientService.fetchCurrentAppUserRow();
 
       if (!mounted) return;
       setState(() {
-        _rows = rows.cast<Map<String, dynamic>>();
+        _rows = rows;
         _myEmail = myUserRow?['email']?.toString().toLowerCase();
         _loading = false;
       });
@@ -119,16 +119,82 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     await _load();
   }
 
-  Future<void> _acceptInvite(String inviteToken) async {
-    await _accessService.acceptInvite(inviteToken);
-    if (!mounted) return;
-    await _load();
+  Future<void> _acceptInvite(AccessInviteModel invite) async {
+    final token = invite.inviteToken ?? '';
+    if (token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing invite token.')),
+      );
+      return;
+    }
+
+    try {
+      final result = await _accessService.acceptInvite(token);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invite accepted.')),
+      );
+
+      await _load();
+
+      // If the RPC returns a patient id, try to open the refreshed details.
+      String? patientId;
+      if (result is Map) {
+        final map = Map<String, dynamic>.from(result);
+        patientId = map['patient_id']?.toString();
+      } else if (result != null) {
+        final text = result.toString().trim();
+        if (text.isNotEmpty && text != 'null') {
+          patientId = text;
+        }
+      }
+
+      if (patientId != null && patientId.isNotEmpty) {
+        final matchedRow = _rows.where(
+              (row) => row['patient_id']?.toString() == patientId,
+        );
+
+        if (matchedRow.isNotEmpty) {
+          await _showPatientSheet(
+            patientId,
+            title:
+            '${matchedRow.first['first_name']?.toString() ?? ''} ${matchedRow.first['family_name']?.toString() ?? ''}'
+                .trim(),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not accept invite: $e')),
+      );
+    }
   }
 
-  Future<void> _rejectInvite(String inviteToken) async {
-    await _accessService.rejectInvite(inviteToken);
-    if (!mounted) return;
-    await _load();
+  Future<void> _rejectInvite(AccessInviteModel invite) async {
+    final token = invite.inviteToken ?? '';
+    if (token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing invite token.')),
+      );
+      return;
+    }
+
+    try {
+      await _accessService.rejectInvite(token);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invite rejected.')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not reject invite: $e')),
+      );
+    }
   }
 
   Widget _grantCard({
@@ -180,7 +246,8 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     final token = invite.inviteToken ?? '';
     final canSelfAct = _myEmail != null &&
         _myEmail!.trim().isNotEmpty &&
-        invite.invitedEmail.trim().toLowerCase() == _myEmail!.trim().toLowerCase();
+        invite.invitedEmail.trim().toLowerCase() ==
+            _myEmail!.trim().toLowerCase();
 
     return Card(
       child: ListTile(
@@ -195,13 +262,17 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
           children: [
             if (canSelfAct)
               IconButton(
-                onPressed: token.isEmpty ? null : () => _acceptInvite(token),
+                onPressed: token.isEmpty
+                    ? null
+                    : () => _acceptInvite(invite),
                 icon: const Icon(Icons.check),
                 tooltip: 'Accept invite',
               ),
             if (canSelfAct)
               IconButton(
-                onPressed: token.isEmpty ? null : () => _rejectInvite(token),
+                onPressed: token.isEmpty
+                    ? null
+                    : () => _rejectInvite(invite),
                 icon: const Icon(Icons.close),
                 tooltip: 'Reject invite',
               ),
@@ -269,7 +340,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                             (grant) => _grantCard(
                           grant: grant,
                           patientId: patientId,
-                          showActions: true, // CHANGED: edit + revoke on active grants
+                          showActions: true,
                         ),
                       ),
                     const SizedBox(height: 16),
@@ -284,7 +355,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       ...invites.map(
                             (invite) => _inviteCard(
                           invite: invite,
-                          showActions: true, // CHANGED: accept + reject invite
+                          showActions: true,
                         ),
                       ),
                     const SizedBox(height: 24),
@@ -382,7 +453,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       (grant) => _grantCard(
                     grant: grant,
                     patientId: patientId,
-                    showActions: true, // CHANGED
+                    showActions: true,
                   ),
                 ),
               const SizedBox(height: 16),
@@ -397,7 +468,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                 ...invites.map(
                       (invite) => _inviteCard(
                     invite: invite,
-                    showActions: true, // CHANGED
+                    showActions: true,
                   ),
                 ),
             ],

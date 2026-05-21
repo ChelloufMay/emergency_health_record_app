@@ -251,20 +251,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     try {
-      final result = await _supabase.rpc(
-        'request_account_deletion',
-        params: {
-          '_reason': reasonController.text.trim().isEmpty
-              ? null
-              : reasonController.text.trim(),
-        },
+      await _authService.requestAccountDeletion(
+        reason: reasonController.text.trim(),
       );
 
-      _showSnack(
-        'Deletion request sent to the administrator.',
-      );
-
-      debugPrint('Delete request queued: $result');
+      _showSnack('Deletion request sent to the administrator.');
     } catch (e) {
       _showSnack(
         'Could not send deletion request: $e',
@@ -347,7 +338,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(color: titleColor),
         ),
         subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
+        trailing:
+        trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
       );
 
@@ -460,8 +452,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(

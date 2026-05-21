@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/audit_log_model.dart';
 import '../services/audit_service.dart';
@@ -22,14 +23,15 @@ class AuditLogScreen extends StatefulWidget {
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
   final AuditService _auditService = AuditService.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   bool _loading = true;
   String? _patientId;
   List<AuditLogModel> _logs = [];
+  final Map<String, String> _userLabels = {};
 
   String? _resolvePatientId() {
-    return widget.patientId ??
-        PatientSessionService.instance.current?.patientId;
+    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
   @override
@@ -46,9 +48,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       return;
     }
 
-    // This uses the ranked audit view so the newest rows are already ordered
-    // correctly at the DB layer.
     final logs = await _auditService.getRankedAuditLogsForPatient(patientId);
+
+    await _loadUserLabels(logs);
 
     if (!mounted) return;
     setState(() {
@@ -58,27 +60,119 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     });
   }
 
-  String _summary(AuditLogModel log) {
-    final action = log.action;
-    final entity = log.entityType;
-    final field = log.fieldName;
-    final newValue = log.newValue;
+  Future<void> _loadUserLabels(List<AuditLogModel> logs) async {
+    final ids = logs
+        .map((log) => log.performedByUserId)
+        .whereType<String>()
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
 
-    final parts = <String>[
-      action,
-      entity,
-      if ((field ?? '').trim().isNotEmpty) field!,
-      if ((newValue ?? '').trim().isNotEmpty) '→ $newValue',
-    ];
+    if (ids.isEmpty) return;
 
-    return parts.where((e) => e.trim().isNotEmpty).join(' • ');
+    try {
+      final rows = await _supabase
+          .from('users')
+          .select('id, email, full_name')
+          .inFilter('id', ids);
+
+      _userLabels.clear();
+
+      for (final row in rows as List<dynamic>) {
+        final map = row as Map<String, dynamic>;
+        final id = map['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+
+        final email = map['email']?.toString();
+        final fullName = map['full_name']?.toString();
+
+        final label = <String>[
+          if (fullName != null && fullName.trim().isNotEmpty) fullName.trim(),
+          if (email != null && email.trim().isNotEmpty) '<$email>',
+        ].join(' ');
+
+        _userLabels[id] = label.isEmpty ? 'Unknown user' : label;
+      }
+    } catch (e) {
+      debugPrint('Could not load user labels: $e');
+    }
+  }
+
+  String _prettyAction(AuditLogModel log) {
+    final action = log.action.trim().toLowerCase();
+    final entity = log.entityType.trim().replaceAll('_', ' ');
+    final field = (log.fieldName ?? '').trim().replaceAll('_', ' ');
+    final actionLabel = switch (action) {
+      'create' => 'Created',
+      'update' => 'Updated',
+      'delete' => 'Deleted',
+      'view' => 'Viewed',
+      'break_glass' => 'Emergency access used',
+      _ => action.isEmpty ? 'Action' : action[0].toUpperCase() + action.substring(1),
+    };
+
+    final entityLabel = entity.isEmpty
+        ? ''
+        : entity[0].toUpperCase() + entity.substring(1);
+
+    final fieldLabel = field.isEmpty
+        ? ''
+        : ' • Field: ${field[0].toUpperCase()}${field.substring(1)}';
+
+    return entityLabel.isEmpty
+        ? '$actionLabel$fieldLabel'
+        : '$actionLabel $entityLabel$fieldLabel';
+  }
+
+  String _prettyWhere(AuditLogModel log) {
+    final entity = log.entityType.trim().replaceAll('_', ' ');
+    if (entity.isEmpty) return 'Unknown';
+    return entity[0].toUpperCase() + entity.substring(1);
+  }
+
+  String _prettyWho(AuditLogModel log) {
+    final id = log.performedByUserId?.trim();
+    if (id == null || id.isEmpty) return 'System';
+    return _userLabels[id] ?? 'Unknown user';
+  }
+
+  String _prettyWhen(DateTime? dt) {
+    if (dt == null) return 'Unknown';
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final day = dt.day.toString().padLeft(2, '0');
+    return '$hour:$minute on $month/$day/${dt.year}';
+  }
+
+  String _statusFor(AuditLogModel log) {
+    return 'Recorded';
+  }
+
+  Widget _rowLabel(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text.rich(
+        TextSpan(
+          text: '$label ',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+          children: [
+            TextSpan(
+              text: value,
+              style: const TextStyle(fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Audit log'),
+        title: const Text('Actions performed'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
@@ -88,29 +182,41 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : _logs.isEmpty
-          ? const Center(child: Text('No audit logs found.'))
+          ? const Center(child: Text('No actions performed found.'))
           : ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _logs.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final log = _logs[index];
+          final reason = (log.breakGlassReason ?? '').trim();
+
+          return Card(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              itemCount: _logs.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final log = _logs[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(_summary(log)),
-                    subtitle: Text(
-                      [
-                        'When: ${log.timestamp?.toIso8601String() ?? 'Unknown'}',
-                        'Performed by: ${log.performedByUserId ?? 'System'}',
-                        if ((log.breakGlassReason ?? '').trim().isNotEmpty)
-                          'Reason: ${log.breakGlassReason}',
-                      ].join('\n'),
-                    ),
-                    isThreeLine: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _prettyAction(log),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                );
-              },
+                  const SizedBox(height: 8),
+                  _rowLabel(context, 'Where performed:', _prettyWhere(log)),
+                  _rowLabel(context, 'Who performed it:', _prettyWho(log)),
+                  _rowLabel(context, 'Status:', _statusFor(log)),
+                  _rowLabel(context, 'When performed:', _prettyWhen(log.timestamp)),
+                  if (reason.isNotEmpty)
+                    _rowLabel(context, 'Reason:', reason),
+                ],
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }
