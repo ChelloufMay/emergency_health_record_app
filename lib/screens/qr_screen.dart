@@ -53,7 +53,8 @@ class _QrScreenState extends State<QrScreen> {
       'issued_at': DateTime.now().toIso8601String(),
     };
 
-    // Keep a compact offline snapshot in the QR payload so emergency view still has something useful if the device is offline.
+    // CHANGED: keep a compact offline snapshot in the QR payload
+    // so emergency view still has something useful if the device is offline.
     if (summary != null) {
       envelope['offline_summary'] = summary;
     }
@@ -78,20 +79,26 @@ class _QrScreenState extends State<QrScreen> {
     ).toString();
   }
 
-  String _formatDate(DateTime? value) {
+  String _formatDateTime(DateTime? value) {
     if (value == null) return 'Not set';
+
     final local = value.toLocal();
     final yyyy = local.year.toString().padLeft(4, '0');
     final mm = local.month.toString().padLeft(2, '0');
     final dd = local.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
+    final hh = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+
+    // CHANGED: show both date and time in a simple readable format.
+    return '$hh:$min on the $yyyy-$mm-$dd';
   }
 
-  Future<void> _pickExpiryDate() async {
+  Future<void> _pickExpiryDateTime() async {
     final now = DateTime.now();
     final initialDate = _selectedExpiresAt ?? now.add(const Duration(days: 30));
 
-    final picked = await showDatePicker(
+    // CHANGED: user picks the calendar date first.
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: now,
@@ -99,10 +106,24 @@ class _QrScreenState extends State<QrScreen> {
       helpText: 'Select expiry date',
     );
 
-    if (picked == null) return;
+    if (pickedDate == null) return;
+
+    // CHANGED: then user picks the time separately.
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialDate),
+    );
+
+    if (pickedTime == null) return;
 
     setState(() {
-      _selectedExpiresAt = picked;
+      _selectedExpiresAt = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
     });
   }
 
@@ -126,6 +147,7 @@ class _QrScreenState extends State<QrScreen> {
         _loading = false;
         _patientId = null;
         _qrData = '';
+        _tokenRow = null;
       });
       return;
     }
@@ -152,7 +174,10 @@ class _QrScreenState extends State<QrScreen> {
       _summary = summary;
       _tokenRow = tokenRow;
 
-      // QR stores a deep link, not a raw base64 block shown in the UI.
+      // CHANGED: preload the expiry picker from the current token if one exists.
+      _selectedExpiresAt = tokenRow?.expiresAt;
+
+      // QR stores a deep link, not a raw visible token block.
       _qrData = tokenRow?.token == null
           ? ''
           : _buildEmergencyLink(
@@ -172,29 +197,16 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      // The user picks a calendar date, not a raw ISO text string.
-      final parsedExpiry = _selectedExpiresAt == null
-          ? null
-          : DateTime(
-        _selectedExpiresAt!.year,
-        _selectedExpiresAt!.month,
-        _selectedExpiresAt!.day,
-        23,
-        59,
-        59,
-      );
+      // CHANGED: use the exact date + time the user selected.
+      final parsedExpiry = _selectedExpiresAt;
 
-      final response = await _supabase
-          .from('emergency_access_tokens')
-          .insert({
+      final response = await _supabase.from('emergency_access_tokens').insert({
         'patient_id': patientId,
         'notes': _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
         'expires_at': parsedExpiry?.toIso8601String(),
-      })
-          .select()
-          .single();
+      }).select().single();
 
       final tokenRow = EmergencyAccessTokenModel.fromMap(
         Map<String, dynamic>.from(response as Map),
@@ -203,6 +215,7 @@ class _QrScreenState extends State<QrScreen> {
       if (!mounted) return;
       setState(() {
         _tokenRow = tokenRow;
+        _selectedExpiresAt = tokenRow.expiresAt;
         _qrData = tokenRow.token == null
             ? ''
             : _buildEmergencyLink(
@@ -311,7 +324,7 @@ class _QrScreenState extends State<QrScreen> {
                     'Status: ${_tokenRow == null ? 'none' : (_tokenRow!.isActive ? 'active' : 'revoked')}',
                   ),
                   Text(
-                    'Expires: ${_tokenRow?.expiresAt?.toIso8601String() ?? 'Not set'}',
+                    'Expires: ${_formatDateTime(_tokenRow?.expiresAt)}',
                   ),
                   Text(
                     'Created at: ${_tokenRow?.createdAt?.toIso8601String() ?? 'Unknown'}',
@@ -356,18 +369,19 @@ class _QrScreenState extends State<QrScreen> {
           ),
           const SizedBox(height: 12),
           InkWell(
-            onTap: _pickExpiryDate,
+            onTap: _pickExpiryDateTime,
             borderRadius: BorderRadius.circular(12),
             child: InputDecorator(
               decoration: const InputDecoration(
-                labelText: 'Expiry date',
-                helperText: 'Pick a date from the calendar',
+                // CHANGED: label now makes it clear this includes time.
+                labelText: 'Expiry date and time',
+                helperText: 'Pick a date and time',
                 border: OutlineInputBorder(),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  _formatDate(_selectedExpiresAt),
+                  _formatDateTime(_selectedExpiresAt),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
