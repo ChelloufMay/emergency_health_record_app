@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/emergency_access_token_model.dart';
+import '../screens/emergency_screen.dart';
 import '../services/emergency_access_token_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
@@ -67,6 +68,10 @@ class _EmergencyAccessTokenScreenState
     return '${value.substring(0, 8)}…${value.substring(value.length - 4)}';
   }
 
+  String _buildEmergencyPayload(String token) {
+    return 'healthapp://emergency?payload=${Uri.encodeComponent(token)}';
+  }
+
   Future<String?> _resolvePatientId() async {
     if (widget.patientId != null && widget.patientId!.trim().isNotEmpty) {
       return widget.patientId!.trim();
@@ -130,6 +135,24 @@ class _EmergencyAccessTokenScreenState
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Token copied to clipboard.')),
+    );
+  }
+
+  Future<void> _copyEmergencyPayload(String token) async {
+    final payload = _buildEmergencyPayload(token);
+    await Clipboard.setData(ClipboardData(text: payload));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Emergency link copied to clipboard.')),
+    );
+  }
+
+  void _openEmergencyView(String token) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmergencyScreen(payload: token),
+      ),
     );
   }
 
@@ -248,7 +271,21 @@ class _EmergencyAccessTokenScreenState
                       ? null
                       : () => _copyToken(tokenValue),
                   icon: const Icon(Icons.copy),
-                  label: const Text('Copy'),
+                  label: const Text('Copy token'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: tokenValue.isEmpty
+                      ? null
+                      : () => _copyEmergencyPayload(tokenValue),
+                  icon: const Icon(Icons.link),
+                  label: const Text('Copy emergency link'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: tokenValue.isEmpty
+                      ? null
+                      : () => _openEmergencyView(tokenValue),
+                  icon: const Icon(Icons.medical_services_outlined),
+                  label: const Text('Open emergency view'),
                 ),
                 if (isActive)
                   FilledButton.icon(
