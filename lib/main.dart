@@ -291,7 +291,7 @@ class _MyAppState extends State<MyApp> {
               builder: (_) => const GuardianDashboardScreen(),
             );
 
-          case '/clinician_dash!board':
+          case '/clinician_dashboard':
             return MaterialPageRoute(
               builder: (_) => const ClinicianDashboardScreen(),
             );
