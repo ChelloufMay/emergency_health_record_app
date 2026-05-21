@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 
@@ -26,6 +27,15 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   }
 
   Future<void> _updatePassword() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      _showSnack(
+        'No recovery session found. Open the reset email link again.',
+        error: true,
+      );
+      return;
+    }
+
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
 
@@ -43,15 +53,16 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
 
     try {
       await _authService.updatePassword(password);
-
       if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password updated. Please sign in again.')),
+      );
+
       await _authService.signOut();
       if (!mounted) return;
 
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated. Please sign in again.')),
-      );
     } catch (e) {
       _showSnack('Could not update password: $e', error: true);
     } finally {

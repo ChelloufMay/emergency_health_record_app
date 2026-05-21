@@ -526,9 +526,10 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       final rawUri = widget.callbackUri;
       if (rawUri != null && rawUri.trim().isNotEmpty) {
         final uri = Uri.parse(rawUri);
-        if (!widget.isRecovery) {
-          await Supabase.instance.client.auth.getSessionFromUrl(uri);
-        }
+
+        // always exchange the session from the callback URL first.
+        // recovery links also need the session exchange before we can update the password.
+        await Supabase.instance.client.auth.getSessionFromUrl(uri);
       }
     } catch (e) {
       debugPrint('Auth callback exchange failed: $e');

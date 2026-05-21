@@ -18,6 +18,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _handle() async {
+    // CHANGED: give Supabase a moment to finish processing the deep link.
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted || _handled) return;
@@ -26,14 +27,12 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     final client = Supabase.instance.client;
     final session = client.auth.currentSession;
 
-    if (session != null) {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/reset-password');
-      return;
-    }
+    // CHANGED: route based on whether Supabase created a session from the link.
+    // Recovery links should land on the password reset screen.
+    final targetRoute = session != null ? '/reset-password' : '/login';
 
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login');
+    Navigator.of(context).pushReplacementNamed(targetRoute);
   }
 
   @override

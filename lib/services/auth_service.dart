@@ -9,9 +9,8 @@ class AuthService {
     String fullName = '',
     String? phone,
   }) async {
-    final safeFullName = fullName.trim().isEmpty
-        ? email.split('@').first
-        : fullName.trim();
+    final safeFullName =
+    fullName.trim().isEmpty ? email.split('@').first : fullName.trim();
 
     // CHANGED: keep auth creation separate from domain/profile logic.
     // The DB sync layer fills public.users and related tables.
