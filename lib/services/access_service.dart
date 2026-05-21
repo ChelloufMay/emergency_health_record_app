@@ -7,6 +7,11 @@ import '../models/patient_access_row_model.dart';
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  String? _currentEmail() {
+    final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
+    return email == null || email.isEmpty ? null : email;
+  }
+
   /// Used by the role dashboard screens.
   Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
     final rows = await _supabase
@@ -15,9 +20,11 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((row) => PatientAccessRowModel.fromMap(
-      Map<String, dynamic>.from(row as Map),
-    ))
+        .map(
+          (row) => PatientAccessRowModel.fromMap(
+        Map<String, dynamic>.from(row as Map),
+      ),
+    )
         .toList();
   }
 
@@ -42,9 +49,11 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessGrantModel.fromMap(
-      Map<String, dynamic>.from(e as Map),
-    ))
+        .map(
+          (e) => AccessGrantModel.fromMap(
+        Map<String, dynamic>.from(e as Map),
+      ),
+    )
         .toList();
   }
 
@@ -56,15 +65,35 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessInviteModel.fromMap(
-      Map<String, dynamic>.from(e as Map),
-    ))
+        .map(
+          (e) => AccessInviteModel.fromMap(
+        Map<String, dynamic>.from(e as Map),
+      ),
+    )
+        .toList();
+  }
+
+  /// CHANGED: this reads from the patient-aware dashboard view so the invite
+  /// rows can show the patient name instead of "Unknown patient".
+  Future<List<Map<String, dynamic>>> fetchMyPendingInviteMaps() async {
+    final email = _currentEmail();
+    if (email == null) return const [];
+
+    final rows = await _supabase
+        .from('access_invites_dashboard')
+        .select()
+        .eq('status', 'pending')
+        .eq('invited_email', email)
+        .order('created_at', ascending: false);
+
+    return (rows as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
   }
 
   Future<List<AccessInviteModel>> fetchMyPendingInvites() async {
-    final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
-    if (email == null || email.isEmpty) return const [];
+    final email = _currentEmail();
+    if (email == null) return const [];
 
     final rows = await _supabase
         .from('access_invites')
@@ -74,9 +103,11 @@ class AccessService {
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map((e) => AccessInviteModel.fromMap(
-      Map<String, dynamic>.from(e as Map),
-    ))
+        .map(
+          (e) => AccessInviteModel.fromMap(
+        Map<String, dynamic>.from(e as Map),
+      ),
+    )
         .toList();
   }
 
@@ -132,23 +163,23 @@ class AccessService {
     );
   }
 
-  // CHANGED: this is what lets the patient change a grant from read/edit/emergency_only.
+  // CHANGED: this lets the patient change a grant from read/edit/emergency_only.
   // The DB trigger keeps caregiver_permissions in sync.
   Future<void> updateGrantPermission({
     required String grantId,
     required String permission,
   }) async {
-    await _supabase
-        .from('access_grants')
-        .update({'permission': permission})
-        .eq('id', grantId);
+    await _supabase.from('access_grants').update({
+      'permission': permission,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', grantId);
   }
 
+  // CHANGED: revoke stays a direct update because the DB trigger syncs permissions.
   Future<void> revokeGrant(String grantId) async {
-    // CHANGED: revoke stays a direct update because the DB trigger syncs permissions.
-    await _supabase
-        .from('access_grants')
-        .update({'status': 'revoked'})
-        .eq('id', grantId);
+    await _supabase.from('access_grants').update({
+      'status': 'revoked',
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', grantId);
   }
 }

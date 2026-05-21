@@ -84,30 +84,28 @@ class _AccessPermissionEditorScreenState
             ),
           ),
           const SizedBox(height: 16),
-          RadioGroup<String>(
-            groupValue: _permission,
-            onChanged: (selected) {
-              if (_saving || selected == null) return;
-              setState(() => _permission = selected);
-            },
-            child: IgnorePointer(
-              ignoring: _saving,
-              child: Column(
-                children: _permissions.map((value) {
-                  return RadioListTile<String>(
-                    value: value,
-                    title: Text(value),
-                    subtitle: Text(
-                      value == 'read'
-                          ? 'Read-only access'
-                          : value == 'edit'
-                          ? 'Read and edit access'
-                          : 'Emergency-only access',
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+          // CHANGED: plain radio list so the screen stays simple and stable.
+          Column(
+            children: _permissions.map((value) {
+              return RadioListTile<String>(
+                value: value,
+                groupValue: _permission,
+                onChanged: _saving
+                    ? null
+                    : (selected) {
+                  if (selected == null) return;
+                  setState(() => _permission = selected);
+                },
+                title: Text(value),
+                subtitle: Text(
+                  value == 'read'
+                      ? 'Read-only access'
+                      : value == 'edit'
+                      ? 'Read and edit access'
+                      : 'Emergency-only access',
+                ),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
           FilledButton(

@@ -20,15 +20,15 @@ class AuditService {
         .order('timestamp', ascending: false);
 
     return (response as List<dynamic>)
-        .map((e) => AuditLogModel.fromMap(e as Map))
+        .map((e) => AuditLogModel.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
   /// Same idea as above, but reads the ranked view if the screen wants
   /// a precomputed newest-first ordering per patient.
   Future<List<AuditLogModel>> getRankedAuditLogsForPatient(
-    String patientId,
-  ) async {
+      String patientId,
+      ) async {
     final response = await _client
         .from('audit_logs_ranked')
         .select()
@@ -36,7 +36,7 @@ class AuditService {
         .order('timestamp', ascending: false);
 
     return (response as List<dynamic>)
-        .map((e) => AuditLogModel.fromMap(e as Map))
+        .map((e) => AuditLogModel.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 }
