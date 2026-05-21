@@ -172,20 +172,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     confirmController.dispose();
   }
 
-  Future<void> _sendRecoveryEmail() async {
-    final email = _email?.trim();
-    if (email == null || email.isEmpty) {
-      _showSnack('No email found for this account.', error: true);
-      return;
-    }
-
-    try {
-      await _authService.sendPasswordResetEmail(email: email);
-      _showSnack('Password reset email sent.');
-    } catch (e) {
-      _showSnack('Could not send recovery email: $e', error: true);
-    }
-  }
+  // CHANGED: removed the password recovery email action completely.
+  // Password recovery should be handled from the login flow only.
 
   Future<void> _signOut() async {
     final confirmed = await _confirm(
@@ -395,9 +383,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             _email ?? '',
                             style: TextStyle(
-                              color: cs.onPrimaryContainer.withValues(
-                                alpha: 0.7,
-                              ),
+                              color:
+                              cs.onPrimaryContainer.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -452,7 +439,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(
@@ -507,13 +495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _showChangePasswordDialog,
                 ),
                 _divider(),
-                _tile(
-                  icon: Icons.email_outlined,
-                  title: 'Send password recovery email',
-                  subtitle: 'Send a reset link to the current email',
-                  onTap: _sendRecoveryEmail,
-                ),
-                _divider(),
+                // CHANGED: password recovery email tile removed.
                 _tile(
                   icon: Icons.shield_outlined,
                   title: 'Data protection',
