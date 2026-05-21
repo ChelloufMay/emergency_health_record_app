@@ -61,9 +61,17 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   String? _extractTokenFromPayload(String? raw) {
     if (raw == null || raw.trim().isEmpty) return null;
 
-    // First try URI style payloads: healthapp://emergency?payload=...
+    // CHANGED: accept both payload links and direct token links.
+    // Example:
+    // - healthapp://emergency?payload=...
+    // - healthapp://emergency?token=...
     final uri = Uri.tryParse(raw);
     if (uri != null) {
+      final tokenFromQuery = uri.queryParameters['token'];
+      if (tokenFromQuery != null && tokenFromQuery.trim().isNotEmpty) {
+        return tokenFromQuery.trim();
+      }
+
       final uriPayload = EmergencyPayloadService.extractPayloadFromUri(uri);
       if (uriPayload != null && uriPayload.trim().isNotEmpty) {
         raw = uriPayload;
@@ -85,9 +93,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Future<void> _load() async {
-    // This screen now resolves the emergency token first, then asks the DB
-    // for the actual emergency-safe row. That matches the new DB function
-    // resolve_emergency_access_token().
+    // This screen first resolves the emergency token, then asks the DB
+    // for the safe emergency row.
     final token = _extractTokenFromPayload(widget.payload);
 
     if (token == null || token.isEmpty) {
@@ -117,8 +124,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         );
       }
 
-      // If online fetch fails, keep the token-resolved snapshot values so the
-      // emergency UI still has something usable.
+      // If online fetch fails, keep the token-resolved snapshot values.
       final fallback = _mapFrom(resolved['offline_summary']);
       final source = emergencySummary ?? fallback;
 
