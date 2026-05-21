@@ -19,6 +19,9 @@ class AccessInviteModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Keeps the original row available for screens that still rely on raw JSON-like access.
+  final Map<String, dynamic> raw;
+
   const AccessInviteModel({
     this.id,
     required this.patientId,
@@ -37,27 +40,31 @@ class AccessInviteModel {
     this.notes,
     this.createdAt,
     this.updatedAt,
+    required this.raw,
   });
 
   factory AccessInviteModel.fromMap(Map map) {
+    final raw = Map<String, dynamic>.from(map);
+
     return AccessInviteModel(
-      id: map['id']?.toString(),
-      patientId: map['patient_id']?.toString() ?? '',
-      invitedEmail: map['invited_email']?.toString() ?? '',
-      invitedRole: map['invited_role']?.toString() ?? 'caregiver',
-      permission: map['permission']?.toString() ?? 'read',
-      status: map['status']?.toString() ?? 'pending',
-      inviteToken: map['invite_token']?.toString(),
-      invitedByUserId: map['invited_by_user_id']?.toString(),
-      acceptedByUserId: map['accepted_by_user_id']?.toString(),
-      rejectedByUserId: map['rejected_by_user_id']?.toString(),
-      invitedAt: asDateTime(map['invited_at']),
-      acceptedAt: asDateTime(map['accepted_at']),
-      rejectedAt: asDateTime(map['rejected_at']),
-      expiresAt: asDateTime(map['expires_at']),
-      notes: map['notes']?.toString(),
-      createdAt: asDateTime(map['created_at']),
-      updatedAt: asDateTime(map['updated_at']),
+      id: raw['id']?.toString(),
+      patientId: raw['patient_id']?.toString() ?? '',
+      invitedEmail: raw['invited_email']?.toString() ?? '',
+      invitedRole: raw['invited_role']?.toString() ?? 'caregiver',
+      permission: raw['permission']?.toString() ?? 'read',
+      status: raw['status']?.toString() ?? 'pending',
+      inviteToken: raw['invite_token']?.toString(),
+      invitedByUserId: raw['invited_by_user_id']?.toString(),
+      acceptedByUserId: raw['accepted_by_user_id']?.toString(),
+      rejectedByUserId: raw['rejected_by_user_id']?.toString(),
+      invitedAt: asDateTime(raw['invited_at']),
+      acceptedAt: asDateTime(raw['accepted_at']),
+      rejectedAt: asDateTime(raw['rejected_at']),
+      expiresAt: asDateTime(raw['expires_at']),
+      notes: raw['notes']?.toString(),
+      createdAt: asDateTime(raw['created_at']),
+      updatedAt: asDateTime(raw['updated_at']),
+      raw: raw,
     );
   }
 
