@@ -7,6 +7,7 @@ import '../models/patient_access_row_model.dart';
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  /// Used by the role dashboard screens.
   Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
     final rows = await _supabase
         .from('patient_access_dashboard')
@@ -17,6 +18,19 @@ class AccessService {
         .map((row) => PatientAccessRowModel.fromMap(
       Map<String, dynamic>.from(row as Map),
     ))
+        .toList();
+  }
+
+  /// Used by the access dashboard screen where we need the raw view columns
+  /// such as first_name / family_name / age_years for grouping and display.
+  Future<List<Map<String, dynamic>>> fetchMyAccessDashboardRowMaps() async {
+    final rows = await _supabase
+        .from('patient_access_dashboard')
+        .select()
+        .order('created_at', ascending: false);
+
+    return (rows as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
   }
 
@@ -104,22 +118,18 @@ class AccessService {
     return result.toString();
   }
 
-  Future<String> acceptInvite(String inviteToken) async {
-    final result = await _supabase.rpc(
+  Future<dynamic> acceptInvite(String inviteToken) async {
+    return _supabase.rpc(
       'accept_access_invite',
       params: {'_invite_token': inviteToken},
     );
-
-    return result.toString();
   }
 
-  Future<String> rejectInvite(String inviteToken) async {
-    final result = await _supabase.rpc(
+  Future<dynamic> rejectInvite(String inviteToken) async {
+    return _supabase.rpc(
       'reject_access_invite',
       params: {'_invite_token': inviteToken},
     );
-
-    return result.toString();
   }
 
   // CHANGED: this is what lets the patient change a grant from read/edit/emergency_only.
