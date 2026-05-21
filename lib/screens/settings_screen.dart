@@ -50,7 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // CHANGED: password updates go through AuthService so the flow is shared.
   Future<void> _showChangePasswordDialog() async {
     final formKey = GlobalKey<FormState>();
     final passwordController = TextEditingController();
@@ -173,7 +172,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     confirmController.dispose();
   }
 
-  // CHANGED: recovery email is available from settings for every role.
   Future<void> _sendRecoveryEmail() async {
     final email = _email?.trim();
     if (email == null || email.isEmpty) {
@@ -204,17 +202,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _deleteAccount() async {
-    final confirmed = await _confirm(
-      title: 'Delete account',
-      message: 'This will permanently delete your account and all health records.\n\n'
-          'This cannot be undone.\n\nContact support to proceed.',
-      confirmLabel: 'I understand',
-      destructive: true,
-    );
-    if (!confirmed) return;
+  Future<void> _requestAccountDeletion() async {
+    final reasonController = TextEditingController();
 
-    _showSnack('To delete your account please contact the app administrator.');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request account deletion'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'This will send an email request to the administrator. '
+                    'Your account will not be deleted immediately from this screen.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Optional reason',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      reasonController.dispose();
+      return;
+    }
+
+    try {
+      final result = await _supabase.rpc(
+        'request_account_deletion',
+        params: {
+          '_reason': reasonController.text.trim().isEmpty
+              ? null
+              : reasonController.text.trim(),
+        },
+      );
+
+      _showSnack(
+        'Deletion request sent to the administrator.',
+      );
+
+      debugPrint('Delete request queued: $result');
+    } catch (e) {
+      _showSnack(
+        'Could not send deletion request: $e',
+        error: true,
+      );
+    } finally {
+      reasonController.dispose();
+    }
   }
 
   Future<bool> _confirm({
@@ -280,8 +338,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
   }) =>
       ListTile(
-        leading: Icon(icon, color: iconColor ?? Theme.of(context).colorScheme.primary),
-        title: Text(title, style: TextStyle(color: titleColor)),
+        leading: Icon(
+          icon,
+          color: iconColor ?? Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(color: titleColor),
+        ),
         subtitle: subtitle != null ? Text(subtitle) : null,
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
@@ -396,7 +460,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.medical_information_outlined,
                   title: 'Medical summary',
                   subtitle: 'Allergies, medications, conditions',
-                  onTap: () => Navigator.pushNamed(context, '/medical_summary'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/medical_summary'),
                 ),
                 _divider(),
                 _tile(
@@ -427,7 +492,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _divider(),
                 _tile(
                   icon: Icons.history_outlined,
-                  title: 'Audit log',
+                  title: 'Actions performed',
                   subtitle: 'See all access and edit events',
                   onTap: () => Navigator.pushNamed(context, '/audit_log'),
                 ),
@@ -531,10 +596,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _tile(
                   icon: Icons.delete_forever_outlined,
                   title: 'Delete account',
-                  subtitle: 'Permanently remove all your data',
+                  subtitle: 'Send a deletion request to the administrator',
                   iconColor: cs.error,
                   titleColor: cs.error,
-                  onTap: _deleteAccount,
+                  onTap: _requestAccountDeletion,
                 ),
               ],
             ),
