@@ -7,30 +7,14 @@ class GuardianSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RoleSettingsScreen(
+    return const RoleSettingsScreen(
       title: 'Guardian settings',
-      description:
-      'Manage your guardian profile and the patient access views you rely on.',
-      shortcuts: const [
-        SettingsShortcut(
-          icon: Icons.dashboard_outlined,
-          title: 'Dashboard',
-          subtitle: 'Open your guardian dashboard',
-          routeName: '/guardian_dashboard',
-        ),
-        SettingsShortcut(
-          icon: Icons.medical_information_outlined,
-          title: 'Access dashboard',
-          subtitle: 'Review invites, grants, and patient access',
-          routeName: '/access_dashboard',
-        ),
-        SettingsShortcut(
-          icon: Icons.badge_outlined,
-          title: 'Profile',
-          subtitle: 'Edit your guardian profile',
-          routeName: '/guardian_profile',
-        ),
-      ],
+      profileRoute: '/guardian_profile',
+      showMedicalSummary: false,
+      showQr: false,
+      showCaregivers: false,
+      showAuditLog: true,
+      showDeleteAccount: false,
     );
   }
 }

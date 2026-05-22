@@ -7,30 +7,14 @@ class CaregiverSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RoleSettingsScreen(
+    return const RoleSettingsScreen(
       title: 'Caregiver settings',
-      description:
-      'Manage your caregiver profile and the places you use to support patients.',
-      shortcuts: const [
-        SettingsShortcut(
-          icon: Icons.dashboard_outlined,
-          title: 'Dashboard',
-          subtitle: 'Open your caregiver dashboard',
-          routeName: '/caregiver_dashboard',
-        ),
-        SettingsShortcut(
-          icon: Icons.medical_information_outlined,
-          title: 'Access dashboard',
-          subtitle: 'Review invites, grants, and patient access',
-          routeName: '/access_dashboard',
-        ),
-        SettingsShortcut(
-          icon: Icons.badge_outlined,
-          title: 'Profile',
-          subtitle: 'Edit your caregiver profile',
-          routeName: '/caregiver_profile',
-        ),
-      ],
+      profileRoute: '/caregiver_profile',
+      showMedicalSummary: false,
+      showQr: false,
+      showCaregivers: false,
+      showAuditLog: true,
+      showDeleteAccount: false,
     );
   }
 }

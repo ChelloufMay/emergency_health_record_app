@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../services/emergency_payload_service.dart';
@@ -59,25 +60,41 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return <Map<String, dynamic>>[];
   }
 
+  String _stripQuotesAndTrim(String value) {
+    var out = value.trim();
+    if (out.length >= 2) {
+      final first = out[0];
+      final last = out[out.length - 1];
+      if ((first == '"' && last == '"') || (first == "'" && last == "'")) {
+        out = out.substring(1, out.length - 1).trim();
+      }
+    }
+    return out;
+  }
+
   String? _extractTokenFromPayload(String? raw) {
     if (raw == null || raw.trim().isEmpty) return null;
 
-    final trimmed = raw.trim();
+    final trimmed = _stripQuotesAndTrim(raw);
 
-    // Accept both payload links and direct token links.
+    // CHANGED: accept both direct tokens and wrapped payloads.
     // Examples:
     // - healthapp://emergency?payload=...
     // - healthapp://emergency?token=...
+    // - {"token":"..."}
+    // - plain token text
     final uri = Uri.tryParse(trimmed);
     if (uri != null) {
       final tokenFromQuery = uri.queryParameters['token']?.trim();
       if (tokenFromQuery != null && tokenFromQuery.isNotEmpty) {
-        return tokenFromQuery;
+        return _stripQuotesAndTrim(Uri.decodeComponent(tokenFromQuery));
       }
 
       final payloadFromQuery = uri.queryParameters['payload']?.trim();
       if (payloadFromQuery != null && payloadFromQuery.isNotEmpty) {
-        final nested = _extractTokenFromPayload(Uri.decodeComponent(payloadFromQuery));
+        final nested = _extractTokenFromPayload(
+          Uri.decodeComponent(_stripQuotesAndTrim(payloadFromQuery)),
+        );
         if (nested != null && nested.isNotEmpty) return nested;
       }
 
@@ -93,7 +110,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       final token = decoded['token']?.toString().trim();
       if (token != null && token.isNotEmpty) {
         _hasOfflineSnapshot = decoded['offline_summary'] is Map;
-        return token;
+        return _stripQuotesAndTrim(token);
       }
 
       final nestedPayload = decoded['payload']?.toString().trim();
@@ -107,13 +124,21 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       final jsonValue = jsonDecode(trimmed);
       if (jsonValue is Map) {
         final token = jsonValue['token']?.toString().trim();
-        if (token != null && token.isNotEmpty) return token;
+        if (token != null && token.isNotEmpty) {
+          return _stripQuotesAndTrim(token);
+        }
+
+        final payload = jsonValue['payload']?.toString().trim();
+        if (payload != null && payload.isNotEmpty) {
+          final nested = _extractTokenFromPayload(payload);
+          if (nested != null && nested.isNotEmpty) return nested;
+        }
       }
     } catch (_) {
-      // Not JSON, continue.
+      // Not JSON, keep trying raw text.
     }
 
-    // Fall back to raw token text.
+    // CHANGED: final fallback is raw token text, normalized.
     return trimmed;
   }
 
@@ -127,6 +152,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     }
 
     try {
+      // CHANGED: resolve the token through the patient service first.
       final resolved = await _patientService.resolveEmergencyAccessToken(token);
 
       if (resolved == null) {
@@ -212,6 +238,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             item['medication_name'] ??
             item['condition_name'] ??
             'Item';
+
     final detailParts = <String>[
       if ((item['reaction']?.toString() ?? '').trim().isNotEmpty)
         item['reaction'].toString(),
@@ -259,7 +286,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       appBar: AppBar(
         title: const Text('Emergency view'),
         actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+          ),
         ],
       ),
       body: _loading
@@ -295,6 +326,12 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   Text('Address: ${_addressSummary ?? 'Unknown'}'),
                   Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
                   Text('COVID vaccine: ${_covidVaccineType ?? 'Unknown'}'),
+                  if (_hasOfflineSnapshot) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Offline summary was included in the token payload.',
+                    ),
+                  ],
                 ],
               ),
             ),
