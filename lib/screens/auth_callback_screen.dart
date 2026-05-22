@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthCallbackScreen extends StatefulWidget {
-  const AuthCallbackScreen({super.key});
+  final String? callbackUri;
+  final bool isRecovery;
+
+  const AuthCallbackScreen({
+    super.key,
+    this.callbackUri,
+    this.isRecovery = false,
+  });
 
   @override
   State<AuthCallbackScreen> createState() => _AuthCallbackScreenState();
@@ -18,7 +25,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _handle() async {
-    // CHANGED: give Supabase a moment to finish processing the deep link.
+    // CHANGED: give Supabase a short moment to finish processing the deep link.
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted || _handled) return;
@@ -27,12 +34,28 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     final client = Supabase.instance.client;
     final session = client.auth.currentSession;
 
-    // CHANGED: route based on whether Supabase created a session from the link.
-    // Recovery links should land on the password reset screen.
-    final targetRoute = session != null ? '/reset-password' : '/login';
+    final uri = widget.callbackUri == null
+        ? null
+        : Uri.tryParse(widget.callbackUri!);
+
+    final recoveryFromUri = uri?.queryParameters['type'] == 'recovery';
+    final shouldResetPassword = widget.isRecovery || recoveryFromUri;
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed(targetRoute);
+
+    // CHANGED: only route to password reset for recovery callbacks.
+    if (session != null && shouldResetPassword) {
+      Navigator.of(context).pushReplacementNamed('/reset-password');
+      return;
+    }
+
+    // CHANGED: normal auth callbacks go back into the role router flow.
+    if (session != null) {
+      Navigator.of(context).pushReplacementNamed('/entry');
+      return;
+    }
+
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   @override

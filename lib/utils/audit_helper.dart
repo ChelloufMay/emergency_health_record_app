@@ -25,7 +25,7 @@ class AuditHelper {
       }) {
     final parts = values
         .map((e) => e?.trim())
-        .where((e) => e != null && e!.isNotEmpty)
+        .where((e) => e != null && e.isNotEmpty)
         .cast<String>()
         .toList();
 

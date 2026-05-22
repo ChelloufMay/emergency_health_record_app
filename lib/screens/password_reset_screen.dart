@@ -142,6 +142,17 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             )
                 : const Text('Update password'),
           ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _loading
+                ? null
+                : () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/login',
+                  (route) => false,
+            ),
+            child: const Text('Back to login'),
+          ),
         ],
       ),
     );

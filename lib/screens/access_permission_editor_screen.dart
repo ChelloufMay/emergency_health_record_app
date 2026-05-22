@@ -95,22 +95,28 @@ class _AccessPermissionEditorScreenState
             ),
           ),
           const SizedBox(height: 16),
-          Column(
-            children: _permissions.map((value) {
-              return RadioListTile<String>(
-                value: value,
-                groupValue: _permission,
-                onChanged: _saving
-                    ? null
-                    : (selected) {
-                  if (selected == null) return;
-                  setState(() => _permission = selected);
-                },
-                title: Text(value),
-                subtitle: Text(_labelFor(value)),
-              );
-            }).toList(),
+
+          // RadioGroup now owns the selected value and the change handler.
+          RadioGroup<String>(
+            groupValue: _permission,
+            onChanged: _saving
+                ? (value) {}
+                : (selected) {
+              if (selected == null) return;
+              setState(() => _permission = selected);
+            },
+            child: Column(
+              children: _permissions.map((value) {
+                return RadioListTile<String>(
+                  value: value,
+                  title: Text(_labelFor(value)),
+                  subtitle: Text(value),
+                  selected: _permission == value,
+                );
+              }).toList(),
+            ),
           ),
+
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _saving ? null : _save,

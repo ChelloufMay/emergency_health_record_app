@@ -61,6 +61,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
       return widget.patientId!.trim();
     }
 
+    // Prefer the current patient session first, then fall back to the
+    // authenticated user's own patient profile.
     final session = PatientSessionService.instance.current;
     if (session?.patientId.isNotEmpty == true) return session!.patientId;
 
@@ -138,13 +140,18 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     });
   }
 
+  String? _trimToNull(String value) {
+    final v = value.trim();
+    return v.isEmpty ? null : v;
+  }
+
   Future<void> _save() async {
     final patientId = _patientId;
     if (patientId == null || patientId.isEmpty) return;
     if (!_canEdit) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // CHANGED: only clinicians can assign clinician_verified.
+    // Only clinicians can submit the clinician_verified state.
     if (_status == 'clinician_verified' && _currentRole != 'clinician') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -163,9 +170,9 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
       final userId = currentUser?['id']?.toString();
       final roleFromUser = currentUser?['role']?.toString().trim();
 
-      final effectiveEnteredByRole = _enteredByRoleController.text.trim().isEmpty
-          ? roleFromUser
-          : _enteredByRoleController.text.trim();
+      final enteredByRoleText = _enteredByRoleController.text.trim();
+      final effectiveEnteredByRole =
+      enteredByRoleText.isEmpty ? roleFromUser : enteredByRoleText;
 
       final label = VerificationLabelModel(
         id: _editingId,
@@ -174,17 +181,12 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         entityId: _entityIdController.text.trim(),
         fieldName: _fieldNameController.text.trim(),
         status: _status,
-        comment: _commentController.text.trim().isEmpty
-            ? null
-            : _commentController.text.trim(),
-        enteredByRole: effectiveEnteredByRole?.isEmpty == true
-            ? null
-            : effectiveEnteredByRole,
-        enteredByCredentials: _enteredByCredentialsController.text.trim().isEmpty
-            ? null
-            : _enteredByCredentialsController.text.trim(),
+        comment: _trimToNull(_commentController.text),
+        enteredByRole: _trimToNull(effectiveEnteredByRole ?? ''),
+        enteredByCredentials:
+        _trimToNull(_enteredByCredentialsController.text),
         enteredByUserId: userId,
-        // CHANGED: the verified-by user is only set for clinician verification.
+        // This field is only set when the label is truly clinician verified.
         verifiedByUserId: _status == 'clinician_verified' ? userId : null,
         verifiedAt: _status == 'clinician_verified' ? DateTime.now() : null,
       );
@@ -241,6 +243,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
               'Comment: ${label.comment}',
             if ((label.enteredByRole ?? '').trim().isNotEmpty)
               'Entered by: ${label.enteredByRole}',
+            if ((label.verifiedByUserId ?? '').trim().isNotEmpty)
+              'Verified by user: ${label.verifiedByUserId}',
           ].join('\n'),
         ),
         isThreeLine: true,
@@ -351,7 +355,6 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
                           value: 'caregiver_entered',
                           child: Text('Caregiver entered'),
                         ),
-                        // CHANGED: only clinicians should be able to pick this status.
                         DropdownMenuItem(
                           value: 'clinician_verified',
                           enabled: isClinician,
@@ -363,7 +366,6 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
                         ),
                       ],
                       onChanged: (value) {
-                        // CHANGED: block non-clinicians from selecting verified status.
                         if (value == 'clinician_verified' &&
                             !isClinician) {
                           ScaffoldMessenger.of(context).showSnackBar(

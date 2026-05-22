@@ -589,7 +589,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: grouped.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final entry = grouped.entries.elementAt(index);
                   final rows = entry.value;

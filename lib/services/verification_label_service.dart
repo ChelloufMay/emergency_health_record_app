@@ -19,9 +19,9 @@ class VerificationLabelService {
     return (rows as List)
         .map(
           (row) => VerificationLabelModel.fromMap(
-            Map<String, dynamic>.from(row as Map),
-          ),
-        )
+        Map<String, dynamic>.from(row as Map),
+      ),
+    )
         .toList();
   }
 
@@ -30,9 +30,19 @@ class VerificationLabelService {
     final entityType = requireText(label.entityType, 'Entity type');
     final entityId = requireText(label.entityId, 'Entity ID');
     final fieldName = requireText(label.fieldName, 'Field name');
-    final status = label.status.trim().isEmpty
-        ? 'unverified'
-        : label.status.trim();
+
+    // Keep the status aligned with the DB enum-like values.
+    final status = label.status.trim().isEmpty ? 'unverified' : label.status.trim();
+    const allowedStatuses = {
+      'unverified',
+      'user_entered',
+      'caregiver_entered',
+      'clinician_verified',
+    };
+    final normalizedStatus = allowedStatuses.contains(status) ? status : 'unverified';
+
+    // Only clinician-verified labels are allowed to keep verification metadata.
+    final isClinicianVerified = normalizedStatus == 'clinician_verified';
 
     final payload = VerificationLabelModel(
       id: label.id,
@@ -40,11 +50,13 @@ class VerificationLabelService {
       entityType: entityType,
       entityId: entityId,
       fieldName: fieldName,
-      status: status,
-      verifiedByUserId: label.verifiedByUserId,
-      verifiedAt: label.verifiedAt,
+      status: normalizedStatus,
+      verifiedByUserId: isClinicianVerified ? trimToNull(label.verifiedByUserId) : null,
+      verifiedAt: isClinicianVerified
+          ? (label.verifiedAt ?? DateTime.now())
+          : null,
       comment: trimToNull(label.comment),
-      enteredByUserId: label.enteredByUserId,
+      enteredByUserId: trimToNull(label.enteredByUserId),
       enteredByRole: trimToNull(label.enteredByRole),
       enteredByCredentials: trimToNull(label.enteredByCredentials),
     );

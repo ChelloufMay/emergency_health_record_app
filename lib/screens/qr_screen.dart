@@ -53,7 +53,8 @@ class _QrScreenState extends State<QrScreen> {
       'issued_at': DateTime.now().toIso8601String(),
     };
 
-    // Keep a compact offline snapshot in the QR payload.
+    // CHANGED: keep a compact offline snapshot so the emergency screen can
+    // still show useful data if the token resolves but the network is weak.
     if (summary != null) {
       envelope['offline_summary'] = summary;
     }
@@ -87,13 +88,14 @@ class _QrScreenState extends State<QrScreen> {
     final hh = local.hour.toString().padLeft(2, '0');
     final min = local.minute.toString().padLeft(2, '0');
 
-    return '$hh:$min on the $yyyy-$mm-$dd';
+    return '$yyyy-$mm-$dd $hh:$min';
   }
 
   Future<void> _pickExpiryDateTime() async {
     final now = DateTime.now();
     final initialDate = _selectedExpiresAt ?? now.add(const Duration(days: 30));
 
+    // CHANGED: user picks the date first.
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -104,6 +106,7 @@ class _QrScreenState extends State<QrScreen> {
 
     if (pickedDate == null) return;
 
+    // CHANGED: then user picks the time separately.
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
@@ -136,13 +139,13 @@ class _QrScreenState extends State<QrScreen> {
 
   Future<void> _load() async {
     final patientId = _resolvePatientId();
+
     if (patientId == null || patientId.isEmpty) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         _patientId = null;
         _qrData = '';
-        _tokenRow = null;
       });
       return;
     }
@@ -166,15 +169,14 @@ class _QrScreenState extends State<QrScreen> {
     if (!mounted) return;
     setState(() {
       _patientId = patientId;
-      _summary = summary;
+      _summary = summary == null ? null : Map<String, dynamic>.from(summary);
       _tokenRow = tokenRow;
-      _selectedExpiresAt = tokenRow?.expiresAt;
       _qrData = tokenRow?.token == null
           ? ''
           : _buildEmergencyLink(
         token: tokenRow!.token!,
         patientId: patientId,
-        summary: summary,
+        summary: _summary,
       );
       _loading = false;
     });
@@ -187,15 +189,18 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      final parsedExpiry = _selectedExpiresAt;
-
-      final response = await _supabase.from('emergency_access_tokens').insert({
+      final response = await _supabase
+          .from('emergency_access_tokens')
+          .insert({
         'patient_id': patientId,
         'notes': _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
-        'expires_at': parsedExpiry?.toIso8601String(),
-      }).select().single();
+        // CHANGED: save the exact selected date + time.
+        'expires_at': _selectedExpiresAt?.toIso8601String(),
+      })
+          .select()
+          .single();
 
       final tokenRow = EmergencyAccessTokenModel.fromMap(
         Map<String, dynamic>.from(response as Map),
@@ -204,7 +209,6 @@ class _QrScreenState extends State<QrScreen> {
       if (!mounted) return;
       setState(() {
         _tokenRow = tokenRow;
-        _selectedExpiresAt = tokenRow.expiresAt;
         _qrData = tokenRow.token == null
             ? ''
             : _buildEmergencyLink(
@@ -240,8 +244,8 @@ class _QrScreenState extends State<QrScreen> {
       }).eq('id', tokenId);
 
       await _load();
-
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -261,8 +265,10 @@ class _QrScreenState extends State<QrScreen> {
 
   Future<void> _copyQrData() async {
     if (_qrData.isEmpty) return;
+
     await Clipboard.setData(ClipboardData(text: _qrData));
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('QR link copied.')),
     );
@@ -313,7 +319,7 @@ class _QrScreenState extends State<QrScreen> {
                     'Status: ${_tokenRow == null ? 'none' : (_tokenRow!.isActive ? 'active' : 'revoked')}',
                   ),
                   Text(
-                    'Expires: ${_formatDateTime(_tokenRow?.expiresAt)}',
+                    'Expires: ${_tokenRow?.expiresAt?.toIso8601String() ?? 'Not set'}',
                   ),
                   Text(
                     'Created at: ${_tokenRow?.createdAt?.toIso8601String() ?? 'Unknown'}',
@@ -362,7 +368,7 @@ class _QrScreenState extends State<QrScreen> {
             child: InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Expiry date and time',
-                helperText: 'Pick a date and time',
+                helperText: 'Pick a date, then a time',
                 border: OutlineInputBorder(),
               ),
               child: Padding(
