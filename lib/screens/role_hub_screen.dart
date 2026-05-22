@@ -91,7 +91,7 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              subtitle: const Text('Change password, recovery, sign out'),
+              subtitle: const Text('Change password or sign out'),
               onTap: () => _open(context, settingsRoute),
             ),
           ),

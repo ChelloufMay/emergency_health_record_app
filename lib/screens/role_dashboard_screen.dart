@@ -28,7 +28,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
 
   bool _loading = true;
   List<PatientAccessRowModel> _rows = [];
-  List<dynamic> _pendingInvites = [];
+  List<Map<String, dynamic>> _pendingInvites = [];
 
   @override
   void initState() {
@@ -41,7 +41,9 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
 
     try {
       final rows = await _service.fetchMyAccessDashboardRows();
-      final invites = await _service.fetchMyPendingInvites();
+
+      // CHANGED: use the invite view that includes patient details.
+      final invites = await _service.fetchMyPendingInvitesWithPatientDetails();
 
       if (!mounted) return;
       setState(() {
@@ -82,6 +84,27 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
         ),
       ),
     );
+  }
+
+  String _invitePatientName(Map<String, dynamic> invite) {
+    // CHANGED: build the name from the joined profile fields when possible.
+    final fromView = invite['patient_name']?.toString().trim();
+    if (fromView != null && fromView.isNotEmpty) return fromView;
+
+    final first = invite['first_name']?.toString().trim() ?? '';
+    final last = invite['family_name']?.toString().trim() ?? '';
+    final combined = '$first $last'.trim();
+    if (combined.isNotEmpty) return combined;
+
+    return 'Unknown patient';
+  }
+
+  String _inviteToken(Map<String, dynamic> invite) {
+    final token = invite['invite_token']?.toString() ??
+        invite['token']?.toString() ??
+        invite['access_invite_token']?.toString() ??
+        '';
+    return token.trim();
   }
 
   Future<void> _acceptInvite(String inviteToken) async {
@@ -141,14 +164,10 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ),
               const SizedBox(height: 8),
               ..._pendingInvites.map((invite) {
-                final token = invite.inviteToken?.toString() ??
-                    invite.raw['invite_token']?.toString() ??
-                    invite.raw['token']?.toString() ??
-                    '';
-                final patientName = invite.raw['patient_name']?.toString() ??
-                    'Unknown patient';
+                final token = _inviteToken(invite);
+                final patientName = _invitePatientName(invite);
                 final permission =
-                    invite.raw['permission']?.toString() ?? 'read';
+                    invite['permission']?.toString() ?? 'read';
 
                 return Card(
                   child: ListTile(
@@ -158,14 +177,16 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                       spacing: 8,
                       children: [
                         IconButton(
-                          onPressed:
-                          token.isEmpty ? null : () => _acceptInvite(token),
+                          onPressed: token.isEmpty
+                              ? null
+                              : () => _acceptInvite(token),
                           icon: const Icon(Icons.check),
                           tooltip: 'Accept',
                         ),
                         IconButton(
-                          onPressed:
-                          token.isEmpty ? null : () => _rejectInvite(token),
+                          onPressed: token.isEmpty
+                              ? null
+                              : () => _rejectInvite(token),
                           icon: const Icon(Icons.close),
                           tooltip: 'Reject',
                         ),
