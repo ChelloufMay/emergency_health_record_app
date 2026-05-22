@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 
 class PatientDetailScreen extends StatelessWidget {
   final String patientId;
@@ -17,14 +18,24 @@ class PatientDetailScreen extends StatelessWidget {
   });
 
   bool get canEdit => permission == 'edit' || permission == 'owner';
+  bool get isEmergencyOnly => permission == 'emergency_only';
 
   void _open(BuildContext context, String routeName) {
-    Navigator.pushNamed(context, routeName);
+    final ctx = PatientAccessContext(
+      patientId: patientId,
+      canEdit: canEdit,
+      isEmergencyOnly: isEmergencyOnly,
+      actorRole: roleLabel,
+    );
+    Navigator.pushNamed(
+      context,
+      routeName,
+      arguments: ctx.toRouteArguments(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // CHANGED: every role detail screen now uses the same selected-patient session.
     PatientSessionService.instance.setSession(
       patientId: patientId,
       patientName: patientName,
@@ -70,11 +81,15 @@ class PatientDetailScreen extends StatelessWidget {
               ),
               title: Text(canEdit ? 'Edit allowed sections' : 'Read-only access'),
               subtitle: Text(
-                canEdit
-                    ? 'Open section screens and edit the permitted fields'
+                isEmergencyOnly
+                    ? 'Emergency-only: open emergency views'
+                    : canEdit
+                    ? 'Open section screens and edit permitted fields'
                     : 'Open section screens in read-only mode',
               ),
-              onTap: canEdit ? () => _open(context, '/medical_summary') : null,
+              onTap: isEmergencyOnly
+                  ? () => _open(context, '/emergency')
+                  : (canEdit ? () => _open(context, '/medical_summary') : null),
             ),
           ),
           Card(
@@ -85,6 +100,14 @@ class PatientDetailScreen extends StatelessWidget {
               onTap: () => _open(context, '/qr'),
             ),
           ),
+          if (isEmergencyOnly)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.emergency_outlined),
+                title: const Text('Emergency view'),
+                onTap: () => _open(context, '/emergency'),
+              ),
+            ),
         ],
       ),
     );
