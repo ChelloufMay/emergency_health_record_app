@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/allergy_model.dart';
+import 'audit_write_service.dart';
 import 'service_exceptions.dart';
 
 class AllergyService {
@@ -26,6 +27,8 @@ class AllergyService {
   Future<String> save({
     required AllergyModel allergy,
     required String patientId,
+    String? actorUserId,
+    String? actorRole,
   }) async {
     final pid = requireText(patientId, 'patientId');
     final allergen = requireText(allergy.allergenName, 'Allergen name');
@@ -50,7 +53,16 @@ class AllergyService {
             .select('id')
             .single();
 
-        return inserted['id'].toString();
+        final newId = inserted['id'].toString();
+        await AuditWriteService.instance.recordIfNeeded(
+          patientId: pid,
+          action: 'create',
+          entityType: 'allergies',
+          entityId: newId,
+          performedByUserId: actorUserId,
+          actorRole: actorRole,
+        );
+        return newId;
       }
 
       await _supabase
@@ -58,13 +70,26 @@ class AllergyService {
           .update(payload.toUpdateMap())
           .eq('id', payload.id!);
 
+      await AuditWriteService.instance.recordIfNeeded(
+        patientId: pid,
+        action: 'update',
+        entityType: 'allergies',
+        entityId: payload.id,
+        performedByUserId: actorUserId,
+        actorRole: actorRole,
+      );
       return payload.id!;
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Allergy save'));
     }
   }
 
-  Future<void> delete({required String patientId, required String id}) async {
+  Future<void> delete({
+    required String patientId,
+    required String id,
+    String? actorUserId,
+    String? actorRole,
+  }) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');
 
@@ -74,6 +99,15 @@ class AllergyService {
           .delete()
           .eq('id', rowId)
           .eq('patient_id', pid);
+
+      await AuditWriteService.instance.recordIfNeeded(
+        patientId: pid,
+        action: 'delete',
+        entityType: 'allergies',
+        entityId: rowId,
+        performedByUserId: actorUserId,
+        actorRole: actorRole,
+      );
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Allergy delete'));
     }

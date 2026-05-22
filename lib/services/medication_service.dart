@@ -27,6 +27,8 @@ class MedicationService {
   Future<String> save({
     required MedicationModel medication,
     required String patientId,
+    String? actorUserId,
+    String? actorRole,
   }) async {
     final pid = requireText(patientId, 'patientId');
     final medicationName = requireText(
@@ -68,7 +70,12 @@ class MedicationService {
     }
   }
 
-  Future<void> delete({required String patientId, required String id}) async {
+  Future<void> delete({
+    required String patientId,
+    required String id,
+    String? actorUserId,
+    String? actorRole,
+  }) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');
 

@@ -1,22 +1,17 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../models/notification_event_model.dart';
+import 'notification_event_service.dart';
 
-/// Read-only notification timeline service.
-/// This is useful for showing the invite/access notification history in a
-/// patient-facing screen without mixing that logic into the widget.
+/// Patient-facing notification timeline (delegates to [NotificationEventService]).
 class PatientNotificationsService {
-  final SupabaseClient _client = Supabase.instance.client;
+  final NotificationEventService _events = NotificationEventService();
 
-  Future<List<NotificationEventModel>> fetchForPatient(String patientId) async {
-    final rows = await _client
-        .from('notification_events')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', ascending: false);
+  Future<List<NotificationEventModel>> fetchForPatient(String patientId) {
+    return _events.fetchByPatient(patientId);
+  }
 
-    return (rows as List)
-        .map((row) => NotificationEventModel.fromMap(Map.from(row as Map)))
-        .toList();
+  Future<List<NotificationEventModel>> fetchAccessRelatedForPatient(
+    String patientId,
+  ) {
+    return _events.fetchAccessRelatedForPatient(patientId);
   }
 }

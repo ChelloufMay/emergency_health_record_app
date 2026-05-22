@@ -1,11 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/access_grant_model.dart';
+import '../models/access_grant_view_model.dart';
+import '../models/access_inbox_item_model.dart';
 import '../models/access_invite_model.dart';
 import '../models/patient_access_row_model.dart';
+import 'notification_event_service.dart';
 
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final NotificationEventService _notifications = NotificationEventService();
 
   String? _currentEmail() {
     final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
@@ -163,6 +167,43 @@ class AccessService {
         .toList();
   }
 
+  Future<List<AccessInboxItemModel>> fetchMyInboxPending() async {
+    final rows = await fetchMyPendingInvitesWithPatientDetails();
+    return rows.map(AccessInboxItemModel.fromMap).toList();
+  }
+
+  Future<List<AccessInboxItemModel>> fetchMyInboxAccepted() async {
+    final rows = await fetchMyAcceptedInvitesWithPatientDetails();
+    return rows.map(AccessInboxItemModel.fromMap).toList();
+  }
+
+  Future<List<AccessInboxItemModel>> fetchMyInboxRejected() async {
+    final rows = await fetchMyRejectedInvitesWithPatientDetails();
+    return rows.map(AccessInboxItemModel.fromMap).toList();
+  }
+
+  Future<List<AccessGrantViewModel>> fetchPatientGrantViews(
+    String patientId,
+  ) async {
+    final grants = await fetchPatientGrants(patientId);
+    return grants
+        .map((g) => AccessGrantViewModel.fromGrant(g))
+        .where((g) => g.grantId.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<AccessGrantViewModel>> fetchMyActiveGrantViews() async {
+    final rows = await fetchMyActiveGrants();
+    return rows
+        .map((r) => AccessGrantViewModel.fromDashboardRow(r))
+        .where((g) => g.grantId.isNotEmpty)
+        .toList();
+  }
+
+  void notifyAccessChanged() {
+    // Realtime channel also emits; this supports manual refresh hooks.
+  }
+
   Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(
       String patientId,
       ) async {
@@ -201,22 +242,73 @@ class AccessService {
     return result.toString();
   }
 
-  Future<dynamic> acceptInvite(String inviteToken) async {
-    // CHANGED: the invite is accepted through the database RPC, not by writing
-    // locally, so the trigger chain can create the grant and notifications.
-    return _supabase.rpc(
+  Future<String?> _patientIdForInviteToken(String inviteToken) async {
+    final rows = await _supabase
+        .from('access_invites_dashboard')
+        .select('patient_id, id')
+        .eq('invite_token', inviteToken.trim())
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final row = Map<String, dynamic>.from(rows.first as Map);
+    return row['patient_id']?.toString();
+  }
+
+  Future<String?> _patientIdForGrant(String grantId) async {
+    final row = await _supabase
+        .from('access_grants')
+        .select('patient_id')
+        .eq('id', grantId.trim())
+        .maybeSingle();
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row)['patient_id']?.toString();
+  }
+
+  Future<dynamic> acceptInvite(
+    String inviteToken, {
+    String? patientId,
+    String? inviteId,
+    String? actorUserId,
+  }) async {
+    final result = await _supabase.rpc(
       'accept_access_invite',
       params: {'_invite_token': inviteToken.trim()},
     );
+
+    final pid =
+        patientId ?? await _patientIdForInviteToken(inviteToken) ?? '';
+    if (pid.isNotEmpty) {
+      await _notifications.recordInviteAcceptedIfNeeded(
+        patientId: pid,
+        entityId: inviteId ?? inviteToken,
+        actorUserId: actorUserId,
+      );
+    }
+    notifyAccessChanged();
+    return result;
   }
 
-  Future<dynamic> rejectInvite(String inviteToken) async {
-    // CHANGED: the invite is rejected through the database RPC so the patient
-    // can be notified and the status change stays consistent.
-    return _supabase.rpc(
+  Future<dynamic> rejectInvite(
+    String inviteToken, {
+    String? patientId,
+    String? inviteId,
+    String? actorUserId,
+  }) async {
+    final result = await _supabase.rpc(
       'reject_access_invite',
       params: {'_invite_token': inviteToken.trim()},
     );
+
+    final pid =
+        patientId ?? await _patientIdForInviteToken(inviteToken) ?? '';
+    if (pid.isNotEmpty) {
+      await _notifications.recordInviteRejectedIfNeeded(
+        patientId: pid,
+        entityId: inviteId ?? inviteToken,
+        actorUserId: actorUserId,
+      );
+    }
+    notifyAccessChanged();
+    return result;
   }
 
   Future<dynamic> updateGrantPermission({
@@ -224,10 +316,10 @@ class AccessService {
     required String permission,
     DateTime? expiresAt,
     String? notes,
+    String? patientId,
+    String? actorUserId,
   }) async {
-    // CHANGED: permission changes now go through the secured RPC so the grant,
-    // caregiver_permission mirror, and audit trail stay synchronized.
-    return _supabase.rpc(
+    final result = await _supabase.rpc(
       'update_access_grant_permission',
       params: {
         '_grant_id': grantId.trim(),
@@ -236,14 +328,38 @@ class AccessService {
         '_notes': notes?.trim(),
       },
     );
+
+    final pid = patientId ?? await _patientIdForGrant(grantId) ?? '';
+    if (pid.isNotEmpty) {
+      await _notifications.recordPermissionUpdatedIfNeeded(
+        patientId: pid,
+        grantId: grantId,
+        actorUserId: actorUserId,
+      );
+    }
+    notifyAccessChanged();
+    return result;
   }
 
-  Future<dynamic> revokeGrant(String grantId) async {
-    // CHANGED: revocation is handled by RPC so the access change can fan out to
-    // mirrors, notifications, and audit logging in one controlled place.
-    return _supabase.rpc(
+  Future<dynamic> revokeGrant(
+    String grantId, {
+    String? patientId,
+    String? actorUserId,
+  }) async {
+    final result = await _supabase.rpc(
       'revoke_access_grant',
       params: {'_grant_id': grantId.trim()},
     );
+
+    final pid = patientId ?? await _patientIdForGrant(grantId) ?? '';
+    if (pid.isNotEmpty) {
+      await _notifications.recordGrantRevokedIfNeeded(
+        patientId: pid,
+        grantId: grantId,
+        actorUserId: actorUserId,
+      );
+    }
+    notifyAccessChanged();
+    return result;
   }
 }
