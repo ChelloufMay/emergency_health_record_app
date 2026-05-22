@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/lifestyle_model.dart';
 import '../services/lifestyle_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/section_screen_access.dart';
 import '../utils/field_helpers.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
@@ -29,10 +30,15 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   bool _loading = true;
   String? _patientId;
   LifestyleModel? _item;
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -58,7 +64,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   }
 
   Future<void> _edit() async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -322,7 +328,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   }
 
   Future<void> _delete() async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -349,7 +355,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
         title: const Text('Lifestyle'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: _edit,
               icon: Icon(item == null ? Icons.add : Icons.edit),

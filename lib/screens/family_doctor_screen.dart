@@ -4,6 +4,7 @@ import '../models/family_doctor_model.dart';
 import '../models/family_doctor_with_address_model.dart';
 import '../services/family_doctor_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -29,10 +30,15 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   bool _loading = true;
   String? _patientId;
   FamilyDoctorWithAddressModel? _item;
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -58,7 +64,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   }
 
   Future<void> _edit() async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -277,7 +283,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   }
 
   Future<void> _delete() async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     final doctorId = _item?.id;
     if (patientId == null || doctorId == null) return;
@@ -312,12 +318,12 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
         title: const Text('Family doctor'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: _edit,
               icon: Icon(item == null ? Icons.add : Icons.edit),
             ),
-          if (widget.canEdit && item != null)
+          if (_access.allowMutations && item != null)
             IconButton(onPressed: _delete, icon: const Icon(Icons.delete)),
         ],
       ),

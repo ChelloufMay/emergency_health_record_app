@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/hospitalization_model.dart';
 import '../services/hospitalization_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -28,10 +29,15 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   bool _loading = true;
   String? _patientId;
   List<HospitalizationModel> _items = [];
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -57,7 +63,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   }
 
   Future<void> _openEditor({HospitalizationModel? initial}) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -192,7 +198,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   }
 
   Future<void> _deleteItem(HospitalizationModel item) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -217,7 +223,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
         title: const Text('Hospitalizations'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -250,7 +256,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
                       'Notes: ${item.notes}',
                   ].join('\n'),
                 ),
-                trailing: widget.canEdit
+                trailing: _access.allowMutations
                     ? PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'edit') {

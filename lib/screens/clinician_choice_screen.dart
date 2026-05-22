@@ -10,11 +10,12 @@ class ClinicianChoiceScreen extends StatelessWidget {
     return const RoleHubScreen(
       title: 'Clinician hub',
       description:
-      'Use this hub to reach your clinician dashboard, pending invites, profile, and clinician settings.',
+          'Use this hub to reach your clinician dashboard, pending invites, '
+          'profile, and clinician settings.',
       dashboardRoute: '/clinician_dashboard',
-      accessRoute: '/access_dashboard',
+      accessInboxRoute: '/access_inbox',
+      accessManagementRoute: '/access_center',
       profileRoute: '/clinician_profile',
-      // CHANGED: route to the clinician-specific settings screen.
       settingsRoute: '/clinician_settings',
     );
   }

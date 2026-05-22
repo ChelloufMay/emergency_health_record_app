@@ -10,11 +10,12 @@ class CaregiverChoiceScreen extends StatelessWidget {
     return const RoleHubScreen(
       title: 'Caregiver hub',
       description:
-      'Use this hub to reach your caregiver dashboard, pending invites, profile, and caregiver settings.',
+          'Use this hub to reach your caregiver dashboard, pending invites, '
+          'profile, and caregiver settings.',
       dashboardRoute: '/caregiver_dashboard',
-      accessRoute: '/access_dashboard',
+      accessInboxRoute: '/access_inbox',
+      accessManagementRoute: '/access_center',
       profileRoute: '/caregiver_profile',
-      // CHANGED: route to the caregiver-specific settings screen.
       settingsRoute: '/caregiver_settings',
     );
   }

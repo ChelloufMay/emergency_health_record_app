@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/allergy_model.dart';
 import '../services/allergy_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -28,15 +29,24 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   bool _loading = true;
   String? _patientId;
   List<AllergyModel> _items = [];
+  late bool _canEdit;
+  late bool _isEmergencyOnly;
 
   @override
   void initState() {
     super.initState();
+    final session = PatientSessionService.instance.current;
+    _canEdit = widget.canEdit || (session?.canEdit ?? false);
+    _isEmergencyOnly =
+        widget.isEmergencyOnly || (session?.isEmergencyOnly ?? false);
     _load();
   }
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    if (widget.patientId != null && widget.patientId!.isNotEmpty) {
+      return widget.patientId;
+    }
+    return PatientSessionService.instance.current?.patientId;
   }
 
   Future<void> _load() async {
@@ -58,7 +68,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   Future<void> _openEditor({AllergyModel? initial}) async {
-    if (!widget.canEdit) return;
+    if (!_canEdit || _isEmergencyOnly) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -94,7 +104,18 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   : severityController.text.trim(),
               source: source,
             );
-            await _service.save(allergy: model, patientId: patientId);
+            final access = resolveScreenAccess(
+              context: dialogContext,
+              widgetPatientId: widget.patientId,
+              widgetCanEdit: widget.canEdit,
+              widgetIsEmergencyOnly: widget.isEmergencyOnly,
+            );
+            await _service.save(
+              allergy: model,
+              patientId: patientId,
+              actorUserId: access.actorUserId,
+              actorRole: access.actorRole,
+            );
           },
           contentBuilder: (_, saving) {
             return Column(
@@ -173,7 +194,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   Future<void> _deleteItem(AllergyModel item) async {
-    if (!widget.canEdit) return;
+    if (!_canEdit || _isEmergencyOnly) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -185,7 +206,18 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
 
     if (!confirmed || !mounted) return;
 
-    await _service.delete(patientId: patientId, id: item.id!);
+    final access = resolveScreenAccess(
+      context: context,
+      widgetPatientId: widget.patientId,
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
+    await _service.delete(
+      patientId: patientId,
+      id: item.id!,
+      actorUserId: access.actorUserId,
+      actorRole: access.actorRole,
+    );
     if (!mounted) return;
     await _load();
   }
@@ -197,7 +229,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
         title: const Text('Allergies'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_canEdit && !_isEmergencyOnly)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -229,7 +261,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                       'Source: ${item.source}',
                   ].join('\n'),
                 ),
-                trailing: widget.canEdit
+                trailing: _canEdit && !_isEmergencyOnly
                     ? PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'edit') {

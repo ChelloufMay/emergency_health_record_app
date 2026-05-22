@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/surgery_model.dart';
 import '../services/patient_session_service.dart';
 import '../services/surgery_service.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -28,10 +29,15 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
   bool _loading = true;
   String? _patientId;
   List<SurgeryModel> _items = [];
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -57,7 +63,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
   }
 
   Future<void> _openEditor({SurgeryModel? initial}) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -197,7 +203,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
   }
 
   Future<void> _deleteItem(SurgeryModel item) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -222,7 +228,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
         title: const Text('Surgeries'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -255,7 +261,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
                       'Notes: ${item.notes}',
                   ].join('\n'),
                 ),
-                trailing: widget.canEdit
+                trailing: _access.allowMutations
                     ? PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'edit') {

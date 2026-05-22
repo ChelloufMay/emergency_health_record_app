@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/medical_condition_model.dart';
 import '../services/medical_condition_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -28,10 +29,15 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
   bool _loading = true;
   String? _patientId;
   List<MedicalConditionModel> _items = [];
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -57,7 +63,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
   }
 
   Future<void> _openEditor({MedicalConditionModel? initial}) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -205,7 +211,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
   }
 
   Future<void> _deleteItem(MedicalConditionModel item) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -229,7 +235,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
         title: const Text('Conditions'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -263,7 +269,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                       'Treatment: ${item.treatment}',
                   ].join('\n'),
                 ),
-                trailing: widget.canEdit
+                trailing: _access.allowMutations
                     ? PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'edit') {

@@ -56,6 +56,19 @@ class _AccessPermissionEditorScreenState
     super.dispose();
   }
 
+  String _roleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'caregiver':
+        return 'caregiver';
+      case 'guardian':
+        return 'guardian';
+      case 'clinician':
+        return 'clinician';
+      default:
+        return role;
+    }
+  }
+
   String _labelFor(String value) {
     switch (value) {
       case 'read':
@@ -114,6 +127,7 @@ class _AccessPermissionEditorScreenState
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        patientId: widget.patientId,
       );
 
       if (!mounted) return;
@@ -141,8 +155,8 @@ class _AccessPermissionEditorScreenState
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Change the active grant for this ${widget.granteeRole}. '
-                    'This screen only edits access permission, expiry, and notes.',
+                'Change the active grant for this ${_roleLabel(widget.granteeRole)}. '
+                    'Grant-only editor: permission, expiry, and notes.',
               ),
             ),
           ),

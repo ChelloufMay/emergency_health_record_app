@@ -6,7 +6,8 @@ class RoleHubScreen extends StatelessWidget {
   final String title;
   final String description;
   final String dashboardRoute;
-  final String accessRoute;
+  final String accessInboxRoute;
+  final String accessManagementRoute;
   final String profileRoute;
   final String settingsRoute;
 
@@ -15,7 +16,8 @@ class RoleHubScreen extends StatelessWidget {
     required this.title,
     required this.description,
     required this.dashboardRoute,
-    required this.accessRoute,
+    required this.accessInboxRoute,
+    required this.accessManagementRoute,
     required this.profileRoute,
     required this.settingsRoute,
   });
@@ -63,8 +65,6 @@ class RoleHubScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // CHANGED: the hub now matches the new split more explicitly.
           Card(
             child: ListTile(
               leading: const Icon(Icons.dashboard_outlined),
@@ -76,9 +76,17 @@ class RoleHubScreen extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.inbox_outlined),
-              title: const Text('Invites & access'),
-              subtitle: const Text('Accept or reject invites and manage access'),
-              onTap: () => _open(context, accessRoute),
+              title: const Text('Invites / inbox'),
+              subtitle: const Text('Accept or reject incoming access invites'),
+              onTap: () => _open(context, accessInboxRoute),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.admin_panel_settings_outlined),
+              title: const Text('My active access'),
+              subtitle: const Text('View patients and permissions granted to you'),
+              onTap: () => _open(context, accessManagementRoute),
             ),
           ),
           Card(
@@ -93,7 +101,6 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              // CHANGED: make the split explicit in the UI.
               subtitle: const Text('Open your role-specific settings'),
               onTap: () => _open(context, settingsRoute),
             ),

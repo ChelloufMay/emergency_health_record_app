@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/notification_event_model.dart';
 import '../services/notification_event_service.dart';
+import '../services/patient_notifications_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
@@ -17,13 +18,16 @@ class PatientNotificationsScreen extends StatefulWidget {
 
 class _PatientNotificationsScreenState
     extends State<PatientNotificationsScreen> {
-  final NotificationEventService _service = NotificationEventService();
+  final PatientNotificationsService _patientNotifications =
+      PatientNotificationsService();
+  final NotificationEventService _eventService = NotificationEventService();
   final PatientService _patientService = PatientService();
 
   bool _loading = true;
   String? _error;
   List<NotificationEventModel> _events = [];
   bool _showOnlyPending = false;
+  bool _accessOnly = false;
 
   @override
   void initState() {
@@ -39,6 +43,26 @@ class _PatientNotificationsScreenState
     final hh = dateTime.hour.toString().padLeft(2, '0');
     final mm = dateTime.minute.toString().padLeft(2, '0');
     return '$y-$m-$d $hh:$mm';
+  }
+
+  bool _isAccessEvent(NotificationEventModel event) {
+    return NotificationEventService.accessEventTypes.contains(event.eventType) ||
+        event.eventType.startsWith('access_');
+  }
+
+  String _friendlyEventType(String eventType) {
+    switch (eventType) {
+      case NotificationEventService.eventInviteAccepted:
+        return 'Invite accepted';
+      case NotificationEventService.eventInviteRejected:
+        return 'Invite rejected';
+      case NotificationEventService.eventPermissionUpdated:
+        return 'Permission updated';
+      case NotificationEventService.eventGrantRevoked:
+        return 'Access revoked';
+      default:
+        return eventType;
+    }
   }
 
   Future<String?> _resolvePatientId() async {
@@ -69,7 +93,10 @@ class _PatientNotificationsScreenState
         return;
       }
 
-      final list = await _service.fetchByPatient(patientId);
+      final list = _accessOnly
+          ? await _patientNotifications.fetchAccessRelatedForPatient(patientId)
+          : await _eventService.fetchByPatient(patientId);
+
       if (!mounted) return;
       setState(() {
         _events = list;
@@ -85,6 +112,8 @@ class _PatientNotificationsScreenState
   }
 
   Widget _buildEventCard(NotificationEventModel event) {
+    final isAccess = _isAccessEvent(event);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -95,38 +124,32 @@ class _PatientNotificationsScreenState
               children: [
                 Expanded(
                   child: Text(
-                    event.eventType,
+                    _friendlyEventType(event.eventType),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+                if (isAccess)
+                  const Chip(
+                    label: Text('Access'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                const SizedBox(width: 4),
                 Chip(label: Text(event.isSent ? 'Sent' : 'Pending')),
               ],
             ),
             const SizedBox(height: 8),
-            Text('Message: ${event.message}'),
+            Text(event.message),
             const SizedBox(height: 4),
             Text('Channel: ${event.deliveryChannel}'),
-            if ((event.recipientEmail ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('Recipient email: ${event.recipientEmail}'),
-            ],
-            if ((event.recipientUserId ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('Recipient user ID: ${event.recipientUserId}'),
-            ],
             if ((event.entityType ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 4),
               Text('Entity: ${event.entityType} / ${event.entityId ?? '-'}'),
             ],
             const SizedBox(height: 4),
             Text('Created: ${_formatDateTime(event.createdAt)}'),
-            if (event.sentAt != null) ...[
-              const SizedBox(height: 4),
-              Text('Sent: ${_formatDateTime(event.sentAt)}'),
-            ],
           ],
         ),
       ),
@@ -135,9 +158,12 @@ class _PatientNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final visibleEvents = _showOnlyPending
-        ? _events.where((event) => !event.isSent).toList()
+    var visibleEvents = _accessOnly
+        ? _events
         : _events;
+    if (_showOnlyPending) {
+      visibleEvents = visibleEvents.where((e) => !e.isSent).toList();
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -159,35 +185,34 @@ class _PatientNotificationsScreenState
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  FilterChip(
+                    label: const Text('Access events only'),
+                    selected: _accessOnly,
+                    onSelected: (value) {
+                      setState(() => _accessOnly = value);
+                      _load();
+                    },
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Show only pending notifications'),
+                    title: const Text('Show only pending delivery'),
                     value: _showOnlyPending,
                     onChanged: (value) =>
                         setState(() => _showOnlyPending = value),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Notification timeline',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text('${visibleEvents.length} shown'),
-                    ],
+                  Text(
+                    '${visibleEvents.length} notification(s)',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (visibleEvents.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 24),
-                        child: Text('No notifications yet.'),
-                      ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 24),
+                      child: Center(child: Text('No notifications yet.')),
                     )
                   else
                     ...visibleEvents.map(_buildEventCard),

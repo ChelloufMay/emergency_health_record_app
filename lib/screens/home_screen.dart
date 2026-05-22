@@ -227,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       FilledButton(
                         onPressed: () => Navigator.pushNamed(
                           context,
-                          '/access_dashboard',
+                          '/patient_access_management',
                           arguments: {'patientId': session?.patientId},
                         ),
                         child: const Text('Change / manage access'),
@@ -272,10 +272,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _navCard(
                     icon: Icons.people_outline,
-                    label: 'Access Dashboard',
+                    label: 'Access management',
                     onTap: () => Navigator.pushNamed(
                       context,
-                      '/access_dashboard',
+                      '/patient_access_management',
+                      arguments: {'patientId': session?.patientId},
+                    ),
+                    width: quickWidth,
+                  ),
+                  _navCard(
+                    icon: Icons.notifications_outlined,
+                    label: 'Notifications',
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/patient_notifications',
                       arguments: {'patientId': session?.patientId},
                     ),
                     width: quickWidth,

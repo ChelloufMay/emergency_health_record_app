@@ -8,6 +8,7 @@ import '../models/attachment_model.dart';
 import '../services/attachment_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -34,10 +35,15 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
   bool _loading = true;
   String? _patientId;
   List<AttachmentModel> _items = [];
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
     _load();
   }
 
@@ -65,7 +71,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   // CHANGED: upload flow now supports a real file picker and storage upload.
   Future<void> _openEditor({AttachmentModel? initial}) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -308,7 +314,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   // CHANGED: delete now asks for confirmation first.
   Future<void> _deleteItem(AttachmentModel item) async {
-    if (!widget.canEdit) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -352,7 +358,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
         title: const Text('Attachments'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (widget.canEdit)
+          if (_access.allowMutations)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -387,7 +393,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                       'Path: ${item.storagePath}',
                   ].join('\n'),
                 ),
-                trailing: widget.canEdit
+                trailing: _access.allowMutations
                     ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

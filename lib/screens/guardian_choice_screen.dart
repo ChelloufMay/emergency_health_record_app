@@ -10,11 +10,12 @@ class GuardianChoiceScreen extends StatelessWidget {
     return const RoleHubScreen(
       title: 'Guardian hub',
       description:
-      'Use this hub to reach your guardian dashboard, pending invites, profile, and guardian settings.',
+          'Use this hub to reach your guardian dashboard, pending invites, '
+          'profile, and guardian settings.',
       dashboardRoute: '/guardian_dashboard',
-      accessRoute: '/access_dashboard',
+      accessInboxRoute: '/access_inbox',
+      accessManagementRoute: '/access_center',
       profileRoute: '/guardian_profile',
-      // CHANGED: route to the guardian-specific settings screen.
       settingsRoute: '/guardian_settings',
     );
   }
