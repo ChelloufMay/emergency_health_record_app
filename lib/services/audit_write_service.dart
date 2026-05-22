@@ -4,15 +4,24 @@ import '../utils/audit_helper.dart';
 
 /// Server-primary audit helper: Postgres triggers write most audit rows.
 ///
-/// This service only fills gaps for tables that lack triggers. The default
-/// allowlist is empty, so [recordIfNeeded] is a no-op until you add table names
-/// after reviewing Supabase migrations.
+/// This service only fills gaps for tables that lack triggers. The allowlist is
+/// limited to tables confirmed missing audit triggers in the current schema.
 class AuditWriteService {
   AuditWriteService._();
   static final AuditWriteService instance = AuditWriteService._();
 
-  /// Tables confirmed to lack audit triggers (extend after Supabase review).
-  static const Set<String> gapTables = {};
+  /// Tables confirmed to lack audit triggers in the current schema.
+  static const Set<String> gapTables = {
+    'account_deletion_requests',
+    'addresses',
+    'caregiver_permissions',
+    'caregiver_profiles',
+    'clinician_profiles',
+    'email_outbox',
+    'family_doctors',
+    'guardian_profiles',
+    'users',
+  };
 
   Future<void> recordIfNeeded({
     required String patientId,
