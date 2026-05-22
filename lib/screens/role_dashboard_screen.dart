@@ -86,61 +86,8 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     );
   }
 
-  String _invitePatientName(Map<String, dynamic> invite) {
-    // CHANGED: prefer patient name fields already provided by the invite view.
-    final directNameCandidates = [
-      invite['patient_name'],
-      invite['patient_full_name'],
-      invite['full_name'],
-      invite['display_name'],
-    ];
-
-    for (final candidate in directNameCandidates) {
-      final value = candidate?.toString().trim() ?? '';
-      if (value.isNotEmpty) return value;
-    }
-
-    final first = [
-      invite['patient_first_name'],
-      invite['first_name'],
-      invite['given_name'],
-    ].map((e) => e?.toString().trim() ?? '').firstWhere(
-          (value) => value.isNotEmpty,
-      orElse: () => '',
-    );
-
-    final last = [
-      invite['patient_family_name'],
-      invite['family_name'],
-      invite['last_name'],
-      invite['surname'],
-    ].map((e) => e?.toString().trim() ?? '').firstWhere(
-          (value) => value.isNotEmpty,
-      orElse: () => '',
-    );
-
-    final combined = '$first $last'.trim();
-    if (combined.isNotEmpty) return combined;
-
-    return 'Unknown patient';
-  }
-
-  String _inviteToken(Map<String, dynamic> invite) {
-    final token = invite['invite_token']?.toString() ??
-        invite['token']?.toString() ??
-        invite['access_invite_token']?.toString() ??
-        '';
-    return token.trim();
-  }
-
-  Future<void> _acceptInvite(String inviteToken) async {
-    await _service.acceptInvite(inviteToken);
-    await _loadData();
-  }
-
-  Future<void> _rejectInvite(String inviteToken) async {
-    await _service.rejectInvite(inviteToken);
-    await _loadData();
+  void _openInbox() {
+    Navigator.pushNamed(context, '/access_inbox');
   }
 
   @override
@@ -182,50 +129,20 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
             const SizedBox(height: 16),
 
             if (_pendingInvites.isNotEmpty) ...[
-              Text(
-                'Pending invites',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              ..._pendingInvites.map((invite) {
-                final token = _inviteToken(invite);
-                final patientName = _invitePatientName(invite);
-                final permission =
-                    invite['permission']?.toString() ?? 'read';
-                final invitedAt =
-                    invite['invited_at']?.toString().trim() ?? '';
-
-                return Card(
-                  child: ListTile(
-                    title: Text(patientName),
-                    subtitle: Text(
-                      invitedAt.isEmpty
-                          ? 'Permission: $permission'
-                          : 'Permission: $permission • Invited at: $invitedAt',
-                    ),
-                    trailing: Wrap(
-                      spacing: 8,
-                      children: [
-                        IconButton(
-                          onPressed:
-                          token.isEmpty ? null : () => _acceptInvite(token),
-                          icon: const Icon(Icons.check),
-                          tooltip: 'Accept',
-                        ),
-                        IconButton(
-                          onPressed:
-                          token.isEmpty ? null : () => _rejectInvite(token),
-                          icon: const Icon(Icons.close),
-                          tooltip: 'Reject',
-                        ),
-                      ],
-                    ),
+              Card(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: ListTile(
+                  leading: const Icon(Icons.inbox_outlined),
+                  title: Text(
+                    '${_pendingInvites.length} pending invite(s)',
                   ),
-                );
-              }),
+                  subtitle: const Text(
+                    'Open the inbox to accept or reject invites.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openInbox,
+                ),
+              ),
               const SizedBox(height: 16),
             ],
 
