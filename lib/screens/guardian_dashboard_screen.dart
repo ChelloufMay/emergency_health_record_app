@@ -10,7 +10,7 @@ class GuardianDashboardScreen extends StatelessWidget {
     return const RoleDashboardScreen(
       title: 'Guardian dashboard',
       subtitle:
-      'Patients shown here come from the access view. Guardian permissions are enforced by the current grant.',
+      'Patients shown here come from the access dashboard view. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active guardian access found.',
     );
   }

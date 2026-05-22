@@ -10,7 +10,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
     return const RoleDashboardScreen(
       title: 'Caregiver dashboard',
       subtitle:
-      'Patients shown here come from the access view. Editable sections depend on the current grant permission.',
+      'Patients shown here come from the access dashboard view. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active caregiver access found.',
     );
   }

@@ -10,7 +10,7 @@ class ClinicianDashboardScreen extends StatelessWidget {
     return const RoleDashboardScreen(
       title: 'Clinician dashboard',
       subtitle:
-      'Patients shown here come from the access view. Read-only and editable access are enforced by the current grant.',
+      'Patients shown here come from the access dashboard view. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active clinician access found.',
     );
   }

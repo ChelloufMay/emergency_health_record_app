@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/access_grant_model.dart';
 import '../models/access_invite_model.dart';
 import '../services/access_service.dart';
-import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import 'access_permission_editor_screen.dart';
 
@@ -18,12 +17,13 @@ class AccessDashboardScreen extends StatefulWidget {
 
 class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
   final AccessService _accessService = AccessService();
-  final PatientService _patientService = PatientService();
 
   bool _loading = true;
-  List<Map<String, dynamic>> _rows = [];
+  List<Map<String, dynamic>> _activeGrantRows = [];
   List<Map<String, dynamic>> _pendingInviteRows = [];
-  String? _myEmail;
+  List<Map<String, dynamic>> _acceptedInviteRows = [];
+  List<Map<String, dynamic>> _rejectedInviteRows = [];
+  List<Map<String, dynamic>> _revokedInviteRows = [];
 
   String? _resolvePatientId() {
     return widget.patientId ?? PatientSessionService.instance.current?.patientId;
@@ -75,6 +75,28 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     return _stringValue(row, const ['patient_id', 'id', 'target_patient_id']);
   }
 
+  String _grantId(Map<String, dynamic> row) {
+    return _stringValue(
+      row,
+      const ['grant_id', 'access_grant_id', 'id'],
+    );
+  }
+
+  String _granteeRole(Map<String, dynamic> row) {
+    return _stringValue(
+      row,
+      const ['grantee_role', 'role', 'invited_role'],
+      fallback: 'unknown',
+    );
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return DateTime.tryParse(text);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -82,27 +104,27 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
 
     try {
       final results = await Future.wait<dynamic>([
-        _accessService.fetchMyAccessDashboardRowMaps(),
+        // CHANGED: current grant rows come from the patient-aware dashboard view.
+        _accessService.fetchMyActiveGrants(),
+        // CHANGED: invite history is split by status so the UI can show each one.
         _accessService.fetchMyPendingInvitesWithPatientDetails(),
-        _patientService.fetchCurrentAppUserRow(),
+        _accessService.fetchMyAcceptedInvitesWithPatientDetails(),
+        _accessService.fetchMyRejectedInvitesWithPatientDetails(),
+        _accessService.fetchMyRevokedInvitesWithPatientDetails(),
       ]);
 
-      final rows = List<Map<String, dynamic>>.from(results[0] as List);
-      final pendingInvites =
-      List<Map<String, dynamic>>.from(results[1] as List);
-      final myUserRow = results[2] is Map
-          ? Map<String, dynamic>.from(results[2] as Map)
-          : null;
-
       if (!mounted) return;
+
       setState(() {
-        _rows = rows;
-        _pendingInviteRows = pendingInvites;
-        _myEmail = myUserRow?['email']?.toString().trim().toLowerCase();
+        _activeGrantRows = List<Map<String, dynamic>>.from(results[0] as List);
+        _pendingInviteRows = List<Map<String, dynamic>>.from(results[1] as List);
+        _acceptedInviteRows = List<Map<String, dynamic>>.from(results[2] as List);
+        _rejectedInviteRows = List<Map<String, dynamic>>.from(results[3] as List);
+        _revokedInviteRows = List<Map<String, dynamic>>.from(results[4] as List);
         _loading = false;
       });
     } catch (e) {
@@ -114,32 +136,28 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     }
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupRowsByPatient() {
-    final grouped = <String, List<Map<String, dynamic>>>{};
-
-    for (final row in _rows) {
-      final patientId = row['patient_id']?.toString();
-      if (patientId == null || patientId.isEmpty) continue;
-      grouped.putIfAbsent(patientId, () => []).add(row);
-    }
-
-    return grouped;
-  }
-
   Future<void> _openPermissionEditor({
-    required String grantId,
-    required String patientId,
-    required String granteeRole,
-    required String currentPermission,
+    required Map<String, dynamic> grantRow,
   }) async {
+    final grantId = _grantId(grantRow);
+    if (grantId.isEmpty) return;
+
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => AccessPermissionEditorScreen(
           grantId: grantId,
-          patientId: patientId,
-          granteeRole: granteeRole,
-          currentPermission: currentPermission,
+          patientId: _stringValue(grantRow, const ['patient_id']),
+          granteeRole: _granteeRole(grantRow),
+          currentPermission: _stringValue(
+            grantRow,
+            const ['permission'],
+            fallback: 'read',
+          ),
+          currentExpiresAt: _parseDateTime(
+            grantRow['expires_at'] ?? grantRow['expiresAt'],
+          ),
+          currentNotes: grantRow['notes']?.toString(),
         ),
       ),
     );
@@ -149,13 +167,16 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     }
   }
 
-  Future<void> _revokeGrant(String grantId) async {
+  Future<void> _revokeGrant(Map<String, dynamic> grantRow) async {
+    final grantId = _grantId(grantRow);
+    if (grantId.isEmpty) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Revoke access'),
         content: const Text(
-          'This will remove the active grant and the user will lose access immediately.',
+          'This removes the active grant immediately and the user loses access.',
         ),
         actions: [
           TextButton(
@@ -186,39 +207,14 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     }
 
     try {
-      final result = await _accessService.acceptInvite(token);
+      await _accessService.acceptInvite(token);
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invite accepted.')),
       );
 
       await _load();
-
-      String? patientId;
-      if (result is Map) {
-        final map = Map<String, dynamic>.from(result);
-        patientId = map['patient_id']?.toString();
-      } else if (result != null) {
-        final text = result.toString().trim();
-        if (text.isNotEmpty && text != 'null') {
-          patientId = text;
-        }
-      }
-
-      if (patientId != null && patientId.isNotEmpty) {
-        final matchedRow = _rows.where(
-              (row) => row['patient_id']?.toString() == patientId,
-        );
-
-        if (matchedRow.isNotEmpty) {
-          await _showPatientSheet(
-            patientId,
-            title: _patientNameFromRow(matchedRow.first),
-          );
-        }
-      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -237,10 +233,12 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
 
     try {
       await _accessService.rejectInvite(token);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invite rejected.')),
       );
+
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -248,117 +246,6 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
         SnackBar(content: Text('Could not reject invite: $e')),
       );
     }
-  }
-
-  Widget _grantCard({
-    required AccessGrantModel grant,
-    required String patientId,
-    required bool showActions,
-  }) {
-    final grantId = grant.id ?? '';
-    final canEditGrant = grantId.isNotEmpty;
-
-    return Card(
-      child: ListTile(
-        title: Text('${grant.granteeRole} • ${grant.permission}'),
-        subtitle: Text(
-          'Status: ${grant.status} • Expires: ${grant.expiresAt?.toIso8601String() ?? 'Never'}',
-        ),
-        trailing: showActions
-            ? Wrap(
-          spacing: 6,
-          children: [
-            IconButton(
-              onPressed: !canEditGrant
-                  ? null
-                  : () => _openPermissionEditor(
-                grantId: grantId,
-                patientId: patientId,
-                granteeRole: grant.granteeRole,
-                currentPermission: grant.permission,
-              ),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Change permission',
-            ),
-            IconButton(
-              onPressed: !canEditGrant ? null : () => _revokeGrant(grantId),
-              icon: const Icon(Icons.block),
-              tooltip: 'Revoke grant',
-            ),
-          ],
-        )
-            : null,
-      ),
-    );
-  }
-
-  Widget _inviteCard({
-    required Map<String, dynamic> invite,
-    required bool showActions,
-  }) {
-    final token = _inviteToken(invite);
-    final patientId = _invitePatientId(invite);
-    final patientName = _patientNameFromRow(invite);
-    final invitedRole = invite['invited_role']?.toString() ?? 'Unknown role';
-    final permission = invite['permission']?.toString() ?? 'Unknown permission';
-    final status = invite['status']?.toString() ?? 'pending';
-    final invitedEmail = invite['invited_email']?.toString() ?? 'Unknown email';
-
-    return Card(
-      child: ListTile(
-        title: Text(patientName),
-        subtitle: Text(
-          'Role: $invitedRole\nPermission: $permission\nEmail: $invitedEmail\nStatus: $status',
-        ),
-        isThreeLine: true,
-        onTap: patientId.isEmpty
-            ? null
-            : () => _showPatientSheet(patientId, title: patientName),
-        trailing: showActions
-            ? Wrap(
-          spacing: 6,
-          children: [
-            IconButton(
-              onPressed: token.isEmpty ? null : () => _acceptInviteToken(token),
-              icon: const Icon(Icons.check),
-              tooltip: 'Accept invite',
-            ),
-            IconButton(
-              onPressed: token.isEmpty ? null : () => _rejectInviteToken(token),
-              icon: const Icon(Icons.close),
-              tooltip: 'Reject invite',
-            ),
-          ],
-        )
-            : null,
-      ),
-    );
-  }
-
-  Widget _buildPendingInvitesSection() {
-    if (_pendingInviteRows.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'My pending invites',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ..._pendingInviteRows.map(
-              (invite) => _inviteCard(
-            invite: invite,
-            showActions: true,
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
   }
 
   Future<void> _showPatientSheet(String patientId, {String? title}) async {
@@ -419,10 +306,48 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       const Text('No active grants')
                     else
                       ...grants.map(
-                            (grant) => _grantCard(
-                          grant: grant,
-                          patientId: patientId,
-                          showActions: true,
+                            (grant) => Card(
+                          child: ListTile(
+                            title: Text('${grant.granteeRole} • ${grant.permission}'),
+                            subtitle: Text(
+                              'Status: ${grant.status} • Expires: ${grant.expiresAt?.toIso8601String() ?? 'Never'}',
+                            ),
+                            trailing: Wrap(
+                              spacing: 6,
+                              children: [
+                                IconButton(
+                                  onPressed: grant.id == null
+                                      ? null
+                                      : () => _openPermissionEditor(
+                                    grantRow: {
+                                      'id': grant.id,
+                                      'patient_id': grant.patientId,
+                                      'grantee_role': grant.granteeRole,
+                                      'permission': grant.permission,
+                                      'expires_at': grant.expiresAt?.toIso8601String(),
+                                      'notes': grant.notes,
+                                    },
+                                  ),
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Change permission',
+                                ),
+                                IconButton(
+                                  onPressed: grant.id == null
+                                      ? null
+                                      : () => _revokeGrant(
+                                    {
+                                      'id': grant.id,
+                                      'patient_id': grant.patientId,
+                                      'grantee_role': grant.granteeRole,
+                                      'permission': grant.permission,
+                                    },
+                                  ),
+                                  icon: const Icon(Icons.block),
+                                  tooltip: 'Revoke grant',
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     const SizedBox(height: 16),
@@ -435,17 +360,22 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                       const Text('No invites')
                     else
                       ...invites.map(
-                            (invite) => _inviteCard(
-                          invite: {
-                            'patient_id': invite.patientId,
-                            'invited_email': invite.invitedEmail,
-                            'invited_role': invite.invitedRole,
-                            'permission': invite.permission,
-                            'status': invite.status,
-                            'invite_token': invite.inviteToken,
-                            'first_name': invite.id, // fallback if the view is not returned
-                          },
-                          showActions: true,
+                            (invite) => Card(
+                          child: ListTile(
+                            title: Text(
+                              _patientNameFromRow({
+                                'patient_name':
+                                invite.patientId, // fallback if the model has no name field
+                              }),
+                            ),
+                            subtitle: Text(
+                              'Email: ${invite.invitedEmail}\n'
+                                  'Role: ${invite.invitedRole}\n'
+                                  'Permission: ${invite.permission}\n'
+                                  'Status: ${invite.status}',
+                            ),
+                            isThreeLine: true,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 24),
@@ -463,9 +393,173 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
     );
   }
 
+  Widget _buildInviteSection({
+    required String title,
+    required List<Map<String, dynamic>> rows,
+    required String emptyMessage,
+    bool showActions = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (rows.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(emptyMessage),
+            ),
+          )
+        else
+          ...rows.map((invite) {
+            final token = _inviteToken(invite);
+            final patientName = _patientNameFromRow(invite);
+            final invitedRole =
+            _stringValue(invite, const ['invited_role', 'role'], fallback: 'Unknown role');
+            final permission =
+            _stringValue(invite, const ['permission'], fallback: 'Unknown permission');
+            final status =
+            _stringValue(invite, const ['status'], fallback: 'pending');
+            final invitedEmail =
+            _stringValue(invite, const ['invited_email', 'email'], fallback: 'Unknown email');
+            final message =
+            _stringValue(invite, const ['message', 'notes', 'invite_message']);
+
+            return Card(
+              child: ListTile(
+                title: Text(patientName),
+                subtitle: Text(
+                  'Role: $invitedRole\n'
+                      'Permission: $permission\n'
+                      'Email: $invitedEmail\n'
+                      'Status: $status'
+                      '${message.isNotEmpty ? '\nMessage: $message' : ''}',
+                ),
+                isThreeLine: message.isEmpty,
+                onTap: _invitePatientId(invite).isEmpty
+                    ? null
+                    : () => _showPatientSheet(
+                  _invitePatientId(invite),
+                  title: patientName,
+                ),
+                trailing: showActions && status == 'pending'
+                    ? Wrap(
+                  spacing: 6,
+                  children: [
+                    IconButton(
+                      onPressed: token.isEmpty
+                          ? null
+                          : () => _acceptInviteToken(token),
+                      icon: const Icon(Icons.check),
+                      tooltip: 'Accept invite',
+                    ),
+                    IconButton(
+                      onPressed: token.isEmpty
+                          ? null
+                          : () => _rejectInviteToken(token),
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Reject invite',
+                    ),
+                  ],
+                )
+                    : null,
+              ),
+            );
+          }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildGrantSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Active grants',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_activeGrantRows.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No active access found.',
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
+              ),
+            ),
+          )
+        else
+          ..._activeGrantRows.map((grant) {
+            final patientId = _stringValue(grant, const ['patient_id']);
+            final patientName = _patientNameFromRow(grant);
+            final permission = _stringValue(
+              grant,
+              const ['permission'],
+              fallback: 'read',
+            );
+            final status = _stringValue(
+              grant,
+              const ['status'],
+              fallback: 'active',
+            );
+            final grantId = _grantId(grant);
+            final expiresAt = grant['expires_at']?.toString().trim() ??
+                grant['expiresAt']?.toString().trim() ??
+                'Never';
+
+            return Card(
+              child: ListTile(
+                leading: Icon(
+                  permission == 'edit'
+                      ? Icons.edit_outlined
+                      : permission == 'emergency_only'
+                      ? Icons.warning_amber_outlined
+                      : Icons.visibility_outlined,
+                ),
+                title: Text(patientName),
+                subtitle: Text(
+                  'Permission: $permission • Status: $status • Expires: $expiresAt',
+                ),
+                trailing: Wrap(
+                  spacing: 6,
+                  children: [
+                    IconButton(
+                      onPressed: grantId.isEmpty
+                          ? null
+                          : () => _openPermissionEditor(grantRow: grant),
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Edit permission',
+                    ),
+                    IconButton(
+                      onPressed: grantId.isEmpty ? null : () => _revokeGrant(grant),
+                      icon: const Icon(Icons.block),
+                      tooltip: 'Revoke grant',
+                    ),
+                  ],
+                ),
+                onTap: patientId.isEmpty
+                    ? null
+                    : () => _showPatientSheet(patientId, title: patientName),
+              ),
+            );
+          }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final grouped = _groupRowsByPatient();
     final patientId = _resolvePatientId();
 
     return Scaffold(
@@ -486,7 +580,6 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildPendingInvitesSection(),
             if (patientId != null) ...[
               Card(
                 child: Padding(
@@ -495,7 +588,7 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Current patient',
+                        'Focused patient',
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
@@ -510,111 +603,30 @@ class _AccessDashboardScreenState extends State<AccessDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              FutureBuilder<List<Object?>>(
-                future: Future.wait<Object?>([
-                  _accessService.fetchPatientGrants(patientId),
-                  _accessService.fetchPatientInvites(patientId),
-                ]),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+            ],
 
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Could not load patient access: ${snapshot.error}'),
-                    );
-                  }
-
-                  final data = snapshot.data ?? const <Object?>[];
-                  final grants = data.isNotEmpty
-                      ? (data[0] as List<AccessGrantModel>)
-                      : <AccessGrantModel>[];
-                  final invites = data.length > 1
-                      ? (data[1] as List<AccessInviteModel>)
-                      : <AccessInviteModel>[];
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Active grants',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (grants.isEmpty)
-                        const Text('No active grants')
-                      else
-                        ...grants.map(
-                              (grant) => _grantCard(
-                            grant: grant,
-                            patientId: patientId,
-                            showActions: true,
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Invites',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (invites.isEmpty)
-                        const Text('No invites')
-                      else
-                        ...invites.map(
-                              (invite) => _inviteCard(
-                            invite: {
-                              'patient_id': invite.patientId,
-                              'invited_email': invite.invitedEmail,
-                              'invited_role': invite.invitedRole,
-                              'permission': invite.permission,
-                              'status': invite.status,
-                              'invite_token': invite.inviteToken,
-                            },
-                            showActions: true,
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ] else if (grouped.isEmpty)
-              const Center(child: Text('No access rows found.'))
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: grouped.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final entry = grouped.entries.elementAt(index);
-                  final rows = entry.value;
-                  final first = rows.first;
-
-                  final firstName = first['first_name']?.toString() ?? '';
-                  final familyName = first['family_name']?.toString() ?? '';
-                  final age = first['age_years']?.toString() ?? 'Unknown';
-                  final sex = first['sex']?.toString() ?? 'Unknown';
-                  final bloodType = first['blood_type']?.toString() ?? 'Unknown';
-
-                  return Card(
-                    child: ListTile(
-                      title: Text('$firstName $familyName'.trim()),
-                      subtitle: Text(
-                        'Age: $age • Sex: $sex • Blood type: $bloodType\nAccess rows: ${rows.length}',
-                      ),
-                      onTap: () => _showPatientSheet(
-                        entry.key,
-                        title: '$firstName $familyName'.trim(),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            _buildInviteSection(
+              title: 'Pending invites',
+              rows: _pendingInviteRows,
+              emptyMessage: 'No pending invites.',
+              showActions: true,
+            ),
+            _buildInviteSection(
+              title: 'Accepted invites',
+              rows: _acceptedInviteRows,
+              emptyMessage: 'No accepted invites yet.',
+            ),
+            _buildInviteSection(
+              title: 'Rejected invites',
+              rows: _rejectedInviteRows,
+              emptyMessage: 'No rejected invites yet.',
+            ),
+            _buildInviteSection(
+              title: 'Revoked invites',
+              rows: _revokedInviteRows,
+              emptyMessage: 'No revoked invites yet.',
+            ),
+            _buildGrantSection(),
           ],
         ),
       ),

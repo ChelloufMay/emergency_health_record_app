@@ -40,4 +40,29 @@ class AuditHelper {
     final v = value?.trim();
     return v == null || v.isEmpty ? fallback : v;
   }
+
+  // CHANGED: build a consistent audit payload so all callers use the same shape.
+  static Map<String, dynamic> buildAuditRecord({
+    required String patientId,
+    required String action,
+    required String entityType,
+    String? performedByUserId,
+    String? entityId,
+    String? fieldName,
+    String? oldValue,
+    String? newValue,
+    String? notes,
+  }) {
+    return {
+      'patient_id': normalize(patientId),
+      'performed_by_user_id': nullIfEmpty(performedByUserId),
+      'action': normalize(action),
+      'entity_type': normalize(entityType),
+      'entity_id': nullIfEmpty(entityId),
+      'field_name': nullIfEmpty(fieldName),
+      'old_value': nullIfEmpty(oldValue),
+      'new_value': nullIfEmpty(newValue),
+      'notes': nullIfEmpty(notes),
+    };
+  }
 }
