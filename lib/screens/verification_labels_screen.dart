@@ -39,6 +39,22 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
   String _status = 'unverified';
   List<VerificationLabelModel> _labels = [];
 
+  static const Map<String, String> _statusLabels = {
+    'unverified': 'Unverified',
+    'user_entered': 'User entered',
+    'caregiver_entered': 'Caregiver entered',
+    'guardian_edited': 'Guardian edited',
+    'clinician_verified': 'Clinician verified',
+  };
+
+  static const Map<String, String> _defaultStatusByRole = {
+    'owner': 'user_entered',
+    'patient': 'user_entered',
+    'caregiver': 'caregiver_entered',
+    'guardian': 'guardian_edited',
+    'clinician': 'clinician_verified',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +70,26 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     _enteredByRoleController.dispose();
     _enteredByCredentialsController.dispose();
     super.dispose();
+  }
+
+  String _normalizeRole(String? role) {
+    return role == null ? '' : role.trim().toLowerCase();
+  }
+
+  bool get _isClinician => _normalizeRole(_currentRole) == 'clinician';
+
+  String _defaultStatusForRole(String? role) {
+    return _defaultStatusByRole[_normalizeRole(role)] ?? 'unverified';
+  }
+
+  bool _roleCanUseStatus(String? role, String status) {
+    final normalizedRole = _normalizeRole(role);
+    if (normalizedRole == 'clinician') {
+      return true;
+    }
+
+    final defaultStatus = _defaultStatusForRole(normalizedRole);
+    return status == 'unverified' || status == defaultStatus;
   }
 
   Future<String?> _resolvePatientId() async {
@@ -102,6 +138,17 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         _currentRole = currentRole;
         _canEdit = canEdit;
         _labels = list;
+        if (_editingId == null) {
+          _status = _defaultStatusForRole(currentRole);
+        } else if (!_roleCanUseStatus(currentRole, _status)) {
+          _status = _defaultStatusForRole(currentRole);
+        }
+        if (_enteredByRoleController.text.trim().isEmpty) {
+          _enteredByRoleController.text = currentRole ?? '';
+        }
+        if (_enteredByCredentialsController.text.trim().isEmpty) {
+          _enteredByCredentialsController.text = currentRole ?? '';
+        }
         _loading = false;
       });
     } catch (e) {
@@ -134,9 +181,9 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
       _entityIdController.clear();
       _fieldNameController.clear();
       _commentController.clear();
-      _enteredByRoleController.clear();
+      _enteredByRoleController.text = _currentRole ?? '';
       _enteredByCredentialsController.clear();
-      _status = 'unverified';
+      _status = _defaultStatusForRole(_currentRole);
     });
   }
 
@@ -151,8 +198,24 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     if (!_canEdit) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final currentRole = _normalizeRole(_currentRole);
+    final selectedStatus = _status.trim().isEmpty ? 'unverified' : _status.trim();
+
+    if (!_roleCanUseStatus(currentRole, selectedStatus)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            currentRole.isEmpty
+                ? 'Unable to determine your role for this label.'
+                : 'Your role cannot set "$selectedStatus".',
+          ),
+        ),
+      );
+      return;
+    }
+
     // Only clinicians can submit the clinician_verified state.
-    if (_status == 'clinician_verified' && _currentRole != 'clinician') {
+    if (selectedStatus == 'clinician_verified' && currentRole != 'clinician') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -168,11 +231,24 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     try {
       final currentUser = await _patientService.fetchCurrentAppUserRow();
       final userId = currentUser?['id']?.toString();
-      final roleFromUser = currentUser?['role']?.toString().trim();
+      final roleFromUser = currentUser?['role']?.toString().trim().toLowerCase();
 
       final enteredByRoleText = _enteredByRoleController.text.trim();
       final effectiveEnteredByRole =
       enteredByRoleText.isEmpty ? roleFromUser : enteredByRoleText;
+
+      final enteredByCredentialsText =
+      _enteredByCredentialsController.text.trim();
+      final effectiveEnteredByCredentials = enteredByCredentialsText.isEmpty
+          ? (effectiveEnteredByRole ?? '')
+          : enteredByCredentialsText;
+
+      final effectiveStatus = _roleCanUseStatus(
+        effectiveEnteredByRole,
+        selectedStatus,
+      )
+          ? selectedStatus
+          : _defaultStatusForRole(effectiveEnteredByRole);
 
       final label = VerificationLabelModel(
         id: _editingId,
@@ -180,15 +256,16 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         entityType: _entityTypeController.text.trim(),
         entityId: _entityIdController.text.trim(),
         fieldName: _fieldNameController.text.trim(),
-        status: _status,
+        status: effectiveStatus,
         comment: _trimToNull(_commentController.text),
         enteredByRole: _trimToNull(effectiveEnteredByRole ?? ''),
-        enteredByCredentials:
-        _trimToNull(_enteredByCredentialsController.text),
+        enteredByCredentials: _trimToNull(effectiveEnteredByCredentials),
         enteredByUserId: userId,
         // This field is only set when the label is truly clinician verified.
-        verifiedByUserId: _status == 'clinician_verified' ? userId : null,
-        verifiedAt: _status == 'clinician_verified' ? DateTime.now() : null,
+        verifiedByUserId:
+        effectiveStatus == 'clinician_verified' ? userId : null,
+        verifiedAt:
+        effectiveStatus == 'clinician_verified' ? DateTime.now() : null,
       );
 
       await _service.save(label);
@@ -243,6 +320,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
               'Comment: ${label.comment}',
             if ((label.enteredByRole ?? '').trim().isNotEmpty)
               'Entered by: ${label.enteredByRole}',
+            if ((label.enteredByCredentials ?? '').trim().isNotEmpty)
+              'Credentials: ${label.enteredByCredentials}',
             if ((label.verifiedByUserId ?? '').trim().isNotEmpty)
               'Verified by user: ${label.verifiedByUserId}',
           ].join('\n'),
@@ -271,8 +350,6 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isClinician = _currentRole == 'clinician';
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Verification labels'),
@@ -301,6 +378,13 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              const SizedBox(height: 8),
+              Text(
+                _currentRole == null || _currentRole!.trim().isEmpty
+                    ? 'Your role could not be determined.'
+                    : 'Editing as: ${_currentRole!.trim()}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const SizedBox(height: 12),
               Form(
                 key: _formKey,
@@ -310,7 +394,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
                       controller: _entityTypeController,
                       decoration: const InputDecoration(
                         labelText: 'Entity type',
-                        hintText: 'allergies, medications, diagnoses...',
+                        hintText:
+                        'allergies, medications, diagnoses...',
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? 'Required'
@@ -339,45 +424,40 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _status,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Status',
+                        helperText: _isClinician
+                            ? 'Clinicians can choose any status.'
+                            : 'Your role only allows a role-specific status or unverified.',
                       ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: 'unverified',
-                          child: Text('Unverified'),
-                        ),
-                        const DropdownMenuItem(
-                          value: 'user_entered',
-                          child: Text('User entered'),
-                        ),
-                        const DropdownMenuItem(
-                          value: 'caregiver_entered',
-                          child: Text('Caregiver entered'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'clinician_verified',
-                          enabled: isClinician,
-                          child: Text(
-                            isClinician
-                                ? 'Clinician verified'
-                                : 'Clinician verified (clinician only)',
-                          ),
-                        ),
-                      ],
+                      items: _statusLabels.entries.map((entry) {
+                        final status = entry.key;
+                        final enabled = _roleCanUseStatus(
+                          _currentRole,
+                          status,
+                        );
+                        final suffix = enabled
+                            ? ''
+                            : ' (not allowed for your role)';
+                        return DropdownMenuItem(
+                          value: status,
+                          enabled: enabled,
+                          child: Text('${entry.value}$suffix'),
+                        );
+                      }).toList(),
                       onChanged: (value) {
-                        if (value == 'clinician_verified' &&
-                            !isClinician) {
+                        if (value == null) return;
+                        if (!_roleCanUseStatus(_currentRole, value)) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Only clinicians can select clinician verified.',
+                                'That status is not allowed for your role.',
                               ),
                             ),
                           );
                           return;
                         }
-                        setState(() => _status = value ?? 'unverified');
+                        setState(() => _status = value);
                       },
                     ),
                     const SizedBox(height: 12),
