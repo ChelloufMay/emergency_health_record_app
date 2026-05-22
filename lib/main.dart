@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'screens/access_center_screen.dart';
 import 'screens/access_dashboard_screen.dart';
+import 'screens/access_inbox_screen.dart';
+import 'screens/access_permission_editor_screen.dart';
+import 'screens/patient_access_management_screen.dart';
 import 'screens/allergies_screen.dart';
 import 'screens/attachments_screen.dart';
 import 'screens/audit_log_screen.dart';
@@ -284,7 +288,43 @@ class _MyAppState extends State<MyApp> {
 
           case '/access_dashboard':
             return MaterialPageRoute(
-              builder: (_) => const AccessDashboardScreen(),
+              builder: (_) => AccessDashboardScreen(
+                patientId: args['patientId'] as String?,
+                isOwnerContext: args['isOwnerContext'] as bool? ?? false,
+              ),
+            );
+
+          case '/access_inbox':
+            return MaterialPageRoute(
+              builder: (_) => const AccessInboxScreen(),
+            );
+
+          case '/patient_access_management':
+            return MaterialPageRoute(
+              builder: (_) => PatientAccessManagementScreen(
+                patientId: args['patientId'] as String?,
+              ),
+            );
+
+          case '/access_center':
+            return MaterialPageRoute(
+              builder: (_) => AccessCenterScreen(
+                initialTab: args['initialTab'] as int? ?? 0,
+                patientId: args['patientId'] as String?,
+                isOwnerContext: args['isOwnerContext'] as bool? ?? false,
+              ),
+            );
+
+          case '/access_permission_editor':
+            return MaterialPageRoute(
+              builder: (_) => AccessPermissionEditorScreen(
+                grantId: args['grantId'] as String? ?? '',
+                patientId: args['patientId'] as String? ?? '',
+                granteeRole: args['granteeRole'] as String? ?? 'caregiver',
+                currentPermission: args['currentPermission'] as String? ?? 'read',
+                currentExpiresAt: args['currentExpiresAt'] as DateTime?,
+                currentNotes: args['currentNotes'] as String?,
+              ),
             );
 
           case '/caregiver_dashboard':
@@ -468,7 +508,9 @@ class _MyAppState extends State<MyApp> {
 
           case '/patient_notifications':
             return MaterialPageRoute(
-              builder: (_) => const PatientNotificationsScreen(),
+              builder: (_) => PatientNotificationsScreen(
+                patientId: args['patientId'] as String?,
+              ),
             );
 
           case '/auth_callback':
