@@ -162,19 +162,23 @@ class _AccessPermissionEditorScreenState
           ),
           const SizedBox(height: 16),
 
-          // CHANGED: the permission editor now stays focused on grant fields only.
-          ..._permissions.map(
-                (value) => RadioListTile<String>(
-              value: value,
-              groupValue: _permission,
-              onChanged: _saving
-                  ? null
-                  : (selected) {
-                if (selected == null) return;
-                setState(() => _permission = selected);
-              },
-              title: Text(_labelFor(value)),
-              subtitle: Text(value),
+          // CHANGED: Use RadioGroup to manage the selection state for all tiles.
+          RadioGroup<String>(
+            groupValue: _permission,
+            onChanged: (selected) {
+              if (_saving || selected == null) return;
+              setState(() => _permission = selected);
+            },
+            child: Column(
+              children: _permissions
+                  .map(
+                    (value) => RadioListTile<String>(
+                      value: value,
+                      title: Text(_labelFor(value)),
+                      subtitle: Text(value),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
 

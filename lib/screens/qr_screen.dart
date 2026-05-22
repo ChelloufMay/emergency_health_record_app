@@ -95,7 +95,6 @@ class _QrScreenState extends State<QrScreen> {
     final now = DateTime.now();
     final initialDate = _selectedExpiresAt ?? now.add(const Duration(days: 30));
 
-    // CHANGED: user picks the date first.
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -104,15 +103,14 @@ class _QrScreenState extends State<QrScreen> {
       helpText: 'Select expiry date',
     );
 
-    if (pickedDate == null) return;
+    if (!mounted || pickedDate == null) return;
 
-    // CHANGED: then user picks the time separately.
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
     );
 
-    if (pickedTime == null) return;
+    if (!mounted || pickedTime == null) return;
 
     setState(() {
       _selectedExpiresAt = DateTime(
