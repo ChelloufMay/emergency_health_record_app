@@ -63,6 +63,8 @@ class RoleHubScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+
+          // CHANGED: the hub now matches the new split more explicitly.
           Card(
             child: ListTile(
               leading: const Icon(Icons.dashboard_outlined),
@@ -75,7 +77,7 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.inbox_outlined),
               title: const Text('Invites & access'),
-              subtitle: const Text('Accept or reject pending invites'),
+              subtitle: const Text('Accept or reject invites and manage access'),
               onTap: () => _open(context, accessRoute),
             ),
           ),
@@ -83,7 +85,7 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.badge_outlined),
               title: const Text('Profile'),
-              subtitle: const Text('Edit your profile data'),
+              subtitle: const Text('Edit your role profile'),
               onTap: () => _open(context, profileRoute),
             ),
           ),
@@ -91,7 +93,7 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              // CHANGED: make it explicit that the screen is now role-specific.
+              // CHANGED: make the split explicit in the UI.
               subtitle: const Text('Open your role-specific settings'),
               onTap: () => _open(context, settingsRoute),
             ),

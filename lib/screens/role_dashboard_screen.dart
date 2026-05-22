@@ -37,12 +37,12 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
 
     try {
       final rows = await _service.fetchMyAccessDashboardRows();
 
-      // CHANGED: load invite rows from the patient-aware invite view.
+      // CHANGED: load invite rows from the patient-aware invite dashboard view.
       final invites = await _service.fetchMyPendingInvitesWithPatientDetails();
 
       if (!mounted) return;
@@ -87,7 +87,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   }
 
   String _invitePatientName(Map<String, dynamic> invite) {
-    // CHANGED: try every likely patient-name field coming from the view.
+    // CHANGED: prefer patient name fields already provided by the invite view.
     final directNameCandidates = [
       invite['patient_name'],
       invite['patient_full_name'],
@@ -180,6 +180,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
             if (_pendingInvites.isNotEmpty) ...[
               Text(
                 'Pending invites',
@@ -192,26 +193,31 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ..._pendingInvites.map((invite) {
                 final token = _inviteToken(invite);
                 final patientName = _invitePatientName(invite);
-                final permission = invite['permission']?.toString() ?? 'read';
+                final permission =
+                    invite['permission']?.toString() ?? 'read';
+                final invitedAt =
+                    invite['invited_at']?.toString().trim() ?? '';
 
                 return Card(
                   child: ListTile(
                     title: Text(patientName),
-                    subtitle: Text('Permission: $permission'),
+                    subtitle: Text(
+                      invitedAt.isEmpty
+                          ? 'Permission: $permission'
+                          : 'Permission: $permission • Invited at: $invitedAt',
+                    ),
                     trailing: Wrap(
                       spacing: 8,
                       children: [
                         IconButton(
-                          onPressed: token.isEmpty
-                              ? null
-                              : () => _acceptInvite(token),
+                          onPressed:
+                          token.isEmpty ? null : () => _acceptInvite(token),
                           icon: const Icon(Icons.check),
                           tooltip: 'Accept',
                         ),
                         IconButton(
-                          onPressed: token.isEmpty
-                              ? null
-                              : () => _rejectInvite(token),
+                          onPressed:
+                          token.isEmpty ? null : () => _rejectInvite(token),
                           icon: const Icon(Icons.close),
                           tooltip: 'Reject',
                         ),
@@ -222,6 +228,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               }),
               const SizedBox(height: 16),
             ],
+
             Text(
               'Accessible patients',
               style: Theme.of(context)
@@ -230,6 +237,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
+
             if (_rows.isEmpty)
               Card(
                 child: Padding(

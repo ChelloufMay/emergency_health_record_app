@@ -108,7 +108,8 @@ class _MyAppState extends State<MyApp> {
             _goLogin();
             break;
           case AuthChangeEvent.passwordRecovery:
-            _goResetPassword();
+          // CHANGED: keep recovery flow on the required password-reset route.
+            _goPasswordReset();
             break;
           case AuthChangeEvent.signedIn:
           case AuthChangeEvent.initialSession:
@@ -136,8 +137,9 @@ class _MyAppState extends State<MyApp> {
             uri.queryParameters['recovery'] == 'true' ||
             uri.toString().contains('type=recovery');
 
+        // CHANGED: route now uses /auth_callback and /password_reset.
         nav.pushNamedAndRemoveUntil(
-          isRecovery ? '/reset-password' : '/auth-callback',
+          isRecovery ? '/password_reset' : '/auth_callback',
               (route) => false,
           arguments: {
             'uri': uri.toString(),
@@ -198,13 +200,13 @@ class _MyAppState extends State<MyApp> {
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
-  void _goResetPassword() {
+  void _goPasswordReset() {
     final nav = navigatorKey.currentState;
     if (nav == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goResetPassword());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _goPasswordReset());
       return;
     }
-    nav.pushNamedAndRemoveUntil('/reset-password', (route) => false);
+    nav.pushNamedAndRemoveUntil('/password_reset', (route) => false);
   }
 
   @override
@@ -254,7 +256,9 @@ class _MyAppState extends State<MyApp> {
 
           case '/emergency':
             return MaterialPageRoute(
-              builder: (_) => EmergencyScreen(payload: args['payload'] as String?),
+              builder: (_) => EmergencyScreen(
+                payload: args['payload'] as String?,
+              ),
             );
 
           case '/qr':
@@ -294,6 +298,12 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/clinician_dashboard':
+            return MaterialPageRoute(
+              builder: (_) => const ClinicianDashboardScreen(),
+            );
+
+          case '/clincian_dashboard':
+          // CHANGED: temporary compatibility route for the old typo.
             return MaterialPageRoute(
               builder: (_) => const ClinicianDashboardScreen(),
             );
@@ -461,7 +471,7 @@ class _MyAppState extends State<MyApp> {
               builder: (_) => const PatientNotificationsScreen(),
             );
 
-          case '/auth-callback':
+          case '/auth_callback':
             return MaterialPageRoute(
               builder: (_) => AuthCallbackScreen(
                 callbackUri: args['uri'] as String?,
@@ -469,25 +479,51 @@ class _MyAppState extends State<MyApp> {
               ),
             );
 
+          case '/auth-callback':
+          // CHANGED: compatibility alias for older links.
+            return MaterialPageRoute(
+              builder: (_) => AuthCallbackScreen(
+                callbackUri: args['uri'] as String?,
+                isRecovery: args['isRecovery'] as bool? ?? false,
+              ),
+            );
+
+          case '/password_reset':
+            return MaterialPageRoute(
+              builder: (_) => const PasswordResetScreen(),
+            );
+
           case '/reset-password':
-            return MaterialPageRoute(builder: (_) => const PasswordResetScreen());
+          // CHANGED: compatibility alias for older links.
+            return MaterialPageRoute(
+              builder: (_) => const PasswordResetScreen(),
+            );
 
-        // CHANGED: route to the role-aware settings resolver instead of the old shared screen.
+        // CHANGED: role-aware settings route resolver.
           case '/settings':
-            return MaterialPageRoute(builder: (_) => const SettingsRouteScreen());
+            return MaterialPageRoute(
+              builder: (_) => const SettingsRouteScreen(),
+            );
 
-        // CHANGED: allow direct routes to the role-specific settings screens.
           case '/patient_settings':
-            return MaterialPageRoute(builder: (_) => const PatientSettingsScreen());
+            return MaterialPageRoute(
+              builder: (_) => const PatientSettingsScreen(),
+            );
 
           case '/caregiver_settings':
-            return MaterialPageRoute(builder: (_) => const CaregiverSettingsScreen());
+            return MaterialPageRoute(
+              builder: (_) => const CaregiverSettingsScreen(),
+            );
 
           case '/guardian_settings':
-            return MaterialPageRoute(builder: (_) => const GuardianSettingsScreen());
+            return MaterialPageRoute(
+              builder: (_) => const GuardianSettingsScreen(),
+            );
 
           case '/clinician_settings':
-            return MaterialPageRoute(builder: (_) => const ClinicianSettingsScreen());
+            return MaterialPageRoute(
+              builder: (_) => const ClinicianSettingsScreen(),
+            );
 
           default:
             if (settings.name != null &&
@@ -542,7 +578,7 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
 
     if (userRow == null) return const LoginScreen();
 
-    // CHANGED: normalize role names before selecting the target settings screen.
+    // CHANGED: normalize the role before routing to the role-specific settings screen.
     final role = (userRow['role'] as String?)?.trim().toLowerCase() ?? 'owner';
 
     if (role == 'owner' || role == 'patient') {
@@ -672,7 +708,6 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
         final uri = Uri.parse(rawUri);
 
         // CHANGED: always exchange the session from the callback URL first.
-        // Recovery links also need the session exchange before we can update the password.
         await Supabase.instance.client.auth.getSessionFromUrl(uri);
       }
     } catch (e) {
@@ -685,7 +720,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
     if (widget.isRecovery) {
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/reset-password',
+        '/password_reset',
             (route) => false,
       );
       return;
