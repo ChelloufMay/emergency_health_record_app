@@ -13,10 +13,12 @@ import 'screens/caregiver_choice_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
 import 'screens/caregiver_patient_detail_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
+import 'screens/caregiver_settings_screen.dart';
 import 'screens/caregiver_screen.dart';
 import 'screens/clinician_choice_screen.dart';
 import 'screens/clinician_dashboard_screen.dart';
 import 'screens/clinician_profile_screen.dart';
+import 'screens/clinician_settings_screen.dart';
 import 'screens/conditions_screen.dart';
 import 'screens/emergency_access_token_screen.dart';
 import 'screens/emergency_screen.dart';
@@ -25,6 +27,7 @@ import 'screens/family_history_screen.dart';
 import 'screens/guardian_choice_screen.dart';
 import 'screens/guardian_dashboard_screen.dart';
 import 'screens/guardian_profile_screen.dart';
+import 'screens/guardian_settings_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/hospitalizations_screen.dart';
 import 'screens/lifestyle_screen.dart';
@@ -35,12 +38,12 @@ import 'screens/password_reset_screen.dart';
 import 'screens/patient_detail_screen.dart';
 import 'screens/patient_notifications_screen.dart';
 import 'screens/patient_risk_predictions_screen.dart';
+import 'screens/patient_settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/reproductive_health_screen.dart';
 import 'screens/role_router_screen.dart';
-import 'screens/settings_screen.dart';
 import 'screens/surgeries_screen.dart';
 import 'screens/verification_labels_screen.dart';
 import 'screens/vaccinations_screen.dart';
@@ -251,8 +254,7 @@ class _MyAppState extends State<MyApp> {
 
           case '/emergency':
             return MaterialPageRoute(
-              builder: (_) =>
-                  EmergencyScreen(payload: args['payload'] as String?),
+              builder: (_) => EmergencyScreen(payload: args['payload'] as String?),
             );
 
           case '/qr':
@@ -470,8 +472,22 @@ class _MyAppState extends State<MyApp> {
           case '/reset-password':
             return MaterialPageRoute(builder: (_) => const PasswordResetScreen());
 
+        // CHANGED: route to the role-aware settings resolver instead of the old shared screen.
           case '/settings':
-            return MaterialPageRoute(builder: (_) => const SettingsScreen());
+            return MaterialPageRoute(builder: (_) => const SettingsRouteScreen());
+
+        // CHANGED: allow direct routes to the role-specific settings screens.
+          case '/patient_settings':
+            return MaterialPageRoute(builder: (_) => const PatientSettingsScreen());
+
+          case '/caregiver_settings':
+            return MaterialPageRoute(builder: (_) => const CaregiverSettingsScreen());
+
+          case '/guardian_settings':
+            return MaterialPageRoute(builder: (_) => const GuardianSettingsScreen());
+
+          case '/clinician_settings':
+            return MaterialPageRoute(builder: (_) => const ClinicianSettingsScreen());
 
           default:
             if (settings.name != null &&
@@ -490,6 +506,134 @@ class _MyAppState extends State<MyApp> {
               ),
             );
         }
+      },
+    );
+  }
+}
+
+class SettingsRouteScreen extends StatefulWidget {
+  const SettingsRouteScreen({super.key});
+
+  @override
+  State<SettingsRouteScreen> createState() => _SettingsRouteScreenState();
+}
+
+class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
+  late Future<Widget> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _resolveDestination();
+  }
+
+  Future<Widget> _resolveDestination() async {
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    final authUser = session?.user;
+
+    if (authUser == null) return const LoginScreen();
+
+    final userRow = await client
+        .from('users')
+        .select('id, role')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+
+    if (userRow == null) return const LoginScreen();
+
+    // CHANGED: normalize role names before selecting the target settings screen.
+    final role = (userRow['role'] as String?)?.trim().toLowerCase() ?? 'owner';
+
+    if (role == 'owner' || role == 'patient') {
+      final patientProfile = await client
+          .from('patient_profiles')
+          .select('id')
+          .eq('user_id', userRow['id'])
+          .maybeSingle();
+
+      if (patientProfile == null) {
+        return const ProfileScreen();
+      }
+
+      return const PatientSettingsScreen();
+    }
+
+    if (role == 'caregiver') {
+      final caregiverProfile = await client
+          .from('caregiver_profiles')
+          .select('id')
+          .eq('user_id', userRow['id'])
+          .maybeSingle();
+
+      if (caregiverProfile == null) {
+        return const CaregiverProfileScreen();
+      }
+
+      return const CaregiverSettingsScreen();
+    }
+
+    if (role == 'guardian') {
+      final guardianProfile = await client
+          .from('guardian_profiles')
+          .select('id')
+          .eq('user_id', userRow['id'])
+          .maybeSingle();
+
+      if (guardianProfile == null) {
+        return const GuardianProfileScreen();
+      }
+
+      return const GuardianSettingsScreen();
+    }
+
+    if (role == 'clinician') {
+      final clinicianProfile = await client
+          .from('clinician_profiles')
+          .select('id')
+          .eq('user_id', userRow['id'])
+          .maybeSingle();
+
+      if (clinicianProfile == null) {
+        return const ClinicianProfileScreen();
+      }
+
+      return const ClinicianSettingsScreen();
+    }
+
+    return const PatientSettingsScreen();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Widget>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Settings route error: ${snapshot.error}')),
+          );
+        }
+
+        final destination = snapshot.data ?? const PatientSettingsScreen();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => destination),
+          );
+        });
+
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
       },
     );
   }
@@ -527,8 +671,8 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       if (rawUri != null && rawUri.trim().isNotEmpty) {
         final uri = Uri.parse(rawUri);
 
-        // always exchange the session from the callback URL first.
-        // recovery links also need the session exchange before we can update the password.
+        // CHANGED: always exchange the session from the callback URL first.
+        // Recovery links also need the session exchange before we can update the password.
         await Supabase.instance.client.auth.getSessionFromUrl(uri);
       }
     } catch (e) {

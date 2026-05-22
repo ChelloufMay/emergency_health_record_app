@@ -25,9 +25,9 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
   final TextEditingController _fieldNameController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _enteredByRoleController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _enteredByCredentialsController =
-      TextEditingController();
+  TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -35,6 +35,7 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
   String? _error;
   String? _patientId;
   String? _editingId;
+  String? _currentRole;
   String _status = 'unverified';
   List<VerificationLabelModel> _labels = [];
 
@@ -83,6 +84,9 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         return;
       }
 
+      final currentUser = await _patientService.fetchCurrentAppUserRow();
+      final currentRole = currentUser?['role']?.toString().trim().toLowerCase();
+
       final canEdit = await _patientService.canAccessPatientSection(
         patientId,
         'verification_labels',
@@ -93,6 +97,7 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
       if (!mounted) return;
       setState(() {
         _patientId = patientId;
+        _currentRole = currentRole;
         _canEdit = canEdit;
         _labels = list;
         _loading = false;
@@ -139,11 +144,28 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
     if (!_canEdit) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    // CHANGED: only clinicians can assign clinician_verified.
+    if (_status == 'clinician_verified' && _currentRole != 'clinician') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Only a clinician can mark a label as clinician verified.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
       final currentUser = await _patientService.fetchCurrentAppUserRow();
       final userId = currentUser?['id']?.toString();
+      final roleFromUser = currentUser?['role']?.toString().trim();
+
+      final effectiveEnteredByRole = _enteredByRoleController.text.trim().isEmpty
+          ? roleFromUser
+          : _enteredByRoleController.text.trim();
 
       final label = VerificationLabelModel(
         id: _editingId,
@@ -155,14 +177,14 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
         comment: _commentController.text.trim().isEmpty
             ? null
             : _commentController.text.trim(),
-        enteredByRole: _enteredByRoleController.text.trim().isEmpty
+        enteredByRole: effectiveEnteredByRole?.isEmpty == true
             ? null
-            : _enteredByRoleController.text.trim(),
-        enteredByCredentials:
-            _enteredByCredentialsController.text.trim().isEmpty
+            : effectiveEnteredByRole,
+        enteredByCredentials: _enteredByCredentialsController.text.trim().isEmpty
             ? null
             : _enteredByCredentialsController.text.trim(),
         enteredByUserId: userId,
+        // CHANGED: the verified-by user is only set for clinician verification.
         verifiedByUserId: _status == 'clinician_verified' ? userId : null,
         verifiedAt: _status == 'clinician_verified' ? DateTime.now() : null,
       );
@@ -206,7 +228,7 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
   }
 
   Widget _buildRow(VerificationLabelModel label) {
-    final labelId = label.id; // nullable in the model, so guard before use.
+    final labelId = label.id;
 
     return Card(
       child: ListTile(
@@ -217,6 +239,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
             'Status: ${label.status}',
             if ((label.comment ?? '').trim().isNotEmpty)
               'Comment: ${label.comment}',
+            if ((label.enteredByRole ?? '').trim().isNotEmpty)
+              'Entered by: ${label.enteredByRole}',
           ].join('\n'),
         ),
         isThreeLine: true,
@@ -243,6 +267,8 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isClinician = _currentRole == 'clinician';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Verification labels'),
@@ -259,163 +285,182 @@ class _VerificationLabelsScreenState extends State<VerificationLabelsScreen> {
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_canEdit) ...[
-                    Text(
-                      _editingId == null ? 'Add label' : 'Edit label',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (_canEdit) ...[
+              Text(
+                _editingId == null ? 'Add label' : 'Edit label',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _entityTypeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Entity type',
+                        hintText: 'allergies, medications, diagnoses...',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Required'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _entityIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Entity ID',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Required'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _fieldNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Field name',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Required'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _status,
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'unverified',
+                          child: Text('Unverified'),
+                        ),
+                        const DropdownMenuItem(
+                          value: 'user_entered',
+                          child: Text('User entered'),
+                        ),
+                        const DropdownMenuItem(
+                          value: 'caregiver_entered',
+                          child: Text('Caregiver entered'),
+                        ),
+                        // CHANGED: only clinicians should be able to pick this status.
+                        DropdownMenuItem(
+                          value: 'clinician_verified',
+                          enabled: isClinician,
+                          child: Text(
+                            isClinician
+                                ? 'Clinician verified'
+                                : 'Clinician verified (clinician only)',
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        // CHANGED: block non-clinicians from selecting verified status.
+                        if (value == 'clinician_verified' &&
+                            !isClinician) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Only clinicians can select clinician verified.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        setState(() => _status = value ?? 'unverified');
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _commentController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Comment',
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: _entityTypeController,
-                            decoration: const InputDecoration(
-                              labelText: 'Entity type',
-                              hintText: 'allergies, medications, diagnoses...',
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Required'
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _entityIdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Entity ID',
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Required'
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _fieldNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Field name',
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Required'
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            initialValue: _status,
-                            decoration: const InputDecoration(
-                              labelText: 'Status',
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'unverified',
-                                child: Text('Unverified'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'user_entered',
-                                child: Text('User entered'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'caregiver_entered',
-                                child: Text('Caregiver entered'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'clinician_verified',
-                                child: Text('Clinician verified'),
-                              ),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _status = value ?? 'unverified'),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _commentController,
-                            maxLines: 3,
-                            decoration: const InputDecoration(
-                              labelText: 'Comment',
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _enteredByRoleController,
-                            decoration: const InputDecoration(
-                              labelText: 'Entered by role',
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _enteredByCredentialsController,
-                            decoration: const InputDecoration(
-                              labelText: 'Entered by credentials',
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: _saving ? null : _save,
-                                  icon: const Icon(Icons.save),
-                                  label: Text(
-                                    _editingId == null ? 'Create' : 'Update',
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              OutlinedButton(
-                                onPressed: _clearForm,
-                                child: const Text('Clear'),
-                              ),
-                            ],
-                          ),
-                        ],
+                    TextFormField(
+                      controller: _enteredByRoleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Entered by role',
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ] else ...[
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          'You can view verification labels, but edits are disabled for this patient section.',
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _enteredByCredentialsController,
+                      decoration: const InputDecoration(
+                        labelText: 'Entered by credentials',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _saving ? null : _save,
+                            icon: const Icon(Icons.save),
+                            label: Text(
+                              _editingId == null ? 'Create' : 'Update',
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        OutlinedButton(
+                          onPressed: _clearForm,
+                          child: const Text('Clear'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
                   ],
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Existing labels',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text('${_labels.length} total'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_labels.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 24),
-                        child: Text('No verification labels yet.'),
-                      ),
-                    )
-                  else
-                    ..._labels.map(_buildRow),
-                ],
+                ),
               ),
+              const SizedBox(height: 24),
+            ] else ...[
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'You can view verification labels, but edits are disabled for this patient section.',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Existing labels',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text('${_labels.length} total'),
+              ],
             ),
+            const SizedBox(height: 12),
+            if (_labels.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 24),
+                  child: Text('No verification labels yet.'),
+                ),
+              )
+            else
+              ..._labels.map(_buildRow),
+          ],
+        ),
+      ),
     );
   }
 }

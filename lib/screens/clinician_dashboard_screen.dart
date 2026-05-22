@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'role_dashboard_screen.dart';
 
 class ClinicianDashboardScreen extends StatelessWidget {
@@ -9,7 +10,7 @@ class ClinicianDashboardScreen extends StatelessWidget {
     return const RoleDashboardScreen(
       title: 'Clinician dashboard',
       subtitle:
-      'Patients shown here come from the DB access view. Read-only and editable access are enforced by the current grant.',
+      'Patients shown here come from the access view. Read-only and editable access are enforced by the current grant.',
       emptyMessage: 'No active clinician access found.',
     );
   }

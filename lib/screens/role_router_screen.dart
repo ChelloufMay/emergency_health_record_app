@@ -43,9 +43,10 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
 
     if (userRow == null) return const LoginScreen();
 
-    final role = (userRow['role'] as String?) ?? 'owner';
+    // CHANGED: normalize the role to avoid casing / whitespace issues.
+    final role = (userRow['role'] as String?)?.trim().toLowerCase() ?? 'owner';
 
-    if (role == 'owner') {
+    if (role == 'owner' || role == 'patient') {
       final patientProfile = await client
           .from('patient_profiles')
           .select('id, first_name, family_name')

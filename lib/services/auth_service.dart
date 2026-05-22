@@ -39,12 +39,12 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 
-  // CHANGED: password recovery for any role.
-  // This sends the reset link to the same deep-link flow used by the app.
+  // CHANGED: keep password recovery only for the login flow.
+  // The settings screens should not expose this action anymore.
   Future<void> sendPasswordResetEmail({required String email}) async {
     await _supabase.auth.resetPasswordForEmail(
       email.trim(),
-      redirectTo: 'healthapp://auth-callback',
+      redirectTo: 'healthapp://auth-callback?type=recovery',
     );
   }
 

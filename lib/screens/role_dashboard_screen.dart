@@ -42,7 +42,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     try {
       final rows = await _service.fetchMyAccessDashboardRows();
 
-      // CHANGED: use the invite view that includes patient details.
+      // CHANGED: load invite rows from the patient-aware invite view.
       final invites = await _service.fetchMyPendingInvitesWithPatientDetails();
 
       if (!mounted) return;
@@ -87,12 +87,38 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   }
 
   String _invitePatientName(Map<String, dynamic> invite) {
-    // CHANGED: build the name from the joined profile fields when possible.
-    final fromView = invite['patient_name']?.toString().trim();
-    if (fromView != null && fromView.isNotEmpty) return fromView;
+    // CHANGED: try every likely patient-name field coming from the view.
+    final directNameCandidates = [
+      invite['patient_name'],
+      invite['patient_full_name'],
+      invite['full_name'],
+      invite['display_name'],
+    ];
 
-    final first = invite['first_name']?.toString().trim() ?? '';
-    final last = invite['family_name']?.toString().trim() ?? '';
+    for (final candidate in directNameCandidates) {
+      final value = candidate?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+
+    final first = [
+      invite['patient_first_name'],
+      invite['first_name'],
+      invite['given_name'],
+    ].map((e) => e?.toString().trim() ?? '').firstWhere(
+          (value) => value.isNotEmpty,
+      orElse: () => '',
+    );
+
+    final last = [
+      invite['patient_family_name'],
+      invite['family_name'],
+      invite['last_name'],
+      invite['surname'],
+    ].map((e) => e?.toString().trim() ?? '').firstWhere(
+          (value) => value.isNotEmpty,
+      orElse: () => '',
+    );
+
     final combined = '$first $last'.trim();
     if (combined.isNotEmpty) return combined;
 
@@ -166,8 +192,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ..._pendingInvites.map((invite) {
                 final token = _inviteToken(invite);
                 final patientName = _invitePatientName(invite);
-                final permission =
-                    invite['permission']?.toString() ?? 'read';
+                final permission = invite['permission']?.toString() ?? 'read';
 
                 return Card(
                   child: ListTile(

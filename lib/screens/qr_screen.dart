@@ -53,8 +53,7 @@ class _QrScreenState extends State<QrScreen> {
       'issued_at': DateTime.now().toIso8601String(),
     };
 
-    // CHANGED: keep a compact offline snapshot in the QR payload
-    // so emergency view still has something useful if the device is offline.
+    // Keep a compact offline snapshot in the QR payload.
     if (summary != null) {
       envelope['offline_summary'] = summary;
     }
@@ -71,7 +70,6 @@ class _QrScreenState extends State<QrScreen> {
       _buildQrEnvelope(token: token, patientId: patientId, summary: summary),
     );
 
-    // Deep link, so the QR opens the app instead of exposing raw text in UI.
     return Uri(
       scheme: 'healthapp',
       host: 'emergency',
@@ -89,7 +87,6 @@ class _QrScreenState extends State<QrScreen> {
     final hh = local.hour.toString().padLeft(2, '0');
     final min = local.minute.toString().padLeft(2, '0');
 
-    // CHANGED: show both date and time in a simple readable format.
     return '$hh:$min on the $yyyy-$mm-$dd';
   }
 
@@ -97,7 +94,6 @@ class _QrScreenState extends State<QrScreen> {
     final now = DateTime.now();
     final initialDate = _selectedExpiresAt ?? now.add(const Duration(days: 30));
 
-    // CHANGED: user picks the calendar date first.
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -108,7 +104,6 @@ class _QrScreenState extends State<QrScreen> {
 
     if (pickedDate == null) return;
 
-    // CHANGED: then user picks the time separately.
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
@@ -173,11 +168,7 @@ class _QrScreenState extends State<QrScreen> {
       _patientId = patientId;
       _summary = summary;
       _tokenRow = tokenRow;
-
-      // CHANGED: preload the expiry picker from the current token if one exists.
       _selectedExpiresAt = tokenRow?.expiresAt;
-
-      // QR stores a deep link, not a raw visible token block.
       _qrData = tokenRow?.token == null
           ? ''
           : _buildEmergencyLink(
@@ -185,7 +176,6 @@ class _QrScreenState extends State<QrScreen> {
         patientId: patientId,
         summary: summary,
       );
-
       _loading = false;
     });
   }
@@ -197,7 +187,6 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      // CHANGED: use the exact date + time the user selected.
       final parsedExpiry = _selectedExpiresAt;
 
       final response = await _supabase.from('emergency_access_tokens').insert({
@@ -338,7 +327,6 @@ class _QrScreenState extends State<QrScreen> {
             Center(
               child: Column(
                 children: [
-                  // QR opens the deep link, not a raw visible token block.
                   QrImageView(data: _qrData, size: 240),
                   const SizedBox(height: 16),
                   const Text(
@@ -373,7 +361,6 @@ class _QrScreenState extends State<QrScreen> {
             borderRadius: BorderRadius.circular(12),
             child: InputDecorator(
               decoration: const InputDecoration(
-                // CHANGED: label now makes it clear this includes time.
                 labelText: 'Expiry date and time',
                 helperText: 'Pick a date and time',
                 border: OutlineInputBorder(),

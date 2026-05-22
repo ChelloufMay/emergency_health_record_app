@@ -91,7 +91,8 @@ class RoleHubScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              subtitle: const Text('Change password or sign out'),
+              // CHANGED: make it explicit that the screen is now role-specific.
+              subtitle: const Text('Open your role-specific settings'),
               onTap: () => _open(context, settingsRoute),
             ),
           ),

@@ -45,9 +45,8 @@ class _CaregiverPatientDetailScreenState
       return;
     }
 
-    // The summary comes from the DB view patient_emergency_summary.
-    // The permission row comes from access_grants so the UI can decide
-    // whether edit navigation is allowed.
+    // CHANGED: the summary comes from the emergency summary view.
+    // The grant comes from access_grants so the UI can decide whether editing is allowed.
     final summaryRows = await _supabase
         .from('patient_emergency_summary')
         .select()
@@ -107,89 +106,94 @@ class _CaregiverPatientDetailScreenState
           : summary == null
           ? const Center(child: Text('No patient summary available.'))
           : ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // CHANGED: keep the detail screen aligned to the same
+          // access-rule + summary pattern used by the other role flows.
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              children: [
-                // This screen uses the access row + emergency summary together.
-                // That keeps caregiver/clinician/guardian detail views aligned
-                // with the same DB rules as the owner flow.
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          [
-                            summary['first_name']?.toString() ?? '',
-                            summary['family_name']?.toString() ?? '',
-                          ].join(' ').trim(),
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Patient ID: $_patientId'),
-                        Text(
-                          'Age: ${summary['age_years']?.toString() ?? 'Unknown'}',
-                        ),
-                        Text('Sex: ${summary['sex']?.toString() ?? 'Unknown'}'),
-                        Text(
-                          'Blood type: ${summary['blood_type']?.toString() ?? 'Unknown'}',
-                        ),
-                        Text(
-                          'Phone: ${summary['phone']?.toString() ?? 'Unknown'}',
-                        ),
-                        Text(
-                          'Emergency contact: ${summary['emergency_contact_name']?.toString() ?? 'Unknown'}',
-                        ),
-                        Text(
-                          'Emergency phone: ${summary['emergency_contact_phone']?.toString() ?? 'Unknown'}',
-                        ),
-                        Text(
-                          'Address: ${[summary['address_country']?.toString() ?? '', summary['address_governorate']?.toString() ?? '', summary['address_city']?.toString() ?? ''].where((e) => e.trim().isNotEmpty).join(' • ')}',
-                        ),
-                        Text(
-                          'Permission: ${_grant?['permission']?.toString() ?? 'none'}',
-                        ),
-                      ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    [
+                      summary['first_name']?.toString() ?? '',
+                      summary['family_name']?.toString() ?? '',
+                    ].join(' ').trim(),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => _openSection('/medical_summary'),
-                      child: const Text('Open summary'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _openSection('/allergies'),
-                      child: const Text('Allergies'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _openSection('/medications'),
-                      child: const Text('Medications'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _openSection('/conditions'),
-                      child: const Text('Conditions'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _openSection('/vaccinations'),
-                      child: const Text('Vaccinations'),
-                    ),
-                    if (_canEdit)
-                      OutlinedButton(
-                        onPressed: () => _openSection('/attachments'),
-                        child: const Text('Attachments'),
-                      ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text('Patient ID: $_patientId'),
+                  Text(
+                    'Age: ${summary['age_years']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Sex: ${summary['sex']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Blood type: ${summary['blood_type']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Phone: ${summary['phone']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Emergency contact: ${summary['emergency_contact_name']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Emergency phone: ${summary['emergency_contact_phone']?.toString() ?? 'Unknown'}',
+                  ),
+                  Text(
+                    'Address: ${[
+                      summary['address_country']?.toString() ?? '',
+                      summary['address_governorate']?.toString() ?? '',
+                      summary['address_city']?.toString() ?? '',
+                    ].where((e) => e.trim().isNotEmpty).join(' • ')}',
+                  ),
+                  Text(
+                    'Permission: ${_grant?['permission']?.toString() ?? 'none'}',
+                  ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: () => _openSection('/medical_summary'),
+                child: const Text('Open summary'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/allergies'),
+                child: const Text('Allergies'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/medications'),
+                child: const Text('Medications'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/conditions'),
+                child: const Text('Conditions'),
+              ),
+              OutlinedButton(
+                onPressed: () => _openSection('/vaccinations'),
+                child: const Text('Vaccinations'),
+              ),
+              if (_canEdit)
+                OutlinedButton(
+                  onPressed: () => _openSection('/attachments'),
+                  child: const Text('Attachments'),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

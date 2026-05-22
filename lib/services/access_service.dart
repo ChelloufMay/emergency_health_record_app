@@ -58,8 +58,10 @@ class AccessService {
   }
 
   Future<List<AccessInviteModel>> fetchPatientInvites(String patientId) async {
+    // CHANGED: read patient invites from the invite dashboard view so the
+    // caller gets patient information instead of a bare table row.
     final rows = await _supabase
-        .from('access_invites')
+        .from('access_invites_dashboard')
         .select()
         .eq('patient_id', patientId)
         .order('created_at', ascending: false);
@@ -73,9 +75,9 @@ class AccessService {
         .toList();
   }
 
-  /// CHANGED: this reads from the patient-aware dashboard view so the invite
-  /// rows can show the patient name instead of "Unknown patient".
-  Future<List<Map<String, dynamic>>> fetchMyPendingInviteMaps() async {
+  /// CHANGED: patient-aware pending invite fetch used by dashboard screens.
+  /// This reads from the invite dashboard view so the UI can show patient names.
+  Future<List<Map<String, dynamic>>> fetchMyPendingInvitesWithPatientDetails() async {
     final email = _currentEmail();
     if (email == null) return const [];
 
@@ -91,12 +93,18 @@ class AccessService {
         .toList();
   }
 
+  /// Backward-compatible alias for older screens.
+  Future<List<Map<String, dynamic>>> fetchMyPendingInviteMaps() {
+    return fetchMyPendingInvitesWithPatientDetails();
+  }
+
   Future<List<AccessInviteModel>> fetchMyPendingInvites() async {
     final email = _currentEmail();
     if (email == null) return const [];
 
+    // CHANGED: keep this aligned with the patient-aware invite view too.
     final rows = await _supabase
-        .from('access_invites')
+        .from('access_invites_dashboard')
         .select()
         .eq('status', 'pending')
         .eq('invited_email', email)
@@ -150,16 +158,18 @@ class AccessService {
   }
 
   Future<dynamic> acceptInvite(String inviteToken) async {
+    // CHANGED: keep the RPC call on the client, but the DB function itself
+    // still needs to be VOLATILE if it performs writes / row locking.
     return _supabase.rpc(
       'accept_access_invite',
-      params: {'_invite_token': inviteToken},
+      params: {'_invite_token': inviteToken.trim()},
     );
   }
 
   Future<dynamic> rejectInvite(String inviteToken) async {
     return _supabase.rpc(
       'reject_access_invite',
-      params: {'_invite_token': inviteToken},
+      params: {'_invite_token': inviteToken.trim()},
     );
   }
 

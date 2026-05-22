@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'role_hub_screen.dart';
 
 class CaregiverChoiceScreen extends StatelessWidget {
@@ -9,11 +10,12 @@ class CaregiverChoiceScreen extends StatelessWidget {
     return const RoleHubScreen(
       title: 'Caregiver hub',
       description:
-      'Use this hub to reach your caregiver dashboard, pending invites, profile, and settings.',
+      'Use this hub to reach your caregiver dashboard, pending invites, profile, and caregiver settings.',
       dashboardRoute: '/caregiver_dashboard',
       accessRoute: '/access_dashboard',
       profileRoute: '/caregiver_profile',
-      settingsRoute: '/settings',
+      // CHANGED: route to the caregiver-specific settings screen.
+      settingsRoute: '/caregiver_settings',
     );
   }
 }

@@ -42,12 +42,23 @@ class _AccessPermissionEditorScreenState
         : 'read';
   }
 
+  String _labelFor(String value) {
+    switch (value) {
+      case 'read':
+        return 'Read-only access';
+      case 'edit':
+        return 'Read and edit access';
+      case 'emergency_only':
+        return 'Emergency-only access';
+      default:
+        return value;
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
 
     try {
-      // CHANGED: update the grant permission in the DB, then let the trigger
-      // keep caregiver_permissions synchronized.
       await _service.updateGrantPermission(
         grantId: widget.grantId,
         permission: _permission,
@@ -79,12 +90,11 @@ class _AccessPermissionEditorScreenState
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Change the DB permission for this ${widget.granteeRole}. '
-                    'This updates the active grant directly, and the dashboard will refresh afterward.',
+                    'This updates the active grant directly and keeps the access flow consistent with the schema.',
               ),
             ),
           ),
           const SizedBox(height: 16),
-          // CHANGED: plain radio list so the screen stays simple and stable.
           Column(
             children: _permissions.map((value) {
               return RadioListTile<String>(
@@ -97,13 +107,7 @@ class _AccessPermissionEditorScreenState
                   setState(() => _permission = selected);
                 },
                 title: Text(value),
-                subtitle: Text(
-                  value == 'read'
-                      ? 'Read-only access'
-                      : value == 'edit'
-                      ? 'Read and edit access'
-                      : 'Emergency-only access',
-                ),
+                subtitle: Text(_labelFor(value)),
               );
             }).toList(),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'role_dashboard_screen.dart';
 
 class CaregiverDashboardScreen extends StatelessWidget {
@@ -9,7 +10,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
     return const RoleDashboardScreen(
       title: 'Caregiver dashboard',
       subtitle:
-      'Patients shown here come from the DB access view. Editable sections depend on the current grant permission.',
+      'Patients shown here come from the access view. Editable sections depend on the current grant permission.',
       emptyMessage: 'No active caregiver access found.',
     );
   }

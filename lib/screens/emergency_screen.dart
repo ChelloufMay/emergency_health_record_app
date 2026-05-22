@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/emergency_payload_service.dart';
@@ -61,40 +62,62 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   String? _extractTokenFromPayload(String? raw) {
     if (raw == null || raw.trim().isEmpty) return null;
 
-    // CHANGED: accept both payload links and direct token links.
-    // Example:
+    final trimmed = raw.trim();
+
+    // Accept both payload links and direct token links.
+    // Examples:
     // - healthapp://emergency?payload=...
     // - healthapp://emergency?token=...
-    final uri = Uri.tryParse(raw);
+    final uri = Uri.tryParse(trimmed);
     if (uri != null) {
-      final tokenFromQuery = uri.queryParameters['token'];
-      if (tokenFromQuery != null && tokenFromQuery.trim().isNotEmpty) {
-        return tokenFromQuery.trim();
+      final tokenFromQuery = uri.queryParameters['token']?.trim();
+      if (tokenFromQuery != null && tokenFromQuery.isNotEmpty) {
+        return tokenFromQuery;
+      }
+
+      final payloadFromQuery = uri.queryParameters['payload']?.trim();
+      if (payloadFromQuery != null && payloadFromQuery.isNotEmpty) {
+        final nested = _extractTokenFromPayload(Uri.decodeComponent(payloadFromQuery));
+        if (nested != null && nested.isNotEmpty) return nested;
       }
 
       final uriPayload = EmergencyPayloadService.extractPayloadFromUri(uri);
       if (uriPayload != null && uriPayload.trim().isNotEmpty) {
-        raw = uriPayload;
+        final nested = _extractTokenFromPayload(uriPayload);
+        if (nested != null && nested.isNotEmpty) return nested;
       }
     }
 
-    // Then try base64-encoded envelope payloads.
-    final decoded = EmergencyPayloadService.decodePayload(raw);
+    final decoded = EmergencyPayloadService.decodePayload(trimmed);
     if (decoded != null) {
-      final token = decoded['token']?.toString();
-      if (token != null && token.trim().isNotEmpty) {
+      final token = decoded['token']?.toString().trim();
+      if (token != null && token.isNotEmpty) {
         _hasOfflineSnapshot = decoded['offline_summary'] is Map;
-        return token.trim();
+        return token;
       }
+
+      final nestedPayload = decoded['payload']?.toString().trim();
+      if (nestedPayload != null && nestedPayload.isNotEmpty) {
+        final nested = _extractTokenFromPayload(nestedPayload);
+        if (nested != null && nested.isNotEmpty) return nested;
+      }
+    }
+
+    try {
+      final jsonValue = jsonDecode(trimmed);
+      if (jsonValue is Map) {
+        final token = jsonValue['token']?.toString().trim();
+        if (token != null && token.isNotEmpty) return token;
+      }
+    } catch (_) {
+      // Not JSON, continue.
     }
 
     // Fall back to raw token text.
-    return raw.trim();
+    return trimmed;
   }
 
   Future<void> _load() async {
-    // This screen first resolves the emergency token, then asks the DB
-    // for the safe emergency row.
     final token = _extractTokenFromPayload(widget.payload);
 
     if (token == null || token.isEmpty) {
@@ -119,12 +142,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       Map<String, dynamic>? emergencySummary;
 
       if (patientId != null && patientId.isNotEmpty) {
-        emergencySummary = await _patientService.fetchEmergencySummary(
-          patientId,
-        );
+        emergencySummary = await _patientService.fetchEmergencySummary(patientId);
       }
 
-      // If online fetch fails, keep the token-resolved snapshot values.
       final fallback = _mapFrom(resolved['offline_summary']);
       final source = emergencySummary ?? fallback;
 
@@ -224,10 +244,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            if (items.isEmpty)
-              const Text('No data')
-            else
-              ...items.map(_renderItem),
+            if (items.isEmpty) const Text('No data') else ...items.map(_renderItem),
           ],
         ),
       ),
@@ -274,14 +291,10 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   Text('Age: ${_age ?? 'Unknown'}'),
                   Text('Blood type: ${_bloodType ?? 'Unknown'}'),
                   Text('Phone: ${_phone ?? 'Unknown'}'),
-                  Text(
-                    'Emergency contact: ${_emergencyContact ?? 'Unknown'}',
-                  ),
+                  Text('Emergency contact: ${_emergencyContact ?? 'Unknown'}'),
                   Text('Address: ${_addressSummary ?? 'Unknown'}'),
                   Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
-                  Text(
-                    'COVID vaccine: ${_covidVaccineType ?? 'Unknown'}',
-                  ),
+                  Text('COVID vaccine: ${_covidVaccineType ?? 'Unknown'}'),
                 ],
               ),
             ),

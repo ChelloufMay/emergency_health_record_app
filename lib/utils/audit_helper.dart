@@ -1,4 +1,3 @@
-// keeps service calls cleaner by normalizing text before saving.
 class AuditHelper {
   static String? nullIfEmpty(String? value) {
     final v = value?.trim();
@@ -17,5 +16,28 @@ class AuditHelper {
 
   static String actionLabel(String action, String entityType) {
     return '$action:$entityType';
+  }
+
+  static String joinNonEmpty(
+      Iterable<String?> values, {
+        String separator = ' • ',
+        String fallback = '',
+      }) {
+    final parts = values
+        .map((e) => e?.trim())
+        .where((e) => e != null && e!.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    return parts.isEmpty ? fallback : parts.join(separator);
+  }
+
+  static bool isClinicianVerified(String? status) {
+    return status?.trim().toLowerCase() == 'clinician_verified';
+  }
+
+  static String labelOrUnknown(String? value, {String fallback = 'Unknown'}) {
+    final v = value?.trim();
+    return v == null || v.isEmpty ? fallback : v;
   }
 }

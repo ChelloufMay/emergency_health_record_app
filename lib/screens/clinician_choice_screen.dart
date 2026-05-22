@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'role_hub_screen.dart';
 
 class ClinicianChoiceScreen extends StatelessWidget {
@@ -9,11 +10,12 @@ class ClinicianChoiceScreen extends StatelessWidget {
     return const RoleHubScreen(
       title: 'Clinician hub',
       description:
-      'Use this hub to reach your clinician dashboard, pending invites, profile, and settings.',
+      'Use this hub to reach your clinician dashboard, pending invites, profile, and clinician settings.',
       dashboardRoute: '/clinician_dashboard',
       accessRoute: '/access_dashboard',
       profileRoute: '/clinician_profile',
-      settingsRoute: '/settings',
+      // CHANGED: route to the clinician-specific settings screen.
+      settingsRoute: '/clinician_settings',
     );
   }
 }
