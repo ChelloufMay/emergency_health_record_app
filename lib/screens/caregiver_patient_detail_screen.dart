@@ -36,8 +36,7 @@ class _CaregiverPatientDetailScreenState
 
   Future<Map<String, dynamic>?> _loadSummary(String patientId) async {
     try {
-      // CHANGED: try the emergency summary first, then fall back to the patient
-      // dashboard helper so the page still renders a name if summary data is thin.
+      // Try the emergency summary first — it has the richest data set.
       final summaryRows = await _supabase
           .from('patient_emergency_summary')
           .select()
@@ -52,19 +51,20 @@ class _CaregiverPatientDetailScreenState
     }
 
     try {
-      final fallback = await _supabase.rpc(
-        'get_patient_dashboard_details',
-        params: {'_patient_id': patientId},
-      );
+      // Fallback: read from the enriched profile view directly.
+      // This replaces the removed get_patient_dashboard_details RPC.
+      final fallback = await _supabase
+          .from('patient_profiles_enriched')
+          .select(
+            'id, first_name, family_name, sex, age_years, blood_type, phone, '
+            'address_country, address_governorate, address_city, '
+            'emergency_contact_name, emergency_contact_phone',
+          )
+          .eq('id', patientId)
+          .maybeSingle();
 
-      final fallbackMap = _mapFromRpcResult(fallback);
-      if (fallbackMap == null) return null;
-
-      return {
-        'first_name': fallbackMap['first_name'],
-        'family_name': fallbackMap['family_name'],
-        'date_of_birth': fallbackMap['date_of_birth'],
-      };
+      if (fallback == null) return null;
+      return Map<String, dynamic>.from(fallback);
     } catch (_) {
       return null;
     }

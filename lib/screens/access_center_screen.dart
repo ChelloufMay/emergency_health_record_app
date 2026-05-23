@@ -67,19 +67,16 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
   }
 
   Future<Map<String, dynamic>?> _patientNameRow(String patientId) async {
-    // CHANGED: use the existing DB helper for a lightweight display label.
-    final result = await _supabase.rpc(
-      'get_patient_dashboard_details',
-      params: {'_patient_id': patientId},
-    );
+    // Reads first_name / family_name directly from the enriched view.
+    // Replaces the removed get_patient_dashboard_details RPC.
+    final result = await _supabase
+        .from('patient_profiles_enriched')
+        .select('id, first_name, family_name')
+        .eq('id', patientId)
+        .maybeSingle();
 
-    if (result is List && result.isNotEmpty) {
-      return Map<String, dynamic>.from(result.first as Map);
-    }
-    if (result is Map) {
-      return Map<String, dynamic>.from(result);
-    }
-    return null;
+    if (result == null) return null;
+    return Map<String, dynamic>.from(result);
   }
 
   String _fullNameFromMap(Map<String, dynamic> row) {

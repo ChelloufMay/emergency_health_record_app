@@ -16,18 +16,13 @@ class AccessService {
     return email == null || email.isEmpty ? null : email;
   }
 
+  /// Uses the security-definer RPC so that RLS on public.users is never
+  /// an obstacle for resolving the caller's app-level user id.
   Future<String?> _currentAppUserId() async {
-    final authUserId = _supabase.auth.currentUser?.id;
-    if (authUserId == null || authUserId.trim().isEmpty) return null;
-
-    final row = await _supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', authUserId)
-        .maybeSingle();
-
-    if (row == null) return null;
-    return Map<String, dynamic>.from(row)['id']?.toString();
+    if (_supabase.auth.currentUser == null) return null;
+    final result = await _supabase.rpc('current_app_user_id');
+    final text = result?.toString().trim();
+    return (text == null || text.isEmpty) ? null : text;
   }
 
   List<Map<String, dynamic>> _toMapList(dynamic rows) {
@@ -52,23 +47,23 @@ class AccessService {
     return expiresAt.isAfter(DateTime.now());
   }
 
-  Future<Map<String, dynamic>?> _patientDashboardDetails(
-      String patientId,
-      ) async {
-    final result = await _supabase.rpc(
-      'get_patient_dashboard_details',
-      params: {'_patient_id': patientId},
-    );
+  /// Reads patient identity fields from the enriched view.
+  /// Replaces the removed get_patient_dashboard_details RPC.
+  Future<Map<String, dynamic>?> _patientSummary(String patientId) async {
+    final row = await _supabase
+        .from('patient_profiles_enriched')
+        .select(
+          'id, user_id, legal_id, first_name, family_name, sex, age_years, '
+          'blood_type, phone, address_country, address_governorate, '
+          'address_city, emergency_contact_name, emergency_contact_phone, '
+          'insurance_plan, covid_vaccine_type, family_doctor_id, '
+          'created_at, updated_at',
+        )
+        .eq('id', patientId)
+        .maybeSingle();
 
-    if (result is Map) {
-      return Map<String, dynamic>.from(result);
-    }
-
-    if (result is List && result.isNotEmpty && result.first is Map) {
-      return Map<String, dynamic>.from(result.first as Map);
-    }
-
-    return null;
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
   }
 
   String _patientNameFromDetails(Map<String, dynamic>? details) {
@@ -143,7 +138,7 @@ class AccessService {
       final patientId = grant['patient_id']?.toString() ?? '';
       final details = patientId.isEmpty
           ? null
-          : await _patientDashboardDetails(patientId);
+          : await _patientSummary(patientId);
 
       result.add(
         PatientAccessRowModel.fromMap(
