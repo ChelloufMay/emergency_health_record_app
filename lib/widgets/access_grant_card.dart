@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
-
 import '../models/access_grant_view_model.dart';
 
 /// Reusable active grant row for patient-owner access management.
+
 class AccessGrantCard extends StatelessWidget {
   final AccessGrantViewModel grant;
   final bool canManage;
   final VoidCallback? onEditPermission;
   final VoidCallback? onRevoke;
+
+  /// CHANGED: optional override for the main card label.
+  final String? titleLabel;
+
+  /// CHANGED: optional tap action for caregiver access cards.
+  final VoidCallback? onTap;
 
   const AccessGrantCard({
     super.key,
@@ -15,6 +21,8 @@ class AccessGrantCard extends StatelessWidget {
     this.canManage = true,
     this.onEditPermission,
     this.onRevoke,
+    this.titleLabel,
+    this.onTap,
   });
 
   String _roleLabel(String role) {
@@ -60,34 +68,46 @@ class AccessGrantCard extends StatelessWidget {
         ? 'Never'
         : grant.expiresAt!.toIso8601String().split('T').first;
 
+    // CHANGED: caregiver screens use the patient label; owner screens keep the
+    // grantee label.
+    final mainLabel = (titleLabel != null && titleLabel!.trim().isNotEmpty)
+        ? titleLabel!.trim()
+        : grant.granteeLabel;
+
+    final content = ListTile(
+      leading: Icon(_permissionIcon()),
+      title: Text('${_roleLabel(grant.granteeRole)} • $mainLabel'),
+      subtitle: Text(
+        'Permission: ${_permissionLabel(grant.permission)}\n'
+            'Status: ${grant.status}\n'
+            'Expires: $expiry',
+      ),
+      isThreeLine: true,
+      trailing: canManage
+          ? Wrap(
+        spacing: 4,
+        children: [
+          IconButton(
+            onPressed: grant.grantId.isEmpty ? null : onEditPermission,
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Change permission',
+          ),
+          IconButton(
+            onPressed: grant.grantId.isEmpty ? null : onRevoke,
+            icon: const Icon(Icons.block),
+            tooltip: 'Revoke access',
+          ),
+        ],
+      )
+          : null,
+    );
+
     return Card(
-      child: ListTile(
-        leading: Icon(_permissionIcon()),
-        title: Text('${_roleLabel(grant.granteeRole)} • ${grant.granteeLabel}'),
-        subtitle: Text(
-          'Permission: ${_permissionLabel(grant.permission)}\n'
-          'Status: ${grant.status}\n'
-          'Expires: $expiry',
-        ),
-        isThreeLine: true,
-        trailing: canManage
-            ? Wrap(
-                spacing: 4,
-                children: [
-                  IconButton(
-                    onPressed:
-                        grant.grantId.isEmpty ? null : onEditPermission,
-                    icon: const Icon(Icons.edit_outlined),
-                    tooltip: 'Change permission',
-                  ),
-                  IconButton(
-                    onPressed: grant.grantId.isEmpty ? null : onRevoke,
-                    icon: const Icon(Icons.block),
-                    tooltip: 'Revoke access',
-                  ),
-                ],
-              )
-            : null,
+      child: onTap == null
+          ? content
+          : InkWell(
+        onTap: onTap,
+        child: content,
       ),
     );
   }

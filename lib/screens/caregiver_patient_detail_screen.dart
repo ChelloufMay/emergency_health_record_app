@@ -21,9 +21,54 @@ class _CaregiverPatientDetailScreenState
 
   String? _patientId;
 
-  Future<String?> _currentAppUserId() async {
-    final value = await _supabase.rpc('current_app_user_id');
-    return value?.toString();
+  Map<String, dynamic>? _mapFromRpcResult(dynamic result) {
+    if (result is List && result.isNotEmpty) {
+      return Map<String, dynamic>.from(result.first as Map);
+    }
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _loadSummary(String patientId) async {
+    // CHANGED: try the emergency summary first, then fall back to the patient
+    // dashboard helper so the page still renders a name if summary data is thin.
+    final summaryRows = await _supabase
+        .from('patient_emergency_summary')
+        .select()
+        .eq('patient_id', patientId)
+        .limit(1);
+
+    if (summaryRows.isNotEmpty) {
+      return Map<String, dynamic>.from(summaryRows.first as Map);
+    }
+
+    final fallback = await _supabase.rpc(
+      'get_patient_dashboard_details',
+      params: {'_patient_id': patientId},
+    );
+
+    final fallbackMap = _mapFromRpcResult(fallback);
+    if (fallbackMap == null) return null;
+
+    return {
+      'first_name': fallbackMap['first_name'],
+      'family_name': fallbackMap['family_name'],
+      'date_of_birth': fallbackMap['date_of_birth'],
+    };
+  }
+
+  Future<Map<String, dynamic>?> _loadGrant(String patientId) async {
+    // CHANGED: ask the DB for the current user's active access to this patient.
+    // This is safer than resolving the app user in Flutter and then doing a
+    // second direct grant query.
+    final result = await _supabase.rpc(
+      'get_active_access_for_patient',
+      params: {'_patient_id': patientId},
+    );
+
+    return _mapFromRpcResult(result);
   }
 
   @override
@@ -34,47 +79,44 @@ class _CaregiverPatientDetailScreenState
 
   Future<void> _load() async {
     final patientId = widget.patientId;
-    final userId = await _currentAppUserId();
 
-    if (patientId == null ||
-        patientId.isEmpty ||
-        userId == null ||
-        userId.isEmpty) {
+    if (patientId == null || patientId.trim().isEmpty) {
       if (!mounted) return;
       setState(() => _loading = false);
       return;
     }
 
-    // CHANGED: the summary comes from the emergency summary view.
-    // The grant comes from access_grants so the UI can decide whether editing is allowed.
-    final summaryRows = await _supabase
-        .from('patient_emergency_summary')
-        .select()
-        .eq('patient_id', patientId)
-        .limit(1);
-
-    final grantRows = await _supabase
-        .from('access_grants')
-        .select()
-        .eq('patient_id', patientId)
-        .eq('grantee_user_id', userId)
-        .eq('status', 'active')
-        .limit(1);
+    final results = await Future.wait([
+      _loadSummary(patientId),
+      _loadGrant(patientId),
+    ]);
 
     if (!mounted) return;
+
     setState(() {
       _patientId = patientId;
-      _summary = (summaryRows.isNotEmpty)
-          ? Map<String, dynamic>.from(summaryRows.first as Map)
-          : null;
-      _grant = (grantRows.isNotEmpty)
-          ? Map<String, dynamic>.from(grantRows.first as Map)
-          : null;
+      _summary = results[0];
+      _grant = results[1];
       _loading = false;
     });
   }
 
   bool get _canEdit => _grant?['permission']?.toString() == 'edit';
+
+  String _value(Map<String, dynamic>? row, String key) {
+    final value = row?[key]?.toString().trim();
+    return value == null || value.isEmpty ? 'Unknown' : value;
+  }
+
+  String _fullAddress(Map<String, dynamic>? row) {
+    final parts = [
+      row?['address_country']?.toString() ?? '',
+      row?['address_governorate']?.toString() ?? '',
+      row?['address_city']?.toString() ?? '',
+    ].where((e) => e.trim().isNotEmpty).toList();
+
+    return parts.isEmpty ? 'Unknown' : parts.join(' • ');
+  }
 
   void _openSection(String routeName) {
     Navigator.pushNamed(
@@ -103,13 +145,16 @@ class _CaregiverPatientDetailScreenState
           ? const Center(child: CircularProgressIndicator())
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
-          : summary == null
-          ? const Center(child: Text('No patient summary available.'))
+          : _grant == null
+      // CHANGED: show a clear access error when the grant is missing.
+          ? const Center(
+        child: Text('No active access grant found for this patient.'),
+      )
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // CHANGED: keep the detail screen aligned to the same
-          // access-rule + summary pattern used by the other role flows.
+          // CHANGED: the top card now reflects the active grant + the
+          // loaded patient summary in one place.
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -118,8 +163,13 @@ class _CaregiverPatientDetailScreenState
                 children: [
                   Text(
                     [
-                      summary['first_name']?.toString() ?? '',
-                      summary['family_name']?.toString() ?? '',
+                      summary?['first_name']?.toString() ?? '',
+                      summary?['family_name']?.toString() ?? '',
+                    ].join(' ').trim().isEmpty
+                        ? 'Patient'
+                        : [
+                      summary?['first_name']?.toString() ?? '',
+                      summary?['family_name']?.toString() ?? '',
                     ].join(' ').trim(),
                     style: const TextStyle(
                       fontSize: 20,
@@ -128,31 +178,17 @@ class _CaregiverPatientDetailScreenState
                   ),
                   const SizedBox(height: 8),
                   Text('Patient ID: $_patientId'),
+                  Text('Age: ${_value(summary, 'age_years')}'),
+                  Text('Sex: ${_value(summary, 'sex')}'),
+                  Text('Blood type: ${_value(summary, 'blood_type')}'),
+                  Text('Phone: ${_value(summary, 'phone')}'),
                   Text(
-                    'Age: ${summary['age_years']?.toString() ?? 'Unknown'}',
+                    'Emergency contact: ${_value(summary, 'emergency_contact_name')}',
                   ),
                   Text(
-                    'Sex: ${summary['sex']?.toString() ?? 'Unknown'}',
+                    'Emergency phone: ${_value(summary, 'emergency_contact_phone')}',
                   ),
-                  Text(
-                    'Blood type: ${summary['blood_type']?.toString() ?? 'Unknown'}',
-                  ),
-                  Text(
-                    'Phone: ${summary['phone']?.toString() ?? 'Unknown'}',
-                  ),
-                  Text(
-                    'Emergency contact: ${summary['emergency_contact_name']?.toString() ?? 'Unknown'}',
-                  ),
-                  Text(
-                    'Emergency phone: ${summary['emergency_contact_phone']?.toString() ?? 'Unknown'}',
-                  ),
-                  Text(
-                    'Address: ${[
-                      summary['address_country']?.toString() ?? '',
-                      summary['address_governorate']?.toString() ?? '',
-                      summary['address_city']?.toString() ?? '',
-                    ].where((e) => e.trim().isNotEmpty).join(' • ')}',
-                  ),
+                  Text('Address: ${_fullAddress(summary)}'),
                   Text(
                     'Permission: ${_grant?['permission']?.toString() ?? 'none'}',
                   ),

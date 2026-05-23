@@ -1,10 +1,15 @@
 import 'access_grant_model.dart';
 import 'model_utils.dart';
 
-/// UI-friendly grant row for patient-owner access management.
+/// UI-friendly grant row used by both owner-management screens and caregiver
+/// access screens.
 class AccessGrantViewModel {
   final String grantId;
   final String patientId;
+
+  /// CHANGED: display name for the patient in caregiver access screens.
+  final String patientName;
+
   final String granteeUserId;
   final String granteeRole;
   final String granteeLabel;
@@ -17,6 +22,7 @@ class AccessGrantViewModel {
   const AccessGrantViewModel({
     required this.grantId,
     required this.patientId,
+    this.patientName = '',
     required this.granteeUserId,
     required this.granteeRole,
     required this.granteeLabel,
@@ -28,10 +34,10 @@ class AccessGrantViewModel {
   });
 
   static String _stringValue(
-    Map<String, dynamic> row,
-    List<String> keys, {
-    String fallback = '',
-  }) {
+      Map row,
+      List keys, {
+        String fallback = '',
+      }) {
     for (final key in keys) {
       final value = row[key];
       if (value != null) {
@@ -42,10 +48,30 @@ class AccessGrantViewModel {
     return fallback;
   }
 
+  static String _fullNameFromRow(Map row) {
+    final direct = _stringValue(
+      row,
+      const ['patient_name', 'patient_full_name', 'full_name', 'name', 'display_name'],
+    );
+    if (direct.isNotEmpty) return direct;
+
+    final firstName = _stringValue(
+      row,
+      const ['first_name', 'patient_first_name', 'given_name'],
+    );
+    final familyName = _stringValue(
+      row,
+      const ['family_name', 'patient_family_name', 'last_name', 'surname'],
+    );
+
+    return [firstName, familyName].where((part) => part.trim().isNotEmpty).join(' ').trim();
+  }
+
   factory AccessGrantViewModel.fromGrant(AccessGrantModel grant) {
     return AccessGrantViewModel(
       grantId: grant.id ?? '',
       patientId: grant.patientId,
+      patientName: '',
       granteeUserId: grant.granteeUserId,
       granteeRole: grant.granteeRole,
       granteeLabel: grant.granteeUserId,
@@ -58,11 +84,14 @@ class AccessGrantViewModel {
   }
 
   factory AccessGrantViewModel.fromDashboardRow(Map map) {
-    final row = Map<String, dynamic>.from(map);
+    final row = Map.from(map);
+
     final grantId = _stringValue(
       row,
       const ['grant_id', 'access_grant_id', 'id'],
     );
+
+    final patientName = _fullNameFromRow(row);
 
     final granteeLabel = _stringValue(
       row,
@@ -70,6 +99,7 @@ class AccessGrantViewModel {
         'grantee_name',
         'grantee_email',
         'grantee_display_name',
+        'grantee_full_name',
         'grantee_user_id',
       ],
       fallback: 'Connected user',
@@ -78,10 +108,8 @@ class AccessGrantViewModel {
     return AccessGrantViewModel(
       grantId: grantId,
       patientId: row['patient_id']?.toString() ?? '',
-      granteeUserId: _stringValue(
-        row,
-        const ['grantee_user_id'],
-      ),
+      patientName: patientName,
+      granteeUserId: _stringValue(row, const ['grantee_user_id']),
       granteeRole: _stringValue(
         row,
         const ['grantee_role', 'role'],
@@ -95,7 +123,7 @@ class AccessGrantViewModel {
     );
   }
 
-  Map<String, dynamic> toEditorRow() => {
+  Map toEditorRow() => {
     'id': grantId,
     'grant_id': grantId,
     'patient_id': patientId,
