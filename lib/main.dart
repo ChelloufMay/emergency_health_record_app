@@ -15,7 +15,6 @@ import 'screens/attachments_screen.dart';
 import 'screens/audit_log_screen.dart';
 import 'screens/caregiver_choice_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
-import 'screens/caregiver_patient_detail_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/caregiver_settings_screen.dart';
 import 'screens/caregiver_screen.dart';
@@ -41,6 +40,7 @@ import 'screens/medications_screen.dart';
 import 'screens/password_reset_screen.dart';
 import 'screens/patient_detail_screen.dart';
 import 'screens/patient_notifications_screen.dart';
+import 'screens/patient_profile_view_screen.dart';
 import 'screens/patient_risk_predictions_screen.dart';
 import 'screens/patient_settings_screen.dart';
 import 'screens/profile_screen.dart';
@@ -112,7 +112,6 @@ class _MyAppState extends State<MyApp> {
             _goLogin();
             break;
           case AuthChangeEvent.passwordRecovery:
-          // CHANGED: keep recovery flow on the required password-reset route.
             _goPasswordReset();
             break;
           case AuthChangeEvent.signedIn:
@@ -141,7 +140,6 @@ class _MyAppState extends State<MyApp> {
             uri.queryParameters['recovery'] == 'true' ||
             uri.toString().contains('type=recovery');
 
-        // CHANGED: route now uses /auth_callback and /password_reset.
         nav.pushNamedAndRemoveUntil(
           isRecovery ? '/password_reset' : '/auth_callback',
               (route) => false,
@@ -303,6 +301,7 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               builder: (_) => PatientAccessManagementScreen(
                 patientId: args['patientId'] as String?,
+                patientName: args['patientName'] as String?,
               ),
             );
 
@@ -321,7 +320,8 @@ class _MyAppState extends State<MyApp> {
                 grantId: args['grantId'] as String? ?? '',
                 patientId: args['patientId'] as String? ?? '',
                 granteeRole: args['granteeRole'] as String? ?? 'caregiver',
-                currentPermission: args['currentPermission'] as String? ?? 'read',
+                currentPermission:
+                args['currentPermission'] as String? ?? 'read',
                 currentExpiresAt: args['currentExpiresAt'] as DateTime?,
                 currentNotes: args['currentNotes'] as String?,
               ),
@@ -343,7 +343,6 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/clincian_dashboard':
-          // CHANGED: temporary compatibility route for the old typo.
             return MaterialPageRoute(
               builder: (_) => const ClinicianDashboardScreen(),
             );
@@ -352,16 +351,23 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               builder: (_) => PatientDetailScreen(
                 patientId: args['patientId'] as String? ?? '',
+                grantId: args['grantId'] as String? ?? '', // <-- FIX
                 patientName: args['patientName'] as String? ?? 'Patient',
                 permission: args['permission'] as String? ?? 'read',
                 roleLabel: args['roleLabel'] as String? ?? 'unknown',
               ),
             );
 
-          case '/caregiver_patient_detail':
+          case '/patient_profile_view':
+            final map = settings.arguments is Map
+                ? Map<String, dynamic>.from(settings.arguments as Map)
+                : <String, dynamic>{};
+
             return MaterialPageRoute(
-              builder: (_) => CaregiverPatientDetailScreen(
-                patientId: args['patientId'] as String?,
+              builder: (_) => PatientProfileViewScreen(
+                patientId: map['patientId']?.toString(),
+                canEdit: map['canEdit'] == true,
+                actorRole: map['actorRole']?.toString(),
               ),
             );
 
@@ -522,7 +528,6 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/auth-callback':
-          // CHANGED: compatibility alias for older links.
             return MaterialPageRoute(
               builder: (_) => AuthCallbackScreen(
                 callbackUri: args['uri'] as String?,
@@ -536,12 +541,10 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/reset-password':
-          // CHANGED: compatibility alias for older links.
             return MaterialPageRoute(
               builder: (_) => const PasswordResetScreen(),
             );
 
-        // CHANGED: role-aware settings route resolver.
           case '/settings':
             return MaterialPageRoute(
               builder: (_) => const SettingsRouteScreen(),
@@ -620,7 +623,6 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
 
     if (userRow == null) return const LoginScreen();
 
-    // CHANGED: normalize the role before routing to the role-specific settings screen.
     final role = (userRow['role'] as String?)?.trim().toLowerCase() ?? 'owner';
 
     if (role == 'owner' || role == 'patient') {
@@ -748,8 +750,6 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       final rawUri = widget.callbackUri;
       if (rawUri != null && rawUri.trim().isNotEmpty) {
         final uri = Uri.parse(rawUri);
-
-        // CHANGED: always exchange the session from the callback URL first.
         await Supabase.instance.client.auth.getSessionFromUrl(uri);
       }
     } catch (e) {

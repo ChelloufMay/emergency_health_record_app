@@ -81,6 +81,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
           patientName: row.patientName,
           permission: row.permission,
           roleLabel: row.role,
+          grantId: row.grantId ?? '',
         ),
       ),
     );
@@ -88,6 +89,83 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
 
   void _openInbox() {
     Navigator.pushNamed(context, '/access_inbox');
+  }
+
+  Future<void> _confirmRemove(PatientAccessRowModel row) async {
+    final grantId = row.grantId;
+    if (grantId == null || grantId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing grant id for this patient.')),
+      );
+      return;
+    }
+
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Remove patient'),
+          content: Text(
+            'Revoke your access to ${row.patientName}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldRemove != true) return;
+
+    try {
+      await _service.revokeGrant(grantId);
+      if (!mounted) return;
+      await _loadData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Access removed.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not remove patient: $e')),
+      );
+    }
+  }
+
+  Widget _patientCard(PatientAccessRowModel row) {
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          row.isEmergencyOnly
+              ? Icons.warning_amber_outlined
+              : row.canEdit
+              ? Icons.edit_outlined
+              : Icons.visibility_outlined,
+        ),
+        title: Text(row.patientName),
+        subtitle: Text('${row.role} · ${row.permission}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.person_remove_outlined),
+              tooltip: 'Remove patient',
+              onPressed: () => _confirmRemove(row),
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: () => _openPatient(row),
+      ),
+    );
   }
 
   @override
@@ -127,7 +205,6 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
             if (_pendingInvites.isNotEmpty) ...[
               Card(
                 color: Theme.of(context).colorScheme.primaryContainer,
@@ -145,16 +222,13 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
               ),
               const SizedBox(height: 16),
             ],
-
             Text(
               'Accessible patients',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
-
             if (_rows.isEmpty)
               Card(
                 child: Padding(
@@ -163,25 +237,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                 ),
               )
             else
-              ..._rows.map(
-                    (row) => Card(
-                  child: ListTile(
-                    leading: Icon(
-                      row.isEmergencyOnly
-                          ? Icons.warning_amber_outlined
-                          : row.canEdit
-                          ? Icons.edit_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    title: Text(row.patientName),
-                    subtitle: Text(
-                      'Permission: ${row.permission} • Role: ${row.role}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _openPatient(row),
-                  ),
-                ),
-              ),
+              ..._rows.map(_patientCard),
           ],
         ),
       ),

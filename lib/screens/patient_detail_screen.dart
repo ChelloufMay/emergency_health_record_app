@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 
@@ -8,6 +9,7 @@ class PatientDetailScreen extends StatelessWidget {
   final String patientName;
   final String permission;
   final String roleLabel;
+  final String grantId;
 
   const PatientDetailScreen({
     super.key,
@@ -15,6 +17,7 @@ class PatientDetailScreen extends StatelessWidget {
     required this.patientName,
     required this.permission,
     required this.roleLabel,
+    required this.grantId,
   });
 
   bool get canEdit => permission == 'edit' || permission == 'owner';
@@ -27,6 +30,7 @@ class PatientDetailScreen extends StatelessWidget {
       isEmergencyOnly: isEmergencyOnly,
       actorRole: roleLabel,
     );
+
     Navigator.pushNamed(
       context,
       routeName,
@@ -34,8 +38,58 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _sectionTile(
+      BuildContext context,
+      String title,
+      IconData icon,
+      String routeName,
+      ) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        onTap: () => _open(context, routeName),
+      ),
+    );
+  }
+
+  Future<void> _confirmRemove(BuildContext context) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Remove patient'),
+          content: const Text(
+            'This will revoke your own access to this patient. '
+                'The patient record itself will not be deleted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldRemove != true) return;
+
+    await AccessService().revokeGrant(grantId);
+
+    if (context.mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Keep the selected patient available to section screens that fall back to
+    // the shared patient session when route arguments are missing.
     PatientSessionService.instance.setSession(
       patientId: patientId,
       patientName: patientName,
@@ -58,56 +112,107 @@ class PatientDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.medical_information_outlined),
-              title: const Text('Medical summary'),
-              subtitle: const Text('Allergies, medications, conditions'),
-              onTap: () => _open(context, '/medical_summary'),
-            ),
-          ),
+
           Card(
             child: ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('Profile'),
-              subtitle: const Text('View patient profile and address'),
-              onTap: () => _open(context, '/profile'),
+              title: const Text('Patient profile'),
+              subtitle: const Text('Demographics, blood type, contacts'),
+              onTap: () => _open(context, '/patient_profile_view'),
             ),
           ),
+
+          if (!isEmergencyOnly)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.medical_information_outlined),
+                title: const Text('Medical summary'),
+                subtitle: const Text('Allergies, medications, conditions'),
+                onTap: () => _open(context, '/medical_summary'),
+              ),
+            ),
+
+          if (canEdit) ...[
+            _sectionTile(
+              context,
+              'Allergies',
+              Icons.warning_amber_outlined,
+              '/allergies',
+            ),
+            _sectionTile(
+              context,
+              'Medications',
+              Icons.medication_outlined,
+              '/medications',
+            ),
+            _sectionTile(
+              context,
+              'Conditions',
+              Icons.monitor_heart_outlined,
+              '/conditions',
+            ),
+            _sectionTile(
+              context,
+              'Surgeries',
+              Icons.healing_outlined,
+              '/surgeries',
+            ),
+            _sectionTile(
+              context,
+              'Hospitalizations',
+              Icons.local_hospital_outlined,
+              '/hospitalizations',
+            ),
+            _sectionTile(
+              context,
+              'Vaccinations',
+              Icons.vaccines_outlined,
+              '/vaccinations',
+            ),
+            _sectionTile(
+              context,
+              'Lifestyle',
+              Icons.self_improvement_outlined,
+              '/lifestyle',
+            ),
+            _sectionTile(
+              context,
+              'Family history',
+              Icons.family_restroom_outlined,
+              '/family_history',
+            ),
+            _sectionTile(
+              context,
+              'Reproductive health',
+              Icons.monitor_outlined,
+              '/reproductive_health',
+            ),
+          ],
+
           Card(
             child: ListTile(
-              leading: Icon(
-                canEdit ? Icons.edit_outlined : Icons.visibility_outlined,
-              ),
-              title: Text(canEdit ? 'Edit allowed sections' : 'Read-only access'),
-              subtitle: Text(
-                isEmergencyOnly
-                    ? 'Emergency-only: open emergency views'
-                    : canEdit
-                    ? 'Open section screens and edit permitted fields'
-                    : 'Open section screens in read-only mode',
-              ),
-              onTap: isEmergencyOnly
-                  ? () => _open(context, '/emergency')
-                  : (canEdit ? () => _open(context, '/medical_summary') : null),
+              leading: const Icon(Icons.emergency_outlined),
+              title: const Text('Emergency view'),
+              onTap: () => _open(context, '/emergency'),
             ),
           ),
+
           Card(
             child: ListTile(
               leading: const Icon(Icons.qr_code_outlined),
               title: const Text('Emergency QR'),
-              subtitle: const Text('View the emergency card'),
               onTap: () => _open(context, '/qr'),
             ),
           ),
-          if (isEmergencyOnly)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.emergency_outlined),
-                title: const Text('Emergency view'),
-                onTap: () => _open(context, '/emergency'),
-              ),
+
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_remove_outlined),
+              title: const Text('Remove patient'),
+              subtitle: const Text('Revoke your own access to this patient'),
+              onTap: () => _confirmRemove(context),
             ),
+          ),
         ],
       ),
     );

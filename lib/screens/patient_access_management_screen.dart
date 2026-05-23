@@ -1,29 +1,25 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/access_grant_view_model.dart';
-import '../models/access_invite_model.dart';
-import '../services/access_realtime_service.dart';
 import '../services/access_service.dart';
-import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
-import '../widgets/access_grant_card.dart';
-import 'access_permission_editor_screen.dart';
 
-/// Patient-owner screen: manage grants and outbound invites for one patient.
+/// Patient-owner access management screen.
 ///
-/// Recipients accept/reject on [AccessInboxScreen] instead.
+/// This screen is intentionally for the patient's own flow only.
+/// It shows current grants, lets the patient change permission, and revoke access.
 class PatientAccessManagementScreen extends StatefulWidget {
+  /// Optional explicit patient id, usually passed from the patient home flow.
   final String? patientId;
 
-  /// When true, renders body only (for [AccessCenterScreen] tabs).
-  final bool embedded;
+  /// Optional display name for the current patient.
+  final String? patientName;
 
   const PatientAccessManagementScreen({
     super.key,
     this.patientId,
-    this.embedded = false,
+    this.patientName,
   });
 
   @override
@@ -34,147 +30,226 @@ class PatientAccessManagementScreen extends StatefulWidget {
 class _PatientAccessManagementScreenState
     extends State<PatientAccessManagementScreen> {
   final AccessService _accessService = AccessService();
-  final PatientService _patientService = PatientService();
-  StreamSubscription<void>? _realtimeSub;
 
   bool _loading = true;
-  String? _patientId;
-  String? _patientName;
+  bool _saving = false;
+  String? _error;
+  String? _resolvedPatientId;
+  String? _resolvedPatientName;
   List<AccessGrantViewModel> _grants = [];
-  List<AccessInviteModel> _invites = [];
+
+  final Set<String> _busyGrantIds = <String>{};
+
+  bool _bootstrapped = false;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-    _subscribeRealtime();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_bootstrapped) return;
+    _bootstrapped = true;
+    _bootstrap();
   }
 
-  void _subscribeRealtime() {
-    AccessRealtimeService.instance.subscribe();
-    _realtimeSub = AccessRealtimeService.instance.onChanged.listen((_) {
-      if (mounted) _load();
-    });
-  }
-
-  @override
-  void dispose() {
-    _realtimeSub?.cancel();
-    AccessRealtimeService.instance.unsubscribe();
-    super.dispose();
-  }
-
-  Future<String?> _resolvePatientId() async {
-    if (widget.patientId != null && widget.patientId!.trim().isNotEmpty) {
-      return widget.patientId!.trim();
+  String? _routePatientId() {
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is String && arguments.trim().isNotEmpty) {
+      return arguments.trim();
     }
-    final session = PatientSessionService.instance.current;
-    if (session?.patientId.isNotEmpty == true) return session!.patientId;
-    final identity = await _patientService.resolveIdentity();
-    return identity?.patientProfileId;
+    if (arguments is Map) {
+      final map = Map<String, dynamic>.from(arguments);
+      final value = map['patientId'] ?? map['patient_id'];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  String? _routePatientName() {
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is Map) {
+      final map = Map<String, dynamic>.from(arguments);
+      final value = map['patientName'] ?? map['patient_name'];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  String? _currentPatientId() {
+    final widgetId = widget.patientId?.trim();
+    if (widgetId != null && widgetId.isNotEmpty) return widgetId;
+
+    final routeId = _routePatientId();
+    if (routeId != null && routeId.isNotEmpty) return routeId;
+
+    final sessionId = PatientSessionService.instance.current?.patientId;
+    if (sessionId != null && sessionId.trim().isNotEmpty) return sessionId.trim();
+
+    return null;
+  }
+
+  String? _currentPatientName() {
+    final widgetName = widget.patientName?.trim();
+    if (widgetName != null && widgetName.isNotEmpty) return widgetName;
+
+    final routeName = _routePatientName();
+    if (routeName != null && routeName.isNotEmpty) return routeName;
+
+    final sessionName = PatientSessionService.instance.current?.patientName?.trim();
+    if (sessionName != null && sessionName.isNotEmpty) return sessionName;
+
+    return null;
+  }
+
+  Future<void> _bootstrap() async {
+    _resolvedPatientId = _currentPatientId();
+    _resolvedPatientName = _currentPatientName();
+
+    if (_resolvedPatientId == null || _resolvedPatientId!.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No patient session was found for this screen.';
+      });
+      return;
+    }
+
+    await _load();
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+    final patientId = _resolvedPatientId;
+    if (patientId == null || patientId.isEmpty) return;
+
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
-      final patientId = await _resolvePatientId();
-      if (patientId == null || patientId.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _patientId = null;
-        });
-        return;
-      }
+      final rows = await Supabase.instance.client
+          .from('patient_access_dashboard')
+          .select()
+          .eq('patient_id', patientId);
 
-      final summary = await _patientService.fetchPatientSummary(patientId);
-      final grants = await _accessService.fetchPatientGrantViews(patientId);
-      final invites = await _accessService.fetchPatientInvites(patientId);
+      final list = (rows as List)
+          .map((item) => AccessGrantViewModel.fromDashboardRow(item))
+          .where((grant) => grant.grantId.isNotEmpty)
+          .toList();
 
       if (!mounted) return;
       setState(() {
-        _patientId = patientId;
-        _patientName = summary == null
-            ? PatientSessionService.instance.current?.patientName
-            : [
-                summary['first_name']?.toString() ?? '',
-                summary['family_name']?.toString() ?? '',
-              ].join(' ').trim();
-        _grants = grants;
-        _invites = invites;
+        _grants = list;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load access management: $e')),
-      );
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
   }
 
-  Future<void> _showInviteDialog() async {
-    final emailController = TextEditingController();
-    final notesController = TextEditingController();
-    String invitedRole = 'caregiver';
-    String permission = 'read';
+  String _prettyText(String value) {
+    final cleaned = value.replaceAll('_', ' ').trim();
+    if (cleaned.isEmpty) return '-';
+    return cleaned[0].toUpperCase() + cleaned.substring(1);
+  }
 
-    final result = await showDialog<bool>(
+  String _permissionLabel(String value) {
+    switch (value.toLowerCase().trim()) {
+      case 'read':
+        return 'Read';
+      case 'edit':
+        return 'Edit';
+      case 'emergency_only':
+        return 'Emergency only';
+      default:
+        return _prettyText(value);
+    }
+  }
+
+  String _granteeLabel(AccessGrantViewModel grant) {
+    final label = grant.granteeLabel.trim();
+    if (label.isNotEmpty && label != grant.granteeUserId) {
+      return label;
+    }
+    final fallback = grant.granteeUserId.trim();
+    if (fallback.isNotEmpty) return fallback;
+    return 'Connected user';
+  }
+
+  String _granteeRoleLabel(String role) {
+    switch (role.toLowerCase().trim()) {
+      case 'caregiver':
+        return 'Caregiver';
+      case 'guardian':
+        return 'Guardian';
+      case 'clinician':
+        return 'Clinician';
+      default:
+        return _prettyText(role);
+    }
+  }
+
+  Future<void> _updatePermission(
+      AccessGrantViewModel grant,
+      String permission,
+      ) async {
+    if (grant.grantId.isEmpty) return;
+    if (_busyGrantIds.contains(grant.grantId)) return;
+
+    setState(() {
+      _busyGrantIds.add(grant.grantId);
+      _saving = true;
+    });
+
+    try {
+      await _accessService.updateGrantPermission(
+        grantId: grant.grantId,
+        permission: permission,
+        patientId: _resolvedPatientId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Permission updated to ${_permissionLabel(permission)}.',
+          ),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update permission: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busyGrantIds.remove(grant.grantId);
+          _saving = _busyGrantIds.isNotEmpty;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirmRevoke(AccessGrantViewModel grant) async {
+    if (grant.grantId.isEmpty) return;
+
+    final shouldRevoke = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Invite access'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: invitedRole,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'caregiver',
-                      child: Text('Caregiver'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'guardian',
-                      child: Text('Guardian'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'clinician',
-                      child: Text('Clinician'),
-                    ),
-                  ],
-                  onChanged: (v) => invitedRole = v ?? 'caregiver',
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: permission,
-                  decoration: const InputDecoration(labelText: 'Permission'),
-                  items: const [
-                    DropdownMenuItem(value: 'read', child: Text('Read')),
-                    DropdownMenuItem(value: 'edit', child: Text('Edit')),
-                    DropdownMenuItem(
-                      value: 'emergency_only',
-                      child: Text('Emergency only'),
-                    ),
-                  ],
-                  onChanged: (v) => permission = v ?? 'read',
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Message / notes'),
-                  maxLines: 3,
-                ),
-              ],
-            ),
+          title: const Text('Remove access?'),
+          content: Text(
+            'This will revoke access for ${_granteeLabel(grant)}.',
           ),
           actions: [
             TextButton(
@@ -183,111 +258,179 @@ class _PatientAccessManagementScreenState
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Send invite'),
+              child: const Text('Revoke'),
             ),
           ],
         );
       },
     );
 
-    if (result != true) {
-      emailController.dispose();
-      notesController.dispose();
-      return;
-    }
+    if (shouldRevoke != true) return;
 
-    final patientId = _patientId;
-    if (patientId == null) return;
-
-    try {
-      await _accessService.createInvite(
-        patientId: patientId,
-        invitedEmail: emailController.text.trim(),
-        invitedRole: invitedRole,
-        permission: permission,
-        notes: notesController.text.trim().isEmpty
-            ? null
-            : notesController.text.trim(),
-      );
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invite sent.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invite failed: $e')),
-      );
-    } finally {
-      emailController.dispose();
-      notesController.dispose();
-    }
-  }
-
-  Future<void> _openPermissionEditor(AccessGrantViewModel grant) async {
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AccessPermissionEditorScreen(
-          grantId: grant.grantId,
-          patientId: grant.patientId,
-          granteeRole: grant.granteeRole,
-          currentPermission: grant.permission,
-          currentExpiresAt: grant.expiresAt,
-          currentNotes: grant.notes,
-        ),
-      ),
-    );
-
-    if (changed == true && mounted) await _load();
-  }
-
-  Future<void> _revokeGrant(AccessGrantViewModel grant) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Revoke access'),
-        content: const Text(
-          'This removes the active grant immediately.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Revoke'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
+    setState(() {
+      _busyGrantIds.add(grant.grantId);
+      _saving = true;
+    });
 
     try {
       await _accessService.revokeGrant(
         grant.grantId,
-        patientId: grant.patientId,
+        patientId: _resolvedPatientId,
       );
+
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Access revoked.')),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Revoke failed: $e')),
+        SnackBar(content: Text('Could not revoke access: $e')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busyGrantIds.remove(grant.grantId);
+          _saving = _busyGrantIds.isNotEmpty;
+        });
+      }
     }
   }
 
-  Widget _buildBody() {
+  Widget _permissionDropdown(AccessGrantViewModel grant) {
+    final options = const ['read', 'edit', 'emergency_only'];
+    final busy = _busyGrantIds.contains(grant.grantId);
+
+    return DropdownButtonFormField<String>(
+      initialValue: options.contains(grant.permission) ? grant.permission : 'read',
+      decoration: const InputDecoration(
+        labelText: 'Permission',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: options
+          .map(
+            (value) => DropdownMenuItem<String>(
+          value: value,
+          child: Text(_permissionLabel(value)),
+        ),
+      )
+          .toList(),
+      onChanged: busy ? null : (value) {
+        if (value == null || value == grant.permission) return;
+        _updatePermission(grant, value);
+      },
+    );
+  }
+
+  Widget _grantCard(AccessGrantViewModel grant) {
+    final busy = _busyGrantIds.contains(grant.grantId);
+    final expiresAt = grant.expiresAt;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _granteeLabel(grant),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(_granteeRoleLabel(grant.granteeRole)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: busy ? null : () => _confirmRevoke(grant),
+                  tooltip: 'Revoke access',
+                  icon: const Icon(Icons.person_remove_outlined),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _permissionDropdown(grant),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text('Status: ${_prettyText(grant.status)}'),
+                ),
+                Expanded(
+                  child: Text(
+                    expiresAt == null
+                        ? 'Expires: never'
+                        : 'Expires: ${expiresAt.toLocal().toIso8601String().split(".").first}',
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+            ),
+            if (grant.notes != null &&
+                grant.notes!.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Notes',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(grant.notes!.trim()),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_patientId == null) {
-      return const Center(child: Text('No patient selected.'));
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
+
+    final patientName = _resolvedPatientName;
+    final headerText = patientName == null || patientName.isEmpty
+        ? 'Manage who can access your patient record.'
+        : 'Manage who can access $patientName\'s record.';
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -295,72 +438,25 @@ class _PatientAccessManagementScreenState
         padding: const EdgeInsets.all(16),
         children: [
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: Text(_patientName ?? 'Patient'),
-              subtitle: Text('Patient ID: $_patientId'),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(headerText),
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Manage who can access this patient record. Permission '
-            'changes apply to caregivers, guardians, and clinicians.',
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Active grants',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           if (_grants.isEmpty)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('No active grants.'),
+                child: Text('No active grants yet.'),
               ),
             )
           else
-            ..._grants.map(
-              (grant) => AccessGrantCard(
-                grant: grant,
-                canManage: true,
-                onEditPermission: () => _openPermissionEditor(grant),
-                onRevoke: () => _revokeGrant(grant),
-              ),
-            ),
-          const SizedBox(height: 16),
-          Text(
-            'Outbound invites',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (_invites.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No invites sent yet.'),
-              ),
-            )
-          else
-            ..._invites.map(
-              (invite) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.mail_outline),
-                  title: Text(
-                    '${invite.invitedRole} • ${invite.permission}',
-                  ),
-                  subtitle: Text(
-                    'Email: ${invite.invitedEmail}\n'
-                    'Status: ${invite.status}',
-                  ),
-                  isThreeLine: true,
-                ),
-              ),
-            ),
+            ..._grants.map(_grantCard),
+          if (_saving) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
         ],
       ),
     );
@@ -368,22 +464,7 @@ class _PatientAccessManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.embedded) {
-      return Stack(
-        children: [
-          _buildBody(),
-          if (_patientId != null)
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton(
-                onPressed: _showInviteDialog,
-                child: const Icon(Icons.person_add),
-              ),
-            ),
-        ],
-      );
-    }
+    final body = _buildContent();
 
     return Scaffold(
       appBar: AppBar(
@@ -392,19 +473,11 @@ class _PatientAccessManagementScreenState
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
         ],
       ),
-      floatingActionButton: _patientId == null
-          ? null
-          : FloatingActionButton(
-              onPressed: _showInviteDialog,
-              tooltip: 'Invite someone',
-              child: const Icon(Icons.person_add),
-            ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
+      body: body,
     );
   }
 }

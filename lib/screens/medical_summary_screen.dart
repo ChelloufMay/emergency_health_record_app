@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 
 class MedicalSummaryScreen extends StatefulWidget {
   final String? patientId;
@@ -28,6 +29,17 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
   String? _resolvePatientId() {
     return widget.patientId ??
         PatientSessionService.instance.current?.patientId;
+  }
+
+  Map<String, dynamic> _routeArgs(String patientId) {
+    // Pass a full access context so section screens can preserve the
+    // permission model instead of falling back to a bare patientId map.
+    return PatientAccessContext(
+      patientId: patientId,
+      canEdit: widget.canEdit,
+      isEmergencyOnly: widget.isEmergencyOnly,
+      actorRole: 'unknown',
+    ).toRouteArguments();
   }
 
   @override
@@ -80,9 +92,9 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
             : <String, dynamic>{};
         final title =
             map['allergen_name'] ??
-            map['medication_name'] ??
-            map['condition_name'] ??
-            item;
+                map['medication_name'] ??
+                map['condition_name'] ??
+                item;
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Text('• $title'),
@@ -123,128 +135,128 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
           : patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // This is the owner-safe summary view from the DB view
+            // patient_emergency_summary.
+            Card(
+              child: Padding(
                 padding: const EdgeInsets.all(16),
-                children: [
-                  // This is the owner-safe summary view from the DB view
-                  // patient_emergency_summary.
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _displayName().isEmpty
-                                ? 'Patient summary'
-                                : _displayName(),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text('Patient ID: $patientId'),
-                          Text(
-                            'Sex: ${_summary?['sex']?.toString() ?? 'Unknown'}',
-                          ),
-                          Text(
-                            'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
-                          ),
-                          Text(
-                            'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
-                          ),
-                          Text(
-                            'Phone: ${_summary?['phone']?.toString() ?? 'Not set'}',
-                          ),
-                          Text(
-                            'Emergency contact: ${_summary?['emergency_contact_name']?.toString() ?? 'Not set'}',
-                          ),
-                          Text(
-                            'Emergency phone: ${_summary?['emergency_contact_phone']?.toString() ?? 'Not set'}',
-                          ),
-                          Text(
-                            'Insurance: ${_summary?['insurance_plan']?.toString() ?? 'Not set'}',
-                          ),
-                          Text(
-                            'COVID vaccine: ${_summary?['covid_vaccine_type']?.toString() ?? 'Not set'}',
-                          ),
-                          Text(
-                            'Address: ${[_summary?['address_country'], _summary?['address_governorate'], _summary?['address_city']].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
-                          ),
-                        ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _displayName().isEmpty
+                          ? 'Patient summary'
+                          : _displayName(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _section(
-                    'Allergies',
-                    _buildBulletList(_summary?['allergies']),
-                  ),
-                  const SizedBox(height: 12),
-                  _section(
-                    'Medications',
-                    _buildBulletList(_summary?['medications']),
-                  ),
-                  const SizedBox(height: 12),
-                  _section(
-                    'Chronic conditions',
-                    _buildBulletList(_summary?['chronic_conditions']),
-                  ),
-                  const SizedBox(height: 12),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Owner flow note',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'This screen stays read-only so it can safely reflect the DB view without duplicating the section CRUD screens.',
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/allergies',
-                                  arguments: {'patientId': patientId},
-                                ),
-                                child: const Text('Open allergies'),
-                              ),
-                              OutlinedButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/medications',
-                                  arguments: {'patientId': patientId},
-                                ),
-                                child: const Text('Open medications'),
-                              ),
-                              OutlinedButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/conditions',
-                                  arguments: {'patientId': patientId},
-                                ),
-                                child: const Text('Open conditions'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 8),
+                    Text('Patient ID: $patientId'),
+                    Text(
+                      'Sex: ${_summary?['sex']?.toString() ?? 'Unknown'}',
                     ),
-                  ),
-                ],
+                    Text(
+                      'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
+                    ),
+                    Text(
+                      'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
+                    ),
+                    Text(
+                      'Phone: ${_summary?['phone']?.toString() ?? 'Not set'}',
+                    ),
+                    Text(
+                      'Emergency contact: ${_summary?['emergency_contact_name']?.toString() ?? 'Not set'}',
+                    ),
+                    Text(
+                      'Emergency phone: ${_summary?['emergency_contact_phone']?.toString() ?? 'Not set'}',
+                    ),
+                    Text(
+                      'Insurance: ${_summary?['insurance_plan']?.toString() ?? 'Not set'}',
+                    ),
+                    Text(
+                      'COVID vaccine: ${_summary?['covid_vaccine_type']?.toString() ?? 'Not set'}',
+                    ),
+                    Text(
+                      'Address: ${[_summary?['address_country'], _summary?['address_governorate'], _summary?['address_city']].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
+                    ),
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: 12),
+            _section(
+              'Allergies',
+              _buildBulletList(_summary?['allergies']),
+            ),
+            const SizedBox(height: 12),
+            _section(
+              'Medications',
+              _buildBulletList(_summary?['medications']),
+            ),
+            const SizedBox(height: 12),
+            _section(
+              'Chronic conditions',
+              _buildBulletList(_summary?['chronic_conditions']),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Owner flow note',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'This screen stays read-only so it can safely reflect the DB view without duplicating the section CRUD screens.',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/allergies',
+                            arguments: _routeArgs(patientId),
+                          ),
+                          child: const Text('Open allergies'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/medications',
+                            arguments: _routeArgs(patientId),
+                          ),
+                          child: const Text('Open medications'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/conditions',
+                            arguments: _routeArgs(patientId),
+                          ),
+                          child: const Text('Open conditions'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

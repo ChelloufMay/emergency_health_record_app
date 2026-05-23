@@ -4,16 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/access_grant_view_model.dart';
 import '../widgets/access_grant_card.dart';
 import 'access_inbox_screen.dart';
-import 'caregiver_patient_detail_screen.dart';
-import 'patient_access_management_screen.dart';
 
-/// Single entry for the split access flow: inbox + management tabs.
+/// Single entry for the split access flow: inbox + my access.
 ///
 /// CHANGED:
-/// - Caregiver "My access" now loads directly from the active grants table for
-///   the signed-in app user instead of relying on the owner dashboard path.
-/// - Each patient card is tappable and opens the caregiver detail screen.
-/// - The card label is the patient name, not the grantee name.
+/// - Role-side users see their own active grants here.
+/// - The old caregiver detail screen was removed.
+/// - Tapping a patient now opens the shared patient detail screen.
 class AccessCenterScreen extends StatefulWidget {
   final int initialTab;
   final String? patientId;
@@ -42,16 +39,14 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
   void initState() {
     super.initState();
 
-    final tabCount = 2;
+    const tabCount = 2;
     _tabController = TabController(
       length: tabCount,
       vsync: this,
       initialIndex: widget.initialTab.clamp(0, tabCount - 1),
     );
 
-    if (!widget.isOwnerContext) {
-      _loadMyGrants();
-    }
+    _loadMyGrants();
   }
 
   @override
@@ -67,8 +62,6 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
   }
 
   Future<Map<String, dynamic>?> _patientNameRow(String patientId) async {
-    // Reads first_name / family_name directly from the enriched view.
-    // Replaces the removed get_patient_dashboard_details RPC.
     final result = await _supabase
         .from('patient_profiles_enriched')
         .select('id, first_name, family_name')
@@ -99,8 +92,6 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
         return;
       }
 
-      // CHANGED: read the caregiver's own active grants directly.
-      // This avoids depending on the owner dashboard view for caregiver access.
       final rows = await _supabase
           .from('access_grants')
           .select(
@@ -112,28 +103,22 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
           .eq('status', 'active')
           .order('created_at', ascending: false);
 
-      final rawRows = rows;
       final views = <AccessGrantViewModel>[];
 
-      for (final item in rawRows) {
+      for (final item in rows as List) {
         final row = Map<String, dynamic>.from(item as Map);
         final patientId = row['patient_id']?.toString().trim() ?? '';
 
         if (patientId.isNotEmpty) {
           final patientRow = await _patientNameRow(patientId);
-          final patientName = patientRow == null
-              ? ''
-              : _fullNameFromMap(patientRow);
+          final patientName =
+          patientRow == null ? '' : _fullNameFromMap(patientRow);
 
-          // CHANGED: provide a patient label for the caregiver card.
           if (patientName.isNotEmpty) {
             row['patient_name'] = patientName;
             row['patient_full_name'] = patientName;
+            row['grantee_name'] = patientName;
           }
-
-          // CHANGED: keep the old dashboard model happy, but show the patient
-          // in the card title via [titleLabel] below.
-          row['grantee_name'] = patientName.isNotEmpty ? patientName : 'Connected patient';
         }
 
         views.add(AccessGrantViewModel.fromDashboardRow(row));
@@ -157,11 +142,16 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
   void _openPatient(AccessGrantViewModel grant) {
     if (grant.patientId.trim().isEmpty) return;
 
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (_) => CaregiverPatientDetailScreen(patientId: grant.patientId),
-      ),
+      '/patient_detail',
+      arguments: {
+        'patientId': grant.patientId,
+        'grantId': grant.grantId, // <-- FIX: pass the required grantId
+        'patientName': grant.patientName,
+        'permission': grant.permission,
+        'roleLabel': grant.granteeRole,
+      },
     );
   }
 
@@ -193,8 +183,8 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
                 child: AccessGrantCard(
                   grant: grant,
                   canManage: false,
-                  // CHANGED: show the patient name here, not the caregiver label.
-                  titleLabel: grant.patientName.isNotEmpty ? grant.patientName : null,
+                  titleLabel:
+                  grant.patientName.isNotEmpty ? grant.patientName : null,
                   onTap: () => _openPatient(grant),
                 ),
               ),
@@ -211,16 +201,9 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
         title: const Text('Access'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
-            const Tab(text: 'Inbox', icon: Icon(Icons.inbox_outlined)),
-            Tab(
-              text: widget.isOwnerContext ? 'Manage' : 'My access',
-              icon: Icon(
-                widget.isOwnerContext
-                    ? Icons.admin_panel_settings_outlined
-                    : Icons.people_outline,
-              ),
-            ),
+          tabs: const [
+            Tab(text: 'Inbox', icon: Icon(Icons.inbox_outlined)),
+            Tab(text: 'My access', icon: Icon(Icons.people_outline)),
           ],
         ),
       ),
@@ -228,12 +211,7 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
         controller: _tabController,
         children: [
           const AccessInboxScreen(embedded: true),
-          widget.isOwnerContext
-              ? PatientAccessManagementScreen(
-            patientId: widget.patientId,
-            embedded: true,
-          )
-              : _myAccessTab(),
+          _myAccessTab(),
         ],
       ),
     );

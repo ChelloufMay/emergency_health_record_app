@@ -1,66 +1,94 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/caregiver_permission_model.dart';
-
 class CaregiverService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<List<CaregiverPermissionModel>> fetchPermissions(
-    String patientId,
-  ) async {
-    final rows = await _supabase
-        .from('caregiver_permissions')
+  Map<String, dynamic> _asMap(dynamic row) {
+    return Map<String, dynamic>.from(row as Map);
+  }
+
+  Future<Map<String, dynamic>?> fetchMyCaregiverProfile() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
+    return fetchCaregiverProfileByAuthUserId(user.id);
+  }
+
+  Future<Map<String, dynamic>?> fetchCaregiverProfileByAuthUserId(
+      String authUserId,
+      ) async {
+    final row = await _supabase
+        .from('caregiver_profiles')
         .select()
-        .eq('patient_id', patientId)
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+
+    if (row == null) return null;
+    return _asMap(row);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllCaregiverProfiles() async {
+    final rows = await _supabase
+        .from('caregiver_profiles')
+        .select()
         .order('created_at', ascending: false);
 
     return (rows as List)
-        .map(
-          (r) => CaregiverPermissionModel.fromMap(
-            Map<String, dynamic>.from(r as Map),
-          ),
-        )
+        .map((row) => _asMap(row))
         .toList();
   }
 
-  Future<String> grantPermission({
-    required CaregiverPermissionModel permission,
-    required String performedByUserId,
+  Future<String> upsertCaregiverProfile({
+    required String authUserId,
+    String? fullName,
+    String? phone,
+    String? email,
+    String? addressId,
+    Map<String, dynamic>? extraFields,
   }) async {
-    // The trigger on caregiver_permissions mirrors this row into access_grants.
+    final payload = <String, dynamic>{
+      'auth_user_id': authUserId,
+      'full_name': ?fullName,
+      'phone': ?phone,
+      'email': ?email,
+      'address_id': ?addressId,
+      if (extraFields != null) ...extraFields,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
     final inserted = await _supabase
-        .from('caregiver_permissions')
-        .insert(permission.toInsertMap())
+        .from('caregiver_profiles')
+        .upsert(
+      payload,
+      onConflict: 'auth_user_id',
+    )
         .select('id')
         .single();
 
     return inserted['id'].toString();
   }
 
-  Future<void> updatePermission({
-    required CaregiverPermissionModel permission,
-    required String performedByUserId,
+  Future<void> updateCaregiverProfile({
+    required String id,
+    required Map<String, dynamic> changes,
   }) async {
-    if (permission.id == null || permission.id!.isEmpty) {
-      throw Exception('Missing caregiver permission id.');
+    if (id.trim().isEmpty) {
+      throw Exception('Missing caregiver profile id.');
     }
 
-    await _supabase
-        .from('caregiver_permissions')
-        .update(permission.toUpdateMap())
-        .eq('id', permission.id!)
-        .eq('patient_id', permission.patientId);
+    final payload = <String, dynamic>{
+      ...changes,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    await _supabase.from('caregiver_profiles').update(payload).eq('id', id);
   }
 
-  Future<void> revokePermission({
-    required String id,
-    required String patientId,
-    required String performedByUserId,
-  }) async {
-    await _supabase
-        .from('caregiver_permissions')
-        .update({'status': 'revoked'})
-        .eq('id', id)
-        .eq('patient_id', patientId);
+  Future<void> deleteCaregiverProfile(String id) async {
+    if (id.trim().isEmpty) {
+      throw Exception('Missing caregiver profile id.');
+    }
+
+    await _supabase.from('caregiver_profiles').delete().eq('id', id);
   }
 }

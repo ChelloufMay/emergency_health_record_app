@@ -221,12 +221,28 @@ class PatientService {
   }
 
   Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
+    // patient_emergency_summary uses can_access_patient_section so
+    // read/edit/emergency_only grantees can all read it.
     final row = await _supabase
         .from('patient_emergency_summary')
-        .select('*')
+        .select()
         .eq('patient_id', patientId)
         .maybeSingle();
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
+  }
 
+  Future<Map<String, dynamic>?> fetchPatientProfileForGrantee(String patientId) async {
+    // patient_profiles RLS uses can_access_patient which covers grantees.
+    final row = await _supabase
+        .from('patient_profiles')
+        .select(
+      'id, first_name, family_name, sex, date_of_birth, blood_type, '
+          'phone, emergency_contact_name, emergency_contact_phone, '
+          'insurance_plan, covid_vaccine_type',
+    )
+        .eq('id', patientId)
+        .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
