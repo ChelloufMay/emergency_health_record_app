@@ -16,6 +16,20 @@ class AccessService {
     return email == null || email.isEmpty ? null : email;
   }
 
+  Future<String?> _currentAppUserId() async {
+    final authUserId = _supabase.auth.currentUser?.id;
+    if (authUserId == null || authUserId.trim().isEmpty) return null;
+
+    final row = await _supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row)['id']?.toString();
+  }
+
   List<Map<String, dynamic>> _toMapList(dynamic rows) {
     if (rows is! List) return const [];
     return rows
@@ -23,39 +37,137 @@ class AccessService {
         .toList();
   }
 
+  bool _isActiveGrantRow(Map<String, dynamic> row) {
+    final status = row['status']?.toString();
+    if (status != 'active') return false;
+
+    final expiresAtRaw = row['expires_at']?.toString();
+    if (expiresAtRaw == null || expiresAtRaw.trim().isEmpty) {
+      return true;
+    }
+
+    final expiresAt = DateTime.tryParse(expiresAtRaw);
+    if (expiresAt == null) return true;
+
+    return expiresAt.isAfter(DateTime.now());
+  }
+
+  Future<Map<String, dynamic>?> _patientDashboardDetails(
+      String patientId,
+      ) async {
+    final result = await _supabase.rpc(
+      'get_patient_dashboard_details',
+      params: {'_patient_id': patientId},
+    );
+
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+
+    if (result is List && result.isNotEmpty && result.first is Map) {
+      return Map<String, dynamic>.from(result.first as Map);
+    }
+
+    return null;
+  }
+
+  String _patientNameFromDetails(Map<String, dynamic>? details) {
+    if (details == null) return 'Unknown patient';
+
+    final first = (details['first_name']?.toString() ?? '').trim();
+    final last = (details['family_name']?.toString() ?? '').trim();
+    final combined = '$first $last'.trim();
+
+    if (combined.isNotEmpty) return combined;
+    if (first.isNotEmpty) return first;
+    if (last.isNotEmpty) return last;
+
+    return 'Unknown patient';
+  }
+
+  Map<String, dynamic> _buildAccessDashboardRow({
+    required Map<String, dynamic> grant,
+    required Map<String, dynamic>? patientDetails,
+  }) {
+    return {
+      'id': grant['id'],
+      'access_grant_id': grant['id'],
+      'grant_id': grant['id'],
+      'patient_id': grant['patient_id'],
+      'patient_name': _patientNameFromDetails(patientDetails),
+      'first_name': patientDetails?['first_name'],
+      'family_name': patientDetails?['family_name'],
+      'date_of_birth': patientDetails?['date_of_birth'],
+      'age_years': patientDetails?['age_years'],
+      'sex': patientDetails?['sex'],
+      'blood_type': patientDetails?['blood_type'],
+      'grantee_user_id': grant['grantee_user_id'],
+      'grantee_role': grant['grantee_role'],
+      'grantee_full_name': null,
+      'permission': grant['permission'],
+      'status': grant['status'],
+      'granted_by_user_id': grant['granted_by_user_id'],
+      'granted_by_full_name': null,
+      'granted_at': grant['granted_at'],
+      'expires_at': grant['expires_at'],
+      'notes': grant['notes'],
+      'created_at': grant['created_at'],
+      'updated_at': grant['updated_at'],
+      'source_invite_id': grant['source_invite_id'],
+    };
+  }
+
   Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
+    final appUserId = await _currentAppUserId();
+    if (appUserId == null || appUserId.isEmpty) {
+      return const [];
+    }
+
     final rows = await _supabase
-        .from('patient_access_dashboard')
-        .select()
+        .from('access_grants')
+        .select(
+      'id, patient_id, grantee_user_id, grantee_role, permission, status, '
+          'granted_by_user_id, granted_at, expires_at, source_invite_id, notes, '
+          'created_at, updated_at',
+    )
+        .eq('grantee_user_id', appUserId)
+        .eq('status', 'active')
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map(
-          (row) => PatientAccessRowModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
-        .toList();
+    final result = <PatientAccessRowModel>[];
+
+    for (final item in (rows as List)) {
+      final grant = Map<String, dynamic>.from(item as Map);
+      if (!_isActiveGrantRow(grant)) continue;
+
+      final patientId = grant['patient_id']?.toString() ?? '';
+      final details = patientId.isEmpty
+          ? null
+          : await _patientDashboardDetails(patientId);
+
+      result.add(
+        PatientAccessRowModel.fromMap(
+          _buildAccessDashboardRow(
+            grant: grant,
+            patientDetails: details,
+          ),
+        ),
+      );
+    }
+
+    return result;
   }
 
   Future<List<Map<String, dynamic>>> fetchMyAccessDashboardRowMaps() async {
-    final rows = await _supabase
-        .from('patient_access_dashboard')
-        .select()
-        .order('created_at', ascending: false);
-
-    return _toMapList(rows);
+    final rows = await fetchMyAccessDashboardRows();
+    return rows.map((row) => Map<String, dynamic>.from(row.toMap())).toList();
   }
 
-  /// CHANGED: active grants are now read from the access dashboard view so the
-  /// UI keeps patient info and grant IDs together.
+  /// Active grants are now read directly from access_grants using the
+  /// authenticated app user mapped through public.users.id.
   Future<List<Map<String, dynamic>>> fetchMyActiveGrants() async {
-    final rows = await _supabase
-        .from('patient_access_dashboard')
-        .select()
-        .order('created_at', ascending: false);
-
-    return _toMapList(rows);
+    final rows = await fetchMyAccessDashboardRows();
+    return rows.map((row) => Map<String, dynamic>.from(row.toMap())).toList();
   }
 
   Future<List<AccessGrantModel>> fetchPatientGrants(String patientId) async {
@@ -92,7 +204,9 @@ class AccessService {
         .toList();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchMyInvitesByStatus(String status) async {
+  Future<List<Map<String, dynamic>>> _fetchMyInvitesByStatus(
+      String status,
+      ) async {
     final email = _currentEmail();
     if (email == null) return const [];
 
@@ -183,8 +297,8 @@ class AccessService {
   }
 
   Future<List<AccessGrantViewModel>> fetchPatientGrantViews(
-    String patientId,
-  ) async {
+      String patientId,
+      ) async {
     final grants = await fetchPatientGrants(patientId);
     return grants
         .map((g) => AccessGrantViewModel.fromGrant(g))
@@ -207,16 +321,24 @@ class AccessService {
   Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(
       String patientId,
       ) async {
-    final rows = await _supabase.rpc(
-      'get_active_access_for_patient',
-      params: {'_patient_id': patientId},
-    );
-
-    if (rows is List) {
-      return rows.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    final appUserId = await _currentAppUserId();
+    if (appUserId == null || appUserId.isEmpty) {
+      return const [];
     }
 
-    return const [];
+    final rows = await _supabase
+        .from('access_grants')
+        .select(
+      'id, patient_id, grantee_user_id, grantee_role, permission, status, '
+          'granted_by_user_id, granted_at, expires_at, source_invite_id, notes, '
+          'created_at, updated_at',
+    )
+        .eq('patient_id', patientId)
+        .eq('grantee_user_id', appUserId)
+        .eq('status', 'active')
+        .order('created_at', ascending: false);
+
+    return _toMapList(rows);
   }
 
   Future<String> createInvite({
@@ -264,11 +386,11 @@ class AccessService {
   }
 
   Future<dynamic> acceptInvite(
-    String inviteToken, {
-    String? patientId,
-    String? inviteId,
-    String? actorUserId,
-  }) async {
+      String inviteToken, {
+        String? patientId,
+        String? inviteId,
+        String? actorUserId,
+      }) async {
     final result = await _supabase.rpc(
       'accept_access_invite',
       params: {'_invite_token': inviteToken.trim()},
@@ -288,11 +410,11 @@ class AccessService {
   }
 
   Future<dynamic> rejectInvite(
-    String inviteToken, {
-    String? patientId,
-    String? inviteId,
-    String? actorUserId,
-  }) async {
+      String inviteToken, {
+        String? patientId,
+        String? inviteId,
+        String? actorUserId,
+      }) async {
     final result = await _supabase.rpc(
       'reject_access_invite',
       params: {'_invite_token': inviteToken.trim()},
@@ -342,10 +464,10 @@ class AccessService {
   }
 
   Future<dynamic> revokeGrant(
-    String grantId, {
-    String? patientId,
-    String? actorUserId,
-  }) async {
+      String grantId, {
+        String? patientId,
+        String? actorUserId,
+      }) async {
     final result = await _supabase.rpc(
       'revoke_access_grant',
       params: {'_grant_id': grantId.trim()},

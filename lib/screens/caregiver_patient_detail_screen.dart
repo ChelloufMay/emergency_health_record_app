@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/access_service.dart';
+
 class CaregiverPatientDetailScreen extends StatefulWidget {
   final String? patientId;
 
@@ -14,6 +16,7 @@ class CaregiverPatientDetailScreen extends StatefulWidget {
 class _CaregiverPatientDetailScreenState
     extends State<CaregiverPatientDetailScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final AccessService _accessService = AccessService();
 
   bool _loading = true;
   Map<String, dynamic>? _summary;
@@ -32,43 +35,47 @@ class _CaregiverPatientDetailScreenState
   }
 
   Future<Map<String, dynamic>?> _loadSummary(String patientId) async {
-    // CHANGED: try the emergency summary first, then fall back to the patient
-    // dashboard helper so the page still renders a name if summary data is thin.
-    final summaryRows = await _supabase
-        .from('patient_emergency_summary')
-        .select()
-        .eq('patient_id', patientId)
-        .limit(1);
+    try {
+      // CHANGED: try the emergency summary first, then fall back to the patient
+      // dashboard helper so the page still renders a name if summary data is thin.
+      final summaryRows = await _supabase
+          .from('patient_emergency_summary')
+          .select()
+          .eq('patient_id', patientId)
+          .limit(1);
 
-    if (summaryRows.isNotEmpty) {
-      return Map<String, dynamic>.from(summaryRows.first as Map);
+      if (summaryRows.isNotEmpty) {
+        return Map<String, dynamic>.from(summaryRows.first as Map);
+      }
+    } catch (_) {
+      // Keep going and use the fallback below.
     }
 
-    final fallback = await _supabase.rpc(
-      'get_patient_dashboard_details',
-      params: {'_patient_id': patientId},
-    );
+    try {
+      final fallback = await _supabase.rpc(
+        'get_patient_dashboard_details',
+        params: {'_patient_id': patientId},
+      );
 
-    final fallbackMap = _mapFromRpcResult(fallback);
-    if (fallbackMap == null) return null;
+      final fallbackMap = _mapFromRpcResult(fallback);
+      if (fallbackMap == null) return null;
 
-    return {
-      'first_name': fallbackMap['first_name'],
-      'family_name': fallbackMap['family_name'],
-      'date_of_birth': fallbackMap['date_of_birth'],
-    };
+      return {
+        'first_name': fallbackMap['first_name'],
+        'family_name': fallbackMap['family_name'],
+        'date_of_birth': fallbackMap['date_of_birth'],
+      };
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>?> _loadGrant(String patientId) async {
-    // CHANGED: ask the DB for the current user's active access to this patient.
-    // This is safer than resolving the app user in Flutter and then doing a
-    // second direct grant query.
-    final result = await _supabase.rpc(
-      'get_active_access_for_patient',
-      params: {'_patient_id': patientId},
-    );
-
-    return _mapFromRpcResult(result);
+    // CHANGED: resolve the active grant through the access service, which now
+    // uses the authenticated app user's public.users.id.
+    final rows = await _accessService.fetchActiveAccessForPatient(patientId);
+    if (rows.isEmpty) return null;
+    return rows.first;
   }
 
   @override

@@ -47,6 +47,19 @@ class PatientAccessRowModel {
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'patient_id': patientId,
+      'patient_name': patientName,
+      'permission': permission,
+      'grantee_role': role,
+      'status': status,
+      'grant_id': grantId,
+      'invite_token': inviteToken,
+      ...raw,
+    };
+  }
+
   bool get canEdit => permission == 'edit' || permission == 'owner';
   bool get isEmergencyOnly => permission == 'emergency_only';
   bool get canRead => permission == 'read' || canEdit || isEmergencyOnly;
