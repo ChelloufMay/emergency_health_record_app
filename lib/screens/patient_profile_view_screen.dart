@@ -4,6 +4,7 @@ import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
+import 'patient_access_management_screen.dart';
 
 class PatientProfileViewScreen extends StatefulWidget {
   final String? patientId;
@@ -51,6 +52,25 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
       isEmergencyOnly: _access.isEmergencyOnly,
       actorRole: widget.actorRole ?? 'unknown',
     ).toRouteArguments();
+  }
+
+  bool _isOwner() {
+    return PatientSessionService.instance.current?.permission == 'owner';
+  }
+
+  Future<void> _openManageAccess() async {
+    final patientId = _resolvePatientId();
+    if (patientId == null || patientId.isEmpty) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PatientAccessManagementScreen(
+          patientId: patientId,
+          patientName: _fullName(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -354,9 +374,6 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text('Patient ID: $patientId'),
-                    Text(
-                      'Legal ID: ${_label('legal_id')}',
-                    ),
                     Text('Sex: ${_label('sex')}'),
                     Text('Date of birth: ${_label('date_of_birth')}'),
                     Text('Age: ${_label('age_years')}'),
@@ -454,6 +471,14 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
                           ),
                           child: const Text('Emergency view'),
                         ),
+                        if (_isOwner())
+                          FilledButton.tonalIcon(
+                            onPressed: _openManageAccess,
+                            icon: const Icon(
+                              Icons.admin_panel_settings_outlined,
+                            ),
+                            label: const Text('Manage access'),
+                          ),
                       ],
                     ),
                     if (_access.canEdit) ...[

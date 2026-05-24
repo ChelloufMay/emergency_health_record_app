@@ -20,7 +20,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  final _legalIdController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _familyNameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -60,7 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'O-',
   ];
 
-  static const List<String> _insurancePlans = <String>['CNAM', 'CNSS', 'CNRPS'];
+  static const List<String> _insurancePlans = <String>['Yes', 'No'];
 
   // CHANGED: short labels to avoid overflow; stored value remains the long DB value.
   static const Map<String, String> _covidVaccines = <String, String>{
@@ -81,7 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _legalIdController.dispose();
     _firstNameController.dispose();
     _familyNameController.dispose();
     _phoneController.dispose();
@@ -116,9 +114,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _addressId = profile.addressId;
           _userId = profile.userId;
 
-          _legalIdController.text = profile.legalId ?? '';
-          _firstNameController.text = profile.firstName;
-          _familyNameController.text = profile.familyName;
+          _firstNameController.text = profile.firstName ?? '';
+          _familyNameController.text = profile.familyName ?? '';
 
           // CHANGED: do not surface unknown in the selector.
           _sex = (profile.sex == 'male' || profile.sex == 'female') ? profile.sex : null;
@@ -228,9 +225,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = PatientProfileModel(
         id: _profileId,
         userId: userId,
-        legalId: _legalIdController.text.trim().isEmpty
-            ? null
-            : _legalIdController.text.trim(),
         firstName: _firstNameController.text.trim(),
         familyName: _familyNameController.text.trim(),
         sex: _sex ?? 'unknown',
@@ -366,10 +360,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             _sectionTitle('Identity'),
-            TextFormField(
-              controller: _legalIdController,
-              decoration: const InputDecoration(labelText: 'Legal ID'),
-            ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _firstNameController,
@@ -445,10 +435,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             _buildDropdown(
-              label: 'Insurance plan',
+              label: 'CNAM Insurance',
               value: _insurancePlan,
               items: _insurancePlans,
-              hint: 'Select insurance plan',
+              hint: 'Select option',
               onChanged: (value) => setState(() => _insurancePlan = value),
             ),
             const SizedBox(height: 12),

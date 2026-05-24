@@ -43,7 +43,6 @@ class ProfileService {
     final safeProfile = PatientProfileModel(
       id: profile.id,
       userId: appUserId,
-      legalId: profile.legalId,
       firstName: profile.firstName,
       familyName: profile.familyName,
       sex: profile.sex,
@@ -63,7 +62,6 @@ class ProfileService {
         .rpc(
           'save_my_patient_profile',
           params: {
-            '_legal_id': safeProfile.legalId,
             '_first_name': safeProfile.firstName,
             '_family_name': safeProfile.familyName,
             '_sex': safeProfile.sex,
@@ -116,7 +114,6 @@ class ProfileService {
     required String firstName,
     required String familyName,
     String sex = 'unknown',
-    String? legalId,
   }) async {
     final existing = await _supabase
         .from('patient_profiles')
@@ -130,7 +127,6 @@ class ProfileService {
         .from('patient_profiles')
         .insert({
           'user_id': userId,
-          'legal_id': legalId,
           'first_name': firstName,
           'family_name': familyName,
           'sex': sex,

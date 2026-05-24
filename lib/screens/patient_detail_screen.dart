@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
+import 'patient_access_management_screen.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final String patientId;
@@ -75,6 +76,18 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
+  Future<void> _openManageAccess() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PatientAccessManagementScreen(
+          patientId: widget.patientId,
+          patientName: widget.patientName,
+        ),
+      ),
+    );
+  }
+
   Widget _sectionTile(
       BuildContext context,
       String title,
@@ -130,6 +143,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final canViewMedicalSummary = _access.canViewMedicalSummary;
     final canViewEmergency = _access.canViewEmergency;
     final canViewQr = _access.canViewQr;
+    final isOwner = PatientSessionService.instance.current?.permission == 'owner';
 
     return Scaffold(
       appBar: AppBar(
@@ -235,6 +249,17 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 leading: const Icon(Icons.qr_code_outlined),
                 title: const Text('Emergency QR'),
                 onTap: () => _open(context, '/qr'),
+              ),
+            ),
+          if (isOwner)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Manage access'),
+                subtitle: const Text(
+                  'Invite caregivers, guardians, or clinicians',
+                ),
+                onTap: _openManageAccess,
               ),
             ),
           Card(

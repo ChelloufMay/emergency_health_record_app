@@ -211,7 +211,7 @@ class PatientService {
     final row = await _supabase
         .from('patient_profiles_enriched')
         .select(
-          'id, user_id, legal_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at',
+          'id, user_id, first_name, family_name, sex, age_years, blood_type, phone, address_country, address_governorate, address_city, emergency_contact_name, emergency_contact_phone, insurance_plan, covid_vaccine_type, family_doctor_id, created_at, updated_at',
         )
         .eq('id', patientId)
         .maybeSingle();

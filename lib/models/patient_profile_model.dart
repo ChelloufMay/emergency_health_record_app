@@ -3,7 +3,6 @@ import 'model_utils.dart';
 class PatientProfileModel {
   final String? id;
   final String userId;
-  final String? legalId;
   final String firstName;
   final String familyName;
   final String sex;
@@ -22,7 +21,6 @@ class PatientProfileModel {
   const PatientProfileModel({
     this.id,
     required this.userId,
-    this.legalId,
     required this.firstName,
     required this.familyName,
     required this.sex,
@@ -48,7 +46,6 @@ class PatientProfileModel {
     return PatientProfileModel(
       id: map['id']?.toString(),
       userId: map['user_id']?.toString() ?? '',
-      legalId: map['legal_id']?.toString(),
       firstName: map['first_name']?.toString() ?? '',
       familyName: map['family_name']?.toString() ?? '',
       sex: map['sex']?.toString() ?? 'unknown',
@@ -68,7 +65,6 @@ class PatientProfileModel {
 
   Map<String, dynamic> toInsertMap() => cleanMap({
     'user_id': userId,
-    'legal_id': legalId,
     'first_name': firstName,
     'family_name': familyName,
     'sex': sex,
@@ -85,7 +81,6 @@ class PatientProfileModel {
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
     // user_id is the ownership key and should remain fixed.
-    'legal_id': legalId,
     'first_name': firstName,
     'family_name': familyName,
     'sex': sex,
