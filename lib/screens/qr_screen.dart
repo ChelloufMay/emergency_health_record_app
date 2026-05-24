@@ -41,42 +41,8 @@ class _QrScreenState extends State<QrScreen> {
     return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
-  Map<String, dynamic> _buildQrEnvelope({
-    required String token,
-    required String patientId,
-    required Map<String, dynamic>? summary,
-  }) {
-    final envelope = <String, dynamic>{
-      'type': 'emergency_access_token',
-      'token': token,
-      'patient_id': patientId,
-      'issued_at': DateTime.now().toIso8601String(),
-    };
 
-    // CHANGED: keep a compact offline snapshot so the emergency screen can
-    // still show useful data if the token resolves but the network is weak.
-    if (summary != null) {
-      envelope['offline_summary'] = summary;
-    }
 
-    return envelope;
-  }
-
-  String _buildEmergencyLink({
-    required String token,
-    required String patientId,
-    required Map<String, dynamic>? summary,
-  }) {
-    final payload = EmergencyPayloadService.encodePayload(
-      _buildQrEnvelope(token: token, patientId: patientId, summary: summary),
-    );
-
-    return Uri(
-      scheme: 'healthapp',
-      host: 'emergency',
-      queryParameters: {'payload': payload},
-    ).toString();
-  }
 
   String _formatDateTime(DateTime? value) {
     if (value == null) return 'Not set';
@@ -171,10 +137,8 @@ class _QrScreenState extends State<QrScreen> {
       _tokenRow = tokenRow;
       _qrData = tokenRow?.token == null
           ? ''
-          : _buildEmergencyLink(
-        token: tokenRow!.token!,
-        patientId: patientId,
-        summary: _summary,
+          : EmergencyPayloadService.buildEmergencyWebLink(
+        tokenRow!.token!,
       );
       _loading = false;
     });
@@ -209,10 +173,8 @@ class _QrScreenState extends State<QrScreen> {
         _tokenRow = tokenRow;
         _qrData = tokenRow.token == null
             ? ''
-            : _buildEmergencyLink(
-          token: tokenRow.token!,
-          patientId: patientId,
-          summary: _summary,
+            : EmergencyPayloadService.buildEmergencyWebLink(
+          tokenRow.token!,
         );
       });
 

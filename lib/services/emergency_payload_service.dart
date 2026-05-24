@@ -19,8 +19,8 @@ class EmergencyPayloadService {
     }
   }
 
-  static String buildQrLink(String payload) {
-    return 'healthapp://emergency?payload=${Uri.encodeComponent(payload)}';
+  static String buildEmergencyWebLink(String token) {
+    return 'https://chelloufmay.github.io/ehr-emergency-web/?token=${Uri.encodeComponent(token)}';
   }
 
   static String? extractPayloadFromUri(Uri uri) {

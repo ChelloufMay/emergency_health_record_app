@@ -153,12 +153,17 @@ class _MyAppState extends State<MyApp> {
 
       if (uri.host == 'emergency') {
         final payload = EmergencyPayloadService.extractPayloadFromUri(uri);
+        final token = uri.queryParameters['token']?.trim();
         nav.pushNamedAndRemoveUntil(
           '/emergency',
               (route) => false,
-          arguments: (payload != null && payload.isNotEmpty)
-              ? {'payload': payload}
-              : null,
+          arguments: {
+            'payload': (payload != null && payload.isNotEmpty)
+                ? payload
+                : (token != null && token.isNotEmpty)
+                ? token
+                : uri.toString(),
+          },
         );
       }
     }
