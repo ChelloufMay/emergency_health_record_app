@@ -221,15 +221,19 @@ class PatientService {
   }
 
   Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
-    // patient_emergency_summary uses can_access_patient_section so
-    // read/edit/emergency_only grantees can all read it.
-    final row = await _supabase
-        .from('patient_emergency_summary')
-        .select()
-        .eq('patient_id', patientId)
-        .maybeSingle();
-    if (row == null) return null;
-    return Map<String, dynamic>.from(row);
+    final pid = patientId.trim();
+    if (pid.isEmpty) return null;
+    try {
+      final row = await _supabase
+          .from('patient_emergency_summary')
+          .select()
+          .eq('patient_id', pid)
+          .maybeSingle();
+      if (row == null) return null;
+      return Map<String, dynamic>.from(row);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>?> fetchPatientProfileForGrantee(String patientId) async {

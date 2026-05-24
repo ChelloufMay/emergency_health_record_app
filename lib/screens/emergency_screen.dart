@@ -301,7 +301,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         _conditions = _listFrom(source['chronic_conditions']);
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Emergency load failed: $e');
       if (!mounted) return;
       setState(() => _loading = false);
     }
