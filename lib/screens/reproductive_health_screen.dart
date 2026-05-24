@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/reproductive_health_model.dart';
 import '../services/patient_session_service.dart';
 import '../services/reproductive_health_service.dart';
+import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import '../utils/field_helpers.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -36,11 +37,37 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
       widgetIsEmergencyOnly: widget.isEmergencyOnly,
     );
+
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+
+    super.dispose();
   }
 
   String? _resolvePatientId() =>
@@ -402,7 +429,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
               onPressed: _edit,
               icon: Icon(item == null ? Icons.add : Icons.edit),
             ),
-          if (widget.canEdit && item != null)
+          if (_access.allowMutations && item != null)
             IconButton(onPressed: _delete, icon: const Icon(Icons.delete)),
         ],
       ),

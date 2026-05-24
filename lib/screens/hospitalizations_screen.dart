@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/hospitalization_model.dart';
 import '../services/hospitalization_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
@@ -34,11 +35,35 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
       widgetIsEmergencyOnly: widget.isEmergencyOnly,
     );
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+    super.dispose();
   }
 
   String? _resolvePatientId() =>

@@ -4,6 +4,7 @@ import '../models/allergy_model.dart';
 import '../services/allergy_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
+import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
@@ -29,17 +30,41 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   bool _loading = true;
   String? _patientId;
   List<AllergyModel> _items = [];
-  late bool _canEdit;
-  late bool _isEmergencyOnly;
+  late SectionScreenAccess _access;
 
   @override
   void initState() {
     super.initState();
-    final session = PatientSessionService.instance.current;
-    _canEdit = widget.canEdit || (session?.canEdit ?? false);
-    _isEmergencyOnly =
-        widget.isEmergencyOnly || (session?.isEmergencyOnly ?? false);
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
+
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+    super.dispose();
   }
 
   String? _resolvePatientId() {
@@ -68,7 +93,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   Future<void> _openEditor({AllergyModel? initial}) async {
-    if (!_canEdit || _isEmergencyOnly) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null) return;
 
@@ -98,7 +123,6 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
               reaction: reactionController.text.trim().isEmpty
                   ? null
                   : reactionController.text.trim(),
-              // CHANGED: severity is now chosen from a list in the UI.
               severity: severityController.text.trim().isEmpty
                   ? null
                   : severityController.text.trim(),
@@ -148,7 +172,6 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  // CHANGED: severity uses a list instead of free text.
                   initialValue: severityController.text.trim().isEmpty
                       ? null
                       : severityController.text.trim(),
@@ -194,7 +217,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   }
 
   Future<void> _deleteItem(AllergyModel item) async {
-    if (!_canEdit || _isEmergencyOnly) return;
+    if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
@@ -229,7 +252,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
         title: const Text('Allergies'),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          if (_canEdit && !_isEmergencyOnly)
+          if (_access.allowMutations)
             IconButton(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -257,11 +280,10 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                       'Reaction: ${item.reaction}',
                     if ((item.severity ?? '').isNotEmpty)
                       'Severity: ${item.severity}',
-                    if ((item.source).isNotEmpty)
-                      'Source: ${item.source}',
+                    if ((item.source).isNotEmpty) 'Source: ${item.source}',
                   ].join('\n'),
                 ),
-                trailing: _canEdit && !_isEmergencyOnly
+                trailing: _access.allowMutations
                     ? PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'edit') {

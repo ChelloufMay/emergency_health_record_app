@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/vaccination_model.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import '../services/vaccination_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -34,11 +35,35 @@ class _VaccinationsScreenState extends State<VaccinationsScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
       widgetIsEmergencyOnly: widget.isEmergencyOnly,
     );
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+    super.dispose();
   }
 
   String? _resolvePatientId() =>

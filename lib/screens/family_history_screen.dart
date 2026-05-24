@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/family_history_model.dart';
 import '../services/family_history_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import '../utils/field_helpers.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -46,11 +47,35 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
       widgetIsEmergencyOnly: widget.isEmergencyOnly,
     );
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+    super.dispose();
   }
 
   String? _resolvePatientId() =>

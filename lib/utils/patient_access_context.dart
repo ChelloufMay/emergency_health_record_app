@@ -345,12 +345,17 @@ PatientAccessContext resolveScreenAccess({
     fallbackPatientId: widgetPatientId,
   );
 
+  final hasRouteCanEdit = map != null && map.containsKey('canEdit');
+  final hasRouteEmergency = map != null && map.containsKey('isEmergencyOnly');
+
   return PatientAccessContext(
     patientId: resolved.patientId.isNotEmpty
         ? resolved.patientId
         : (widgetPatientId ?? ''),
-    canEdit: widgetCanEdit || resolved.canEdit,
-    isEmergencyOnly: widgetIsEmergencyOnly || resolved.isEmergencyOnly,
+    canEdit: hasRouteCanEdit ? resolved.canEdit : widgetCanEdit,
+    isEmergencyOnly: hasRouteEmergency
+        ? resolved.isEmergencyOnly
+        : widgetIsEmergencyOnly,
     actorUserId: resolved.actorUserId,
     actorRole: resolved.actorRole,
   );

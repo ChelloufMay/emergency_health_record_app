@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 
-class PatientDetailScreen extends StatelessWidget {
+class PatientDetailScreen extends StatefulWidget {
   final String patientId;
   final String patientName;
   final String permission;
@@ -20,15 +22,50 @@ class PatientDetailScreen extends StatelessWidget {
     required this.grantId,
   });
 
-  bool get canEdit => permission == 'edit' || permission == 'owner';
-  bool get isEmergencyOnly => permission == 'emergency_only';
+  @override
+  State<PatientDetailScreen> createState() => _PatientDetailScreenState();
+}
+
+class _PatientDetailScreenState extends State<PatientDetailScreen> {
+  final PatientAccessContext _access = PatientAccessContext.instance;
+
+  void _onAccessChanged() {
+    if (!mounted) return;
+    _syncSession();
+    setState(() {});
+  }
+
+  void _syncSession() {
+    PatientSessionService.instance.setSession(
+      patientId: widget.patientId,
+      patientName: widget.patientName,
+      permission: _access.permission.isNotEmpty
+          ? _access.permission
+          : widget.permission,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _access.addListener(_onAccessChanged);
+    _syncSession();
+    unawaited(_access.bindPatient(widget.patientId));
+  }
+
+  @override
+  void dispose() {
+    _access.removeListener(_onAccessChanged);
+    super.dispose();
+  }
 
   void _open(BuildContext context, String routeName) {
     final ctx = PatientAccessContext(
-      patientId: patientId,
-      canEdit: canEdit,
-      isEmergencyOnly: isEmergencyOnly,
-      actorRole: roleLabel,
+      patientId: widget.patientId,
+      canEdit: _access.canEdit,
+      isEmergencyOnly: _access.isEmergencyOnly,
+      actorRole: widget.roleLabel,
     );
 
     Navigator.pushNamed(
@@ -79,7 +116,7 @@ class PatientDetailScreen extends StatelessWidget {
 
     if (shouldRemove != true) return;
 
-    await AccessService().revokeGrant(grantId);
+    await AccessService().revokeGrant(widget.grantId);
 
     if (context.mounted) {
       Navigator.pop(context);
@@ -88,17 +125,15 @@ class PatientDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Keep the selected patient available to section screens that fall back to
-    // the shared patient session when route arguments are missing.
-    PatientSessionService.instance.setSession(
-      patientId: patientId,
-      patientName: patientName,
-      permission: permission,
-    );
+    final canEdit = _access.canEdit;
+    final canViewProfile = _access.canViewProfile;
+    final canViewMedicalSummary = _access.canViewMedicalSummary;
+    final canViewEmergency = _access.canViewEmergency;
+    final canViewQr = _access.canViewQr;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(patientName),
+        title: Text(widget.patientName),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -107,22 +142,21 @@ class PatientDetailScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Role: $roleLabel\nPermission: $permission',
+                'Role: ${widget.roleLabel}\nPermission: ${_access.permission.isNotEmpty ? _access.permission : widget.permission}',
               ),
             ),
           ),
           const SizedBox(height: 16),
-
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Patient profile'),
-              subtitle: const Text('Demographics, blood type, contacts'),
-              onTap: () => _open(context, '/patient_profile_view'),
+          if (canViewProfile)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: const Text('Patient profile'),
+                subtitle: const Text('Demographics, blood type, contacts'),
+                onTap: () => _open(context, '/patient_profile_view'),
+              ),
             ),
-          ),
-
-          if (!isEmergencyOnly)
+          if (canViewMedicalSummary)
             Card(
               child: ListTile(
                 leading: const Icon(Icons.medical_information_outlined),
@@ -131,7 +165,6 @@ class PatientDetailScreen extends StatelessWidget {
                 onTap: () => _open(context, '/medical_summary'),
               ),
             ),
-
           if (canEdit) ...[
             _sectionTile(
               context,
@@ -188,23 +221,22 @@ class PatientDetailScreen extends StatelessWidget {
               '/reproductive_health',
             ),
           ],
-
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.emergency_outlined),
-              title: const Text('Emergency view'),
-              onTap: () => _open(context, '/emergency'),
+          if (canViewEmergency)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.emergency_outlined),
+                title: const Text('Emergency view'),
+                onTap: () => _open(context, '/emergency'),
+              ),
             ),
-          ),
-
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.qr_code_outlined),
-              title: const Text('Emergency QR'),
-              onTap: () => _open(context, '/qr'),
+          if (canViewQr)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.qr_code_outlined),
+                title: const Text('Emergency QR'),
+                onTap: () => _open(context, '/qr'),
+              ),
             ),
-          ),
-
           Card(
             child: ListTile(
               leading: const Icon(Icons.person_remove_outlined),
@@ -213,6 +245,15 @@ class PatientDetailScreen extends StatelessWidget {
               onTap: () => _confirmRemove(context),
             ),
           ),
+          if (_access.permission == 'none' || _access.isExpired)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Access to this patient is no longer active.',
+                ),
+              ),
+            ),
         ],
       ),
     );

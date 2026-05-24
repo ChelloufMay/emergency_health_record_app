@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
+import '../utils/section_screen_access.dart';
 
 class MedicalSummaryScreen extends StatefulWidget {
   final String? patientId;
@@ -25,6 +26,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
 
   bool _loading = true;
   Map<String, dynamic>? _summary;
+  late SectionScreenAccess _access;
 
   String? _resolvePatientId() {
     return widget.patientId ??
@@ -36,8 +38,8 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
     // permission model instead of falling back to a bare patientId map.
     return PatientAccessContext(
       patientId: patientId,
-      canEdit: widget.canEdit,
-      isEmergencyOnly: widget.isEmergencyOnly,
+      canEdit: _access.canEdit,
+      isEmergencyOnly: _access.isEmergencyOnly,
       actorRole: 'unknown',
     ).toRouteArguments();
   }
@@ -45,7 +47,31 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
+
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: widget.isEmergencyOnly,
+    );
+
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
+    super.dispose();
   }
 
   Future<void> _load() async {

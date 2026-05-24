@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/patient_access_row_model.dart';
+import '../services/access_realtime_service.dart';
 import '../services/access_service.dart';
 import '../services/auth_service.dart';
 import '../services/patient_session_service.dart';
@@ -26,6 +29,8 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   final AccessService _service = AccessService();
   final AuthService _authService = AuthService();
 
+  StreamSubscription<void>? _grantSub;
+
   bool _loading = true;
   List<PatientAccessRowModel> _rows = [];
   List<Map<String, dynamic>> _pendingInvites = [];
@@ -34,6 +39,22 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
   void initState() {
     super.initState();
     _loadData();
+
+    unawaited(AccessRealtimeService.instance.subscribe());
+    _grantSub = AccessRealtimeService.instance.onChanged.listen((_) {
+      if (mounted) {
+        _loadData();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _grantSub?.cancel();
+    _grantSub = null;
+
+    unawaited(AccessRealtimeService.instance.unsubscribe());
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -42,7 +63,6 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     try {
       final rows = await _service.fetchMyAccessDashboardRows();
 
-      // CHANGED: load invite rows from the patient-aware invite dashboard view.
       final invites = await _service.fetchMyPendingInvitesWithPatientDetails();
 
       if (!mounted) return;

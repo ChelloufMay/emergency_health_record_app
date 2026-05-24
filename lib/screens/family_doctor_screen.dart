@@ -4,6 +4,7 @@ import '../models/family_doctor_model.dart';
 import '../models/family_doctor_with_address_model.dart';
 import '../services/family_doctor_service.dart';
 import '../services/patient_session_service.dart';
+import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
@@ -35,11 +36,35 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(
+      _rebuildOnPermissionChange,
+    );
+
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
       widgetIsEmergencyOnly: widget.isEmergencyOnly,
     );
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: widget.isEmergencyOnly,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    PatientAccessContext.instance.removeListener(
+      _rebuildOnPermissionChange,
+    );
+    super.dispose();
   }
 
   String? _resolvePatientId() =>

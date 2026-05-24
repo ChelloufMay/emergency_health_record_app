@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
+import '../utils/section_screen_access.dart';
 
 class PatientProfileViewScreen extends StatefulWidget {
   final String? patientId;
@@ -27,6 +28,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
   bool _loading = true;
   bool _saving = false;
   Map<String, dynamic>? _profile;
+  late SectionScreenAccess _access;
 
   final _firstNameController = TextEditingController();
   final _familyNameController = TextEditingController();
@@ -45,8 +47,8 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
   Map<String, dynamic> _routeContext(String patientId) {
     return PatientAccessContext(
       patientId: patientId,
-      canEdit: widget.canEdit,
-      isEmergencyOnly: false,
+      canEdit: _access.canEdit,
+      isEmergencyOnly: _access.isEmergencyOnly,
       actorRole: widget.actorRole ?? 'unknown',
     ).toRouteArguments();
   }
@@ -54,11 +56,30 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
   @override
   void initState() {
     super.initState();
+
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
+
+    _access = SectionScreenAccess(
+      widgetCanEdit: widget.canEdit,
+      widgetIsEmergencyOnly: false,
+    );
+
     _load();
+  }
+
+  void _rebuildOnPermissionChange() {
+    if (!mounted) return;
+    setState(() {
+      _access = SectionScreenAccess(
+        widgetCanEdit: widget.canEdit,
+        widgetIsEmergencyOnly: false,
+      );
+    });
   }
 
   @override
   void dispose() {
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     _firstNameController.dispose();
     _familyNameController.dispose();
     _phoneController.dispose();
@@ -408,7 +429,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      widget.canEdit
+                      _access.canEdit
                           ? 'You can edit this patient profile.'
                           : 'Read-only access.',
                     ),
@@ -435,7 +456,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
                         ),
                       ],
                     ),
-                    if (widget.canEdit) ...[
+                    if (_access.canEdit) ...[
                       const SizedBox(height: 12),
                       FilledButton(
                         onPressed: _saving ? null : _openEditDialog,
