@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../services/emergency_access_token_service.dart';
 import '../services/emergency_payload_service.dart';
 import '../services/patient_service.dart';
 
@@ -16,6 +17,7 @@ class EmergencyScreen extends StatefulWidget {
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
   final _patientService = PatientService();
+  final _tokenService = EmergencyAccessTokenService();
 
   bool _loading = true;
   bool _hasOfflineSnapshot = false;
@@ -36,10 +38,20 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   List<Map<String, dynamic>> _medications = [];
   List<Map<String, dynamic>> _conditions = [];
 
+  bool _didInitialLoad = false;
+
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // CHANGED:
+    // Load after the widget is attached to a route so ModalRoute arguments
+    // can be read if the payload was passed through navigation instead of
+    // the constructor.
+    if (!_didInitialLoad) {
+      _didInitialLoad = true;
+      _load();
+    }
   }
 
   Map<String, dynamic> _mapFrom(dynamic value) {
@@ -77,7 +89,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
     final trimmed = _stripQuotesAndTrim(raw);
 
-    // CHANGED: accept both direct tokens and wrapped payloads.
+    // CHANGED:
+    // Accept both direct tokens and wrapped payloads.
     // Examples:
     // - healthapp://emergency?payload=...
     // - healthapp://emergency?token=...
@@ -138,12 +151,74 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       // Not JSON, keep trying raw text.
     }
 
-    // CHANGED: final fallback is raw token text, normalized.
+    // CHANGED:
+    // Final fallback is raw token text, normalized.
     return trimmed;
   }
 
+  String? _resolveRawPayload() {
+    // 1) Constructor payload has priority.
+    final direct = widget.payload?.trim();
+    if (direct != null && direct.isNotEmpty) {
+      return direct;
+    }
+
+    // 2) Route arguments are commonly used when the screen is opened via
+    // Navigator.pushNamed or a deep-link handler.
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs == null) return null;
+
+    if (routeArgs is String) {
+      final value = routeArgs.trim();
+      return value.isEmpty ? null : value;
+    }
+
+    if (routeArgs is Uri) {
+      final value = routeArgs.toString().trim();
+      return value.isEmpty ? null : value;
+    }
+
+    if (routeArgs is Map) {
+      final map = Map<String, dynamic>.from(routeArgs);
+      final candidates = [
+        map['payload'],
+        map['token'],
+        map['uri'],
+        map['link'],
+        map['data'],
+      ];
+
+      for (final candidate in candidates) {
+        if (candidate == null) continue;
+        final value = candidate.toString().trim();
+        if (value.isNotEmpty) return value;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _load() async {
-    final token = _extractTokenFromPayload(widget.payload);
+    final rawInput = _resolveRawPayload();
+    final token = _extractTokenFromPayload(rawInput);
+
+    // CHANGED:
+    // Clear any stale state before attempting a new resolve.
+    _hasResolvedToken = false;
+    _hasOfflineSnapshot = false;
+    _patientId = null;
+    _name = null;
+    _dob = null;
+    _age = null;
+    _bloodType = null;
+    _phone = null;
+    _emergencyContact = null;
+    _addressSummary = null;
+    _insurancePlan = null;
+    _covidVaccineType = null;
+    _allergies = [];
+    _medications = [];
+    _conditions = [];
 
     if (token == null || token.isEmpty) {
       if (!mounted) return;
@@ -152,8 +227,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     }
 
     try {
-      // CHANGED: resolve the token through the patient service first.
-      final resolved = await _patientService.resolveEmergencyAccessToken(token);
+      // CHANGED:
+      // Resolve the emergency token through the dedicated token service.
+      // This keeps the emergency flow on the RPC path and avoids any direct
+      // read from emergency_access_tokens in the UI layer.
+      final resolved = await _tokenService.resolveEmergencyAccessToken(token);
 
       if (resolved == null) {
         if (!mounted) return;
@@ -189,12 +267,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
         final dobValue = source['date_of_birth'] ?? resolved['date_of_birth'];
         _dob = dobValue?.toString();
-        _age =
-            source['age_years']?.toString() ??
-                resolved['age_years']?.toString();
+        _age = source['age_years']?.toString() ?? resolved['age_years']?.toString();
         _bloodType =
-            source['blood_type']?.toString() ??
-                resolved['blood_type']?.toString();
+            source['blood_type']?.toString() ?? resolved['blood_type']?.toString();
         _phone = source['phone']?.toString() ?? resolved['phone']?.toString();
         _emergencyContact = [
           source['emergency_contact_name']?.toString() ??
@@ -308,9 +383,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _name?.isNotEmpty == true
-                        ? _name!
-                        : 'Emergency patient',
+                    _name?.isNotEmpty == true ? _name! : 'Emergency patient',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,

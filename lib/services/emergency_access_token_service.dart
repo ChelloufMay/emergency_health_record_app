@@ -7,11 +7,15 @@ class EmergencyAccessTokenService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<EmergencyAccessTokenModel>> fetchByPatient(
-    String patientId,
-  ) async {
+      String patientId,
+      ) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
 
+    // NOTE:
+    // This method is still a direct table read, but it is only for the
+    // owner/admin-style management screen path. The emergency screen should
+    // not use this for token validation or resolution.
     final rows = await _supabase
         .from('emergency_access_tokens')
         .select()
@@ -21,9 +25,9 @@ class EmergencyAccessTokenService {
     return (rows as List)
         .map(
           (row) => EmergencyAccessTokenModel.fromMap(
-            Map<String, dynamic>.from(row as Map),
-          ),
-        )
+        Map<String, dynamic>.from(row as Map),
+      ),
+    )
         .toList();
   }
 
@@ -66,9 +70,9 @@ class EmergencyAccessTokenService {
       await _supabase
           .from('emergency_access_tokens')
           .update({
-            'is_active': false,
-            'revoked_at': DateTime.now().toIso8601String(),
-          })
+        'is_active': false,
+        'revoked_at': DateTime.now().toIso8601String(),
+      })
           .eq('id', rowId);
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Emergency token revoke'));
@@ -87,6 +91,38 @@ class EmergencyAccessTokenService {
           .eq('patient_id', pid);
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Emergency token delete'));
+    }
+  }
+
+  Future<Map<String, dynamic>?> resolveEmergencyAccessToken(
+      String token,
+      ) async {
+    final normalized = token.trim();
+    if (normalized.isEmpty) return null;
+
+    try {
+      // IMPORTANT:
+      // Emergency resolution must go through the SECURITY DEFINER RPC.
+      // Do not query emergency_access_tokens directly from Flutter here.
+      final result = await _supabase.rpc(
+        'resolve_emergency_access_token',
+        params: {'_token': normalized},
+      );
+
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
+      }
+
+      if (result is List && result.isNotEmpty && result.first is Map) {
+        return Map<String, dynamic>.from(result.first as Map);
+      }
+
+      return null;
+    } on PostgrestException catch (e) {
+      throw Exception(readablePostgrestMessage(
+        e,
+        'Emergency token resolve',
+      ));
     }
   }
 }
