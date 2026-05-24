@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/emergency_access_token_model.dart';
+import '../services/emergency_access_token_service.dart';
 import '../services/emergency_payload_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
@@ -27,6 +28,7 @@ class QrScreen extends StatefulWidget {
 class _QrScreenState extends State<QrScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final PatientService _patientService = PatientService();
+  final EmergencyAccessTokenService _tokenService = EmergencyAccessTokenService();
 
   bool _loading = true;
   bool _saving = false;
@@ -42,20 +44,24 @@ class _QrScreenState extends State<QrScreen> {
   }
 
   Map<String, dynamic> _buildQrEnvelope({
-    required String token,
+    String? token,
     required String patientId,
     required Map<String, dynamic>? summary,
   }) {
     final envelope = <String, dynamic>{
       'type': 'emergency_access_token',
-      'token': token,
       'patient_id': patientId,
       'issued_at': DateTime.now().toIso8601String(),
     };
 
-    // CHANGED: keep a compact offline snapshot so the emergency screen can
-    // still show useful data if the token resolves but the network is weak.
-    if (summary != null) {
+    final normalizedToken = token?.trim();
+    if (normalizedToken != null && normalizedToken.isNotEmpty) {
+      envelope['token'] = normalizedToken;
+    }
+
+    // Keep an offline snapshot in the payload so the emergency screen can
+    // still show something useful even if live resolution is unavailable.
+    if (summary != null && summary.isNotEmpty) {
       envelope['offline_summary'] = summary;
     }
 
@@ -63,7 +69,7 @@ class _QrScreenState extends State<QrScreen> {
   }
 
   String _buildEmergencyLink({
-    required String token,
+    String? token,
     required String patientId,
     required Map<String, dynamic>? summary,
   }) {
@@ -71,11 +77,9 @@ class _QrScreenState extends State<QrScreen> {
       _buildQrEnvelope(token: token, patientId: patientId, summary: summary),
     );
 
-    return Uri(
-      scheme: 'healthapp',
-      host: 'emergency',
-      queryParameters: {'payload': payload},
-    ).toString();
+    const webBaseUrl = 'https://ChelloufMay.github.io/ehr-emergency-web/';
+
+    return '$webBaseUrl?payload=${Uri.encodeComponent(payload)}';
   }
 
   String _formatDateTime(DateTime? value) {
@@ -143,41 +147,68 @@ class _QrScreenState extends State<QrScreen> {
       setState(() {
         _loading = false;
         _patientId = null;
+        _summary = null;
+        _tokenRow = null;
         _qrData = '';
       });
       return;
     }
 
-    final summary = await _patientService.fetchEmergencySummary(patientId);
+    try {
+      setState(() {
+        _loading = true;
+      });
 
-    final rows = await _supabase
-        .from('emergency_access_tokens')
-        .select()
-        .eq('patient_id', patientId)
-        .order('created_at', ascending: false)
-        .limit(1);
+      Map<String, dynamic>? summary;
 
-    EmergencyAccessTokenModel? tokenRow;
-    if (rows.isNotEmpty) {
-      tokenRow = EmergencyAccessTokenModel.fromMap(
-        Map<String, dynamic>.from(rows.first as Map),
-      );
+      try {
+        final fetched = await _patientService.fetchEmergencySummary(patientId);
+
+        if (fetched != null) {
+          summary = Map<String, dynamic>.from(fetched);
+                }
+      } catch (e) {
+        debugPrint('Emergency summary lookup failed: $e');
+      }
+
+      EmergencyAccessTokenModel? tokenRow;
+      try {
+        tokenRow = await _tokenService.fetchActiveVisibleTokenForPatient(
+          patientId,
+        );
+      } catch (e) {
+        debugPrint('Token lookup failed: $e');
+        tokenRow = null;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _patientId = patientId;
+        _summary = summary;
+        _tokenRow = tokenRow;
+
+        final tokenValue = tokenRow?.token?.trim();
+        if ((tokenValue != null && tokenValue.isNotEmpty) ||
+            (_summary != null && _summary!.isNotEmpty)) {
+          _qrData = _buildEmergencyLink(
+            token: tokenValue,
+            patientId: patientId,
+            summary: _summary,
+          );
+        } else {
+          _qrData = '';
+        }
+
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('QrScreen load failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _qrData = '';
+      });
     }
-
-    if (!mounted) return;
-    setState(() {
-      _patientId = patientId;
-      _summary = summary == null ? null : Map<String, dynamic>.from(summary);
-      _tokenRow = tokenRow;
-      _qrData = tokenRow?.token == null
-          ? ''
-          : _buildEmergencyLink(
-        token: tokenRow!.token!,
-        patientId: patientId,
-        summary: _summary,
-      );
-      _loading = false;
-    });
   }
 
   Future<void> _createToken() async {
@@ -187,18 +218,13 @@ class _QrScreenState extends State<QrScreen> {
     setState(() => _saving = true);
 
     try {
-      final response = await _supabase
-          .from('emergency_access_tokens')
-          .insert({
+      final response = await _supabase.from('emergency_access_tokens').insert({
         'patient_id': patientId,
         'notes': _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
-        // CHANGED: save the exact selected date + time.
         'expires_at': _selectedExpiresAt?.toIso8601String(),
-      })
-          .select()
-          .single();
+      }).select().single();
 
       final tokenRow = EmergencyAccessTokenModel.fromMap(
         Map<String, dynamic>.from(response as Map),
@@ -207,13 +233,14 @@ class _QrScreenState extends State<QrScreen> {
       if (!mounted) return;
       setState(() {
         _tokenRow = tokenRow;
-        _qrData = tokenRow.token == null
-            ? ''
-            : _buildEmergencyLink(
-          token: tokenRow.token!,
+        final tokenValue = tokenRow.token?.trim();
+        _qrData = (tokenValue != null && tokenValue.isNotEmpty)
+            ? _buildEmergencyLink(
+          token: tokenValue,
           patientId: patientId,
           summary: _summary,
-        );
+        )
+            : '';
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,6 +306,8 @@ class _QrScreenState extends State<QrScreen> {
       _summary?['family_name']?.toString() ?? '',
     ].join(' ').trim();
 
+    final canShowQr = _qrData.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Emergency token'),
@@ -322,12 +351,18 @@ class _QrScreenState extends State<QrScreen> {
                   Text(
                     'Created at: ${_tokenRow?.createdAt?.toIso8601String() ?? 'Unknown'}',
                   ),
+                  if (widget.isEmergencyOnly) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Emergency-only access: QR generation is limited to emergency display.',
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
-          if (_qrData.isNotEmpty)
+          if (canShowQr)
             Center(
               child: Column(
                 children: [
@@ -345,67 +380,80 @@ class _QrScreenState extends State<QrScreen> {
                   ),
                 ],
               ),
-            ),
-          const SizedBox(height: 24),
-          const Text(
-            'Create / update token',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              hintText: 'Optional reason or context',
-            ),
-          ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: _pickExpiryDateTime,
-            borderRadius: BorderRadius.circular(12),
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Expiry date and time',
-                helperText: 'Pick a date, then a time',
-                border: OutlineInputBorder(),
-              ),
+            )
+          else
+            Card(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  _formatDateTime(_selectedExpiresAt),
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  widget.isEmergencyOnly
+                      ? 'No active token was visible here, so the QR falls back to the emergency snapshot only.'
+                      : 'No active token found for this patient.',
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: _saving ? null : _createToken,
-                  child: _saving
-                      ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : const Text('Create token'),
+          if (!widget.isEmergencyOnly) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Create / update token',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                hintText: 'Optional reason or context',
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickExpiryDateTime,
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Expiry date and time',
+                  helperText: 'Pick a date, then a time',
+                  border: OutlineInputBorder(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    _formatDateTime(_selectedExpiresAt),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _saving || _tokenRow?.id == null
-                      ? null
-                      : _revokeToken,
-                  child: const Text('Revoke token'),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _saving ? null : _createToken,
+                    child: _saving
+                        ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : const Text('Create token'),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _saving || _tokenRow?.id == null
+                        ? null
+                        : _revokeToken,
+                    child: const Text('Revoke token'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

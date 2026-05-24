@@ -151,7 +151,10 @@ class _EmergencyAccessTokenScreenState
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EmergencyScreen(payload: token),
+        builder: (_) => EmergencyScreen(
+          payload: token,
+          patientId: _patientId,
+        ),
       ),
     );
   }

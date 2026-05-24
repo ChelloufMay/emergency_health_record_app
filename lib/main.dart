@@ -265,11 +265,17 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               builder: (_) => EmergencyScreen(
                 payload: args['payload'] as String?,
+                patientId: args['patientId'] as String?,
               ),
             );
 
           case '/qr':
-            return MaterialPageRoute(builder: (_) => const QrScreen());
+            return MaterialPageRoute(
+              builder: (_) => QrScreen(
+                patientId: args['patientId'] as String?,
+                isEmergencyOnly: args['isEmergencyOnly'] as bool? ?? false,
+              ),
+            );
 
           case '/caregivers':
             return MaterialPageRoute(builder: (_) => const CaregiverScreen());

@@ -1,22 +1,27 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/emergency_access_token_service.dart';
 import '../services/emergency_payload_service.dart';
-import '../services/patient_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
   final String? payload;
+  final String? patientId;
 
-  const EmergencyScreen({super.key, this.payload});
+  const EmergencyScreen({
+    super.key,
+    this.payload,
+    this.patientId,
+  });
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  final _patientService = PatientService();
+  final _supabase = Supabase.instance.client;
   final _tokenService = EmergencyAccessTokenService();
 
   bool _loading = true;
@@ -44,10 +49,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // CHANGED:
-    // Load after the widget is attached to a route so ModalRoute arguments
-    // can be read if the payload was passed through navigation instead of
-    // the constructor.
     if (!_didInitialLoad) {
       _didInitialLoad = true;
       _load();
@@ -89,13 +90,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
     final trimmed = _stripQuotesAndTrim(raw);
 
-    // CHANGED:
-    // Accept both direct tokens and wrapped payloads.
-    // Examples:
-    // - healthapp://emergency?payload=...
-    // - healthapp://emergency?token=...
-    // - {"token":"..."}
-    // - plain token text
     final uri = Uri.tryParse(trimmed);
     if (uri != null) {
       final tokenFromQuery = uri.queryParameters['token']?.trim();
@@ -148,23 +142,18 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         }
       }
     } catch (_) {
-      // Not JSON, keep trying raw text.
+      // Not JSON.
     }
 
-    // CHANGED:
-    // Final fallback is raw token text, normalized.
     return trimmed;
   }
 
   String? _resolveRawPayload() {
-    // 1) Constructor payload has priority.
     final direct = widget.payload?.trim();
     if (direct != null && direct.isNotEmpty) {
       return direct;
     }
 
-    // 2) Route arguments are commonly used when the screen is opened via
-    // Navigator.pushNamed or a deep-link handler.
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
     if (routeArgs == null) return null;
 
@@ -198,12 +187,33 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return null;
   }
 
+  String? _resolvePatientId() {
+    final direct = widget.patientId?.trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs is Map) {
+      final map = Map<String, dynamic>.from(routeArgs);
+      final candidates = [
+        map['patientId'],
+        map['patient_id'],
+      ];
+
+      for (final candidate in candidates) {
+        if (candidate == null) continue;
+        final value = candidate.toString().trim();
+        if (value.isNotEmpty) return value;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _load() async {
     final rawInput = _resolveRawPayload();
     final token = _extractTokenFromPayload(rawInput);
+    final patientId = _resolvePatientId();
 
-    // CHANGED:
-    // Clear any stale state before attempting a new resolve.
     _hasResolvedToken = false;
     _hasOfflineSnapshot = false;
     _patientId = null;
@@ -220,91 +230,149 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     _medications = [];
     _conditions = [];
 
-    if (token == null || token.isEmpty) {
+    if ((token == null || token.isEmpty) &&
+        (patientId == null || patientId.isEmpty)) {
       if (!mounted) return;
       setState(() => _loading = false);
       return;
     }
 
     try {
-      // CHANGED:
-      // Resolve the emergency token through the dedicated token service.
-      // This keeps the emergency flow on the RPC path and avoids any direct
-      // read from emergency_access_tokens in the UI layer.
-      final resolved = await _tokenService.resolveEmergencyAccessToken(token);
+      // Path 1: QR payload / emergency token.
+      if (token != null && token.isNotEmpty) {
+        final resolved = await _tokenService.resolveEmergencyAccessToken(token);
 
-      if (resolved == null) {
+        if (resolved != null) {
+          final resolvedPatientId = resolved['patient_id']?.toString() ??
+              resolved['patient_profile_id']?.toString();
+
+          Map<String, dynamic>? emergencySummary;
+          if (resolvedPatientId != null && resolvedPatientId.isNotEmpty) {
+            emergencySummary = await _fetchEmergencySummary(resolvedPatientId);
+          }
+
+          final fallback = _mapFrom(resolved['offline_summary']);
+          final source = emergencySummary ?? fallback;
+
+          if (!mounted) return;
+          setState(() {
+            _hasResolvedToken = true;
+            _patientId = resolvedPatientId;
+            _name = [
+              source['first_name']?.toString() ??
+                  resolved['first_name']?.toString() ??
+                  '',
+              source['family_name']?.toString() ??
+                  resolved['family_name']?.toString() ??
+                  '',
+            ].join(' ').trim();
+
+            final dobValue = source['date_of_birth'] ?? resolved['date_of_birth'];
+            _dob = dobValue?.toString();
+            _age =
+                source['age_years']?.toString() ?? resolved['age_years']?.toString();
+            _bloodType = source['blood_type']?.toString() ??
+                resolved['blood_type']?.toString();
+            _phone = source['phone']?.toString() ?? resolved['phone']?.toString();
+            _emergencyContact = [
+              source['emergency_contact_name']?.toString() ??
+                  resolved['emergency_contact_name']?.toString() ??
+                  '',
+              source['emergency_contact_phone']?.toString() ??
+                  resolved['emergency_contact_phone']?.toString() ??
+                  '',
+            ].where((e) => e.trim().isNotEmpty).join(' • ');
+            _addressSummary = [
+              source['address_country']?.toString() ??
+                  resolved['address_country']?.toString() ??
+                  '',
+              source['address_governorate']?.toString() ??
+                  resolved['address_governorate']?.toString() ??
+                  '',
+              source['address_city']?.toString() ??
+                  resolved['address_city']?.toString() ??
+                  '',
+            ].where((e) => e.trim().isNotEmpty).join(' • ');
+            _insurancePlan = source['insurance_plan']?.toString() ??
+                resolved['insurance_plan']?.toString();
+            _covidVaccineType = source['covid_vaccine_type']?.toString() ??
+                resolved['covid_vaccine_type']?.toString();
+            _allergies = _listFrom(source['allergies']);
+            _medications = _listFrom(source['medications']);
+            _conditions = _listFrom(source['chronic_conditions']);
+            _loading = false;
+          });
+          return;
+        }
+      }
+
+      // Path 2: patient-only / emergency-only caregiver fallback.
+      if (patientId != null && patientId.isNotEmpty) {
+        final summary = await _fetchEmergencySummary(patientId);
+
         if (!mounted) return;
-        setState(() => _loading = false);
+        setState(() {
+          _hasResolvedToken = summary != null;
+          _patientId = patientId;
+
+          if (summary != null) {
+            _name = [
+              summary['first_name']?.toString() ?? '',
+              summary['family_name']?.toString() ?? '',
+            ].join(' ').trim();
+            _dob = summary['date_of_birth']?.toString();
+            _age = summary['age_years']?.toString();
+            _bloodType = summary['blood_type']?.toString();
+            _phone = summary['phone']?.toString();
+            _emergencyContact = [
+              summary['emergency_contact_name']?.toString() ?? '',
+              summary['emergency_contact_phone']?.toString() ?? '',
+            ].where((e) => e.trim().isNotEmpty).join(' • ');
+            _addressSummary = [
+              summary['address_country']?.toString() ?? '',
+              summary['address_governorate']?.toString() ?? '',
+              summary['address_city']?.toString() ?? '',
+            ].where((e) => e.trim().isNotEmpty).join(' • ');
+            _insurancePlan = summary['insurance_plan']?.toString();
+            _covidVaccineType = summary['covid_vaccine_type']?.toString();
+            _allergies = _listFrom(summary['allergies']);
+            _medications = _listFrom(summary['medications']);
+            _conditions = _listFrom(summary['chronic_conditions']);
+          }
+
+          _loading = false;
+        });
         return;
       }
 
-      final patientId =
-          resolved['patient_id']?.toString() ??
-              resolved['patient_profile_id']?.toString();
-
-      Map<String, dynamic>? emergencySummary;
-
-      if (patientId != null && patientId.isNotEmpty) {
-        emergencySummary = await _patientService.fetchEmergencySummary(patientId);
-      }
-
-      final fallback = _mapFrom(resolved['offline_summary']);
-      final source = emergencySummary ?? fallback;
-
       if (!mounted) return;
-      setState(() {
-        _hasResolvedToken = true;
-        _patientId = patientId;
-        _name = [
-          source['first_name']?.toString() ??
-              resolved['first_name']?.toString() ??
-              '',
-          source['family_name']?.toString() ??
-              resolved['family_name']?.toString() ??
-              '',
-        ].join(' ').trim();
-
-        final dobValue = source['date_of_birth'] ?? resolved['date_of_birth'];
-        _dob = dobValue?.toString();
-        _age = source['age_years']?.toString() ?? resolved['age_years']?.toString();
-        _bloodType =
-            source['blood_type']?.toString() ?? resolved['blood_type']?.toString();
-        _phone = source['phone']?.toString() ?? resolved['phone']?.toString();
-        _emergencyContact = [
-          source['emergency_contact_name']?.toString() ??
-              resolved['emergency_contact_name']?.toString() ??
-              '',
-          source['emergency_contact_phone']?.toString() ??
-              resolved['emergency_contact_phone']?.toString() ??
-              '',
-        ].where((e) => e.trim().isNotEmpty).join(' • ');
-        _addressSummary = [
-          source['address_country']?.toString() ??
-              resolved['address_country']?.toString() ??
-              '',
-          source['address_governorate']?.toString() ??
-              resolved['address_governorate']?.toString() ??
-              '',
-          source['address_city']?.toString() ??
-              resolved['address_city']?.toString() ??
-              '',
-        ].where((e) => e.trim().isNotEmpty).join(' • ');
-        _insurancePlan =
-            source['insurance_plan']?.toString() ??
-                resolved['insurance_plan']?.toString();
-        _covidVaccineType =
-            source['covid_vaccine_type']?.toString() ??
-                resolved['covid_vaccine_type']?.toString();
-        _allergies = _listFrom(source['allergies']);
-        _medications = _listFrom(source['medications']);
-        _conditions = _listFrom(source['chronic_conditions']);
-        _loading = false;
-      });
+      setState(() => _loading = false);
     } catch (e) {
       debugPrint('Emergency load failed: $e');
       if (!mounted) return;
       setState(() => _loading = false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchEmergencySummary(String patientId) async {
+    try {
+      final result = await _supabase.rpc(
+        'get_emergency_summary_for_granted_patient',
+        params: {'_patient_id': patientId},
+      );
+
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
+      }
+
+      if (result is List && result.isNotEmpty && result.first is Map) {
+        return Map<String, dynamic>.from(result.first as Map);
+      }
+
+      return null;
+    } on PostgrestException catch (e) {
+      debugPrint('Emergency summary RPC failed: ${e.message}');
+      return null;
     }
   }
 
@@ -384,7 +452,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _name?.isNotEmpty == true ? _name! : 'Emergency patient',
+                    _name?.isNotEmpty == true
+                        ? _name!
+                        : 'Emergency patient',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -396,7 +466,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   Text('Age: ${_age ?? 'Unknown'}'),
                   Text('Blood type: ${_bloodType ?? 'Unknown'}'),
                   Text('Phone: ${_phone ?? 'Unknown'}'),
-                  Text('Emergency contact: ${_emergencyContact ?? 'Unknown'}'),
+                  Text(
+                    'Emergency contact: ${_emergencyContact ?? 'Unknown'}',
+                  ),
                   Text('Address: ${_addressSummary ?? 'Unknown'}'),
                   Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
                   Text('COVID vaccine: ${_covidVaccineType ?? 'Unknown'}'),

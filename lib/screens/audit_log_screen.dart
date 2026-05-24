@@ -206,6 +206,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _access.isEmergencyOnly
+          ? const Center(child: Text('Access restricted.'))
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : _logs.isEmpty
