@@ -49,7 +49,6 @@ import 'screens/register_screen.dart';
 import 'screens/reproductive_health_screen.dart';
 import 'screens/role_router_screen.dart';
 import 'screens/surgeries_screen.dart';
-import 'screens/verification_labels_screen.dart';
 import 'screens/vaccinations_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/emergency_payload_service.dart';
@@ -516,11 +515,6 @@ class _MyAppState extends State<MyApp> {
           case '/emergency_access_tokens':
             return MaterialPageRoute(
               builder: (_) => const EmergencyAccessTokenScreen(),
-            );
-
-          case '/verification_labels':
-            return MaterialPageRoute(
-              builder: (_) => const VerificationLabelsScreen(),
             );
 
           case '/patient_notifications':
