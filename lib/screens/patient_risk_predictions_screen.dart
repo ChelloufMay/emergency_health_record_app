@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../models/patient_risk_prediction_model.dart';
@@ -21,6 +23,7 @@ class _PatientRiskPredictionsScreenState
   final PatientService _patientService = PatientService();
 
   bool _loading = true;
+  bool _generating = false;
   String? _error;
   String? _patientName;
   List<PatientRiskPredictionModel> _predictions = [];
@@ -28,7 +31,7 @@ class _PatientRiskPredictionsScreenState
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(generateIfMissing: true);
   }
 
   String _formatDateTime(DateTime? dateTime) {
@@ -48,9 +51,9 @@ class _PatientRiskPredictionsScreenState
       final map = Map<String, dynamic>.from(factor);
       final label =
           map['label']?.toString() ??
-          map['name']?.toString() ??
-          map['factor']?.toString() ??
-          'Factor';
+              map['name']?.toString() ??
+              map['factor']?.toString() ??
+              'Factor';
       final value = map['value']?.toString();
       final weight = map['weight']?.toString();
 
@@ -62,6 +65,19 @@ class _PatientRiskPredictionsScreenState
       return parts.join(' • ');
     }
     return factor?.toString() ?? '-';
+  }
+
+  Color _riskColor(String level) {
+    switch (level.toLowerCase()) {
+      case 'high':
+        return Colors.red;
+      case 'medium':
+        return Colors.orange;
+      case 'low':
+        return Colors.green;
+      default:
+        return Colors.blueGrey;
+    }
   }
 
   Future<String?> _resolvePatientId() async {
@@ -76,7 +92,7 @@ class _PatientRiskPredictionsScreenState
     return identity?.patientProfileId;
   }
 
-  Future<void> _load() async {
+  Future<void> _load({required bool generateIfMissing}) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -97,7 +113,23 @@ class _PatientRiskPredictionsScreenState
           ? 'Patient profile ${identity!.patientProfileId}'
           : null;
 
+      var latest = await _service.fetchLatest(patientId);
+
+      if (latest == null && generateIfMissing) {
+        setState(() {
+          _generating = true;
+        });
+
+        await _service.generateAndStoreForPatient(patientId);
+        latest = await _service.fetchLatest(patientId);
+
+        setState(() {
+          _generating = false;
+        });
+      }
+
       final list = await _service.fetchByPatient(patientId);
+
       if (!mounted) return;
       setState(() {
         _predictions = list;
@@ -106,18 +138,54 @@ class _PatientRiskPredictionsScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load predictions: $e';
+        _error =
+        'Failed to load predictions: $e\n\nMake sure the FastAPI server is running at http://127.0.0.1:8000';
         _loading = false;
+        _generating = false;
       });
     }
   }
 
+  Future<void> _generateNewPrediction() async {
+    setState(() {
+      _generating = true;
+      _error = null;
+    });
+
+    try {
+      final patientId = await _resolvePatientId();
+      if (patientId == null || patientId.isEmpty) {
+        setState(() {
+          _error = 'No patient profile found.';
+          _generating = false;
+        });
+        return;
+      }
+
+      await _service.generateAndStoreForPatient(patientId);
+      await _load(generateIfMissing: false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to generate prediction: $e';
+        _generating = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _generating = false;
+        });
+      }
+    }
+  }
+
   Widget _buildPredictionCard(
-    PatientRiskPredictionModel prediction, {
-    bool highlighted = false,
-  }) {
+      PatientRiskPredictionModel prediction, {
+        bool highlighted = false,
+      }) {
     final mainFactors = prediction.mainFactors;
     final snapshot = prediction.inputSnapshot;
+    final riskColor = _riskColor(prediction.riskLevel);
 
     return Card(
       elevation: highlighted ? 2 : 0,
@@ -137,7 +205,13 @@ class _PatientRiskPredictionsScreenState
                     ),
                   ),
                 ),
-                Chip(label: Text(prediction.riskLevel.toUpperCase())),
+                Chip(
+                  label: Text(
+                    prediction.riskLevel.toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: riskColor,
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -184,7 +258,9 @@ class _PatientRiskPredictionsScreenState
                     alignment: Alignment.centerLeft,
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: SelectableText(snapshot.toString()),
+                      child: SelectableText(
+                        const JsonEncoder.withIndent('  ').convert(snapshot),
+                      ),
                     ),
                   ),
                 ],
@@ -205,54 +281,76 @@ class _PatientRiskPredictionsScreenState
         title: const Text('Risk predictions'),
         actions: [
           IconButton(
-            onPressed: _load,
+            onPressed: _loading ? null : () => _load(generateIfMissing: false),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
+          ),
+          IconButton(
+            onPressed: _generating ? null : _generateNewPrediction,
+            icon: _generating
+                ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+                : const Icon(Icons.bolt),
+            tooltip: 'Generate prediction',
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? Center(child: Text(_error!))
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            _error!,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      )
           : _predictions.isEmpty
           ? const Center(
-              child: Text('No risk predictions have been recorded yet.'),
-            )
+        child: Text('No risk predictions have been recorded yet.'),
+      )
           : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if ((_patientName ?? '').trim().isNotEmpty) ...[
-                    Text(
-                      _patientName!,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (current != null)
-                    _buildPredictionCard(current, highlighted: true),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'History',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  ..._predictions
-                      .skip(1)
-                      .map(
-                        (prediction) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildPredictionCard(prediction),
-                        ),
-                      ),
-                ],
+        onRefresh: () => _load(generateIfMissing: false),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if ((_patientName ?? '').trim().isNotEmpty) ...[
+              Text(
+                _patientName!,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (current != null)
+              _buildPredictionCard(current, highlighted: true),
+            const SizedBox(height: 16),
+            const Text(
+              'History',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
+            const SizedBox(height: 8),
+            ..._predictions
+                .skip(1)
+                .map(
+                  (prediction) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildPredictionCard(prediction),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

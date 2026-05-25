@@ -1,0 +1,48 @@
+{
+  "feature_order": [
+    "age",
+    "sex_encoded",
+    "smoking",
+    "packs_per_day",
+    "smoking_years",
+    "chicha",
+    "chicha_years",
+    "drugs",
+    "alcohol_encoded",
+    "socio_encoded",
+    "work_encoded",
+    "lives_alone",
+    "has_caregiver",
+    "chronic_conditions_count",
+    "acute_conditions_count",
+    "medications_count",
+    "allergies_count",
+    "surgeries_count",
+    "hospitalizations_count",
+    "is_covid_vaccinated"
+  ],
+  "alcohol_map": {
+    "never": 0,
+    "rarely": 1,
+    "monthly": 2,
+    "weekly": 3,
+    "daily": 4
+  },
+  "socio_map": {
+    "low": 0,
+    "middle": 1,
+    "high": 2,
+    "unknown": 1
+  },
+  "work_map": {
+    "employed": 3,
+    "student": 2,
+    "retired": 1,
+    "unemployed": 0
+  },
+  "class_names": [
+    "high",
+    "low",
+    "medium"
+  ]
+}
