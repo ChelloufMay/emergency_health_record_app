@@ -114,8 +114,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _addressId = profile.addressId;
           _userId = profile.userId;
 
-          _firstNameController.text = profile.firstName ?? '';
-          _familyNameController.text = profile.familyName ?? '';
+          _firstNameController.text = profile.firstName;
+          _familyNameController.text = profile.familyName;
 
           // CHANGED: do not surface unknown in the selector.
           _sex = (profile.sex == 'male' || profile.sex == 'female') ? profile.sex : null;

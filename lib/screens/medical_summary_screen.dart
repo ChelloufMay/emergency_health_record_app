@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
-import '../utils/section_screen_access.dart';
 
 class MedicalSummaryScreen extends StatefulWidget {
   final String? patientId;
@@ -26,23 +25,13 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
 
   bool _loading = true;
   Map<String, dynamic>? _summary;
-  late SectionScreenAccess _access;
 
   String? _resolvePatientId() {
     return widget.patientId ??
         PatientSessionService.instance.current?.patientId;
   }
 
-  Map<String, dynamic> _routeArgs(String patientId) {
-    // Pass a full access context so section screens can preserve the
-    // permission model instead of falling back to a bare patientId map.
-    return PatientAccessContext(
-      patientId: patientId,
-      canEdit: _access.canEdit,
-      isEmergencyOnly: _access.isEmergencyOnly,
-      actorRole: 'unknown',
-    ).toRouteArguments();
-  }
+
 
   @override
   void initState() {
@@ -50,10 +39,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
 
     PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
-    _access = SectionScreenAccess(
-      widgetCanEdit: widget.canEdit,
-      widgetIsEmergencyOnly: widget.isEmergencyOnly,
-    );
 
     _load();
   }
@@ -61,10 +46,6 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
     setState(() {
-      _access = SectionScreenAccess(
-        widgetCanEdit: widget.canEdit,
-        widgetIsEmergencyOnly: widget.isEmergencyOnly,
-      );
     });
   }
 
@@ -230,56 +211,7 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
               'Chronic conditions',
               _buildBulletList(_summary?['chronic_conditions']),
             ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Owner flow note',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'This screen stays read-only so it can safely reflect the DB view without duplicating the section CRUD screens.',
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/allergies',
-                            arguments: _routeArgs(patientId),
-                          ),
-                          child: const Text('Open allergies'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/medications',
-                            arguments: _routeArgs(patientId),
-                          ),
-                          child: const Text('Open medications'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/conditions',
-                            arguments: _routeArgs(patientId),
-                          ),
-                          child: const Text('Open conditions'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+
           ],
         ),
       ),

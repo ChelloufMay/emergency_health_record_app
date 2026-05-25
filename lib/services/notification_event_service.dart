@@ -2,10 +2,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/notification_event_model.dart';
 
-/// Reads and optionally writes `notification_events` for access lifecycle gaps.
+/// Reads `notification_events`.
 ///
-/// Postgres RPCs normally create rows; gap methods run only when
-/// [hasRecentEvent] finds no matching server row.
+/// The database now writes access lifecycle events itself, so this service
+/// stays read-only.
 class NotificationEventService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -31,15 +31,15 @@ class NotificationEventService {
     return (rows as List)
         .map(
           (row) => NotificationEventModel.fromMap(
-            Map<String, dynamic>.from(row as Map),
-          ),
-        )
+        Map<String, dynamic>.from(row as Map),
+      ),
+    )
         .toList();
   }
 
   Future<List<NotificationEventModel>> fetchPendingByPatient(
-    String patientId,
-  ) async {
+      String patientId,
+      ) async {
     final rows = await _supabase
         .from('notification_events')
         .select()
@@ -50,26 +50,25 @@ class NotificationEventService {
     return (rows as List)
         .map(
           (row) => NotificationEventModel.fromMap(
-            Map<String, dynamic>.from(row as Map),
-          ),
-        )
+        Map<String, dynamic>.from(row as Map),
+      ),
+    )
         .toList();
   }
 
   Future<List<NotificationEventModel>> fetchAccessRelatedForPatient(
-    String patientId,
-  ) async {
+      String patientId,
+      ) async {
     final all = await fetchByPatient(patientId);
     return all
         .where(
           (e) =>
-              accessEventTypes.contains(e.eventType) ||
-              e.eventType.startsWith('access_'),
-        )
+      accessEventTypes.contains(e.eventType) ||
+          e.eventType.startsWith('access_'),
+    )
         .toList();
   }
 
-  /// Returns true if a matching event was created within [withinSeconds].
   Future<bool> hasRecentEvent({
     required String patientId,
     required String eventType,
@@ -93,117 +92,5 @@ class NotificationEventService {
 
     final rows = await query.limit(1);
     return rows.isNotEmpty;
-  }
-
-  Future<void> _insertGapEvent(NotificationEventModel event) async {
-    await _supabase.from('notification_events').insert(event.toInsertMap());
-  }
-
-  Future<void> recordInviteAcceptedIfNeeded({
-    required String patientId,
-    required String entityId,
-    String? message,
-    String? actorUserId,
-  }) async {
-    if (await hasRecentEvent(
-      patientId: patientId,
-      eventType: eventInviteAccepted,
-      entityId: entityId,
-    )) {
-      return;
-    }
-
-    await _insertGapEvent(
-      NotificationEventModel(
-        patientId: patientId,
-        actorUserId: actorUserId,
-        eventType: eventInviteAccepted,
-        entityType: 'access_invite',
-        entityId: entityId,
-        message: message ?? 'An invite was accepted.',
-        deliveryChannel: 'in_app',
-      ),
-    );
-  }
-
-  Future<void> recordInviteRejectedIfNeeded({
-    required String patientId,
-    required String entityId,
-    String? message,
-    String? actorUserId,
-  }) async {
-    if (await hasRecentEvent(
-      patientId: patientId,
-      eventType: eventInviteRejected,
-      entityId: entityId,
-    )) {
-      return;
-    }
-
-    await _insertGapEvent(
-      NotificationEventModel(
-        patientId: patientId,
-        actorUserId: actorUserId,
-        eventType: eventInviteRejected,
-        entityType: 'access_invite',
-        entityId: entityId,
-        message: message ?? 'An invite was rejected.',
-        deliveryChannel: 'in_app',
-      ),
-    );
-  }
-
-  Future<void> recordPermissionUpdatedIfNeeded({
-    required String patientId,
-    required String grantId,
-    String? message,
-    String? actorUserId,
-  }) async {
-    if (await hasRecentEvent(
-      patientId: patientId,
-      eventType: eventPermissionUpdated,
-      entityId: grantId,
-    )) {
-      return;
-    }
-
-    await _insertGapEvent(
-      NotificationEventModel(
-        patientId: patientId,
-        actorUserId: actorUserId,
-        eventType: eventPermissionUpdated,
-        entityType: 'access_grant',
-        entityId: grantId,
-        message: message ?? 'Access permission was updated.',
-        deliveryChannel: 'in_app',
-      ),
-    );
-  }
-
-  Future<void> recordGrantRevokedIfNeeded({
-    required String patientId,
-    required String grantId,
-    String? message,
-    String? actorUserId,
-  }) async {
-    if (await hasRecentEvent(
-      patientId: patientId,
-      eventType: eventGrantRevoked,
-      entityId: grantId,
-    )) {
-      return;
-    }
-
-    await _insertGapEvent(
-      NotificationEventModel(
-        patientId: patientId,
-        actorUserId: actorUserId,
-        eventType: eventGrantRevoked,
-        entityType: 'access_grant',
-        entityId: grantId,
-        message: message ?? 'Access was revoked.',
-        deliveryChannel: 'in_app',
-      ),
-    );
   }
 }

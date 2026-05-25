@@ -5,19 +5,15 @@ import '../models/access_grant_view_model.dart';
 import '../models/access_inbox_item_model.dart';
 import '../models/access_invite_model.dart';
 import '../models/patient_access_row_model.dart';
-import 'notification_event_service.dart';
 
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final NotificationEventService _notifications = NotificationEventService();
 
   String? _currentEmail() {
     final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
     return email == null || email.isEmpty ? null : email;
   }
 
-  /// Uses the security-definer RPC so that RLS on public.users is never
-  /// an obstacle for resolving the caller's app-level user id.
   Future<String?> _currentAppUserId() async {
     if (_supabase.auth.currentUser == null) return null;
     final result = await _supabase.rpc('current_app_user_id');
@@ -47,11 +43,6 @@ class AccessService {
     return expiresAt.isAfter(DateTime.now());
   }
 
-
-
-  /// Reads the dashboard view directly.
-  /// This keeps owner/grantee naming logic in the database view instead of
-  /// rebuilding it here in Dart.
   Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
     final rows = await _supabase
         .from('patient_access_dashboard')
@@ -62,13 +53,10 @@ class AccessService {
         .map((item) {
       final m = Map<String, dynamic>.from(item as Map);
 
-      // Keep the existing client-side guard so inactive/expired rows
-      // never leak into the dashboard even if the view returns them.
       if (!_isActiveGrantRow(m)) return null;
 
       return PatientAccessRowModel.fromMap({
         ...m,
-        // Normalize IDs for screens/models that still expect grant-style keys.
         'id': m['access_grant_id'] ?? m['id'],
         'grant_id': m['access_grant_id'] ?? m['id'],
       });
@@ -82,8 +70,6 @@ class AccessService {
     return rows.map((row) => row.toMap()).toList();
   }
 
-  /// Active grants are now read directly from access_grants using the
-  /// authenticated app user mapped through public.users.id.
   Future<List<Map<String, dynamic>>> fetchMyActiveGrants() async {
     final rows = await fetchMyAccessDashboardRows();
     return rows.map((row) => row.toMap()).toList();
@@ -107,7 +93,6 @@ class AccessService {
   }
 
   Future<List<AccessInviteModel>> fetchPatientInvites(String patientId) async {
-    // CHANGED: read from the invite dashboard view so patient info stays visible.
     final rows = await _supabase
         .from('access_invites_dashboard')
         .select()
@@ -139,39 +124,34 @@ class AccessService {
     return _toMapList(rows);
   }
 
-  /// CHANGED: pending invites now come from the invite dashboard view.
   Future<List<Map<String, dynamic>>> fetchMyPendingInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('pending');
   }
 
-  /// CHANGED: accepted invites are separated so the dashboard can show history.
   Future<List<Map<String, dynamic>>> fetchMyAcceptedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('accepted');
   }
 
-  /// CHANGED: rejected invites are separated so the dashboard can show history.
   Future<List<Map<String, dynamic>>> fetchMyRejectedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('rejected');
   }
 
-  /// CHANGED: revoked invites/grants can also be shown as history.
   Future<List<Map<String, dynamic>>> fetchMyRevokedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('revoked');
   }
 
-  /// Backward-compatible alias for older screens.
   Future<List<Map<String, dynamic>>> fetchMyPendingInviteMaps() {
     return fetchMyPendingInvitesWithPatientDetails();
   }
 
   Future<List<AccessInviteModel>> fetchMyPendingInvites() async {
     final rows = await fetchMyPendingInvitesWithPatientDetails();
-    return rows.map((e) => AccessInviteModel.fromMap(e),).toList();
+    return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
   Future<List<AccessInviteModel>> fetchMyAcceptedInvites() async {
     final rows = await fetchMyAcceptedInvitesWithPatientDetails();
-    return rows.map((e) => AccessInviteModel.fromMap(e),).toList();
+    return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
   Future<List<AccessInviteModel>> fetchMyRejectedInvites() async {
@@ -217,9 +197,7 @@ class AccessService {
         .toList();
   }
 
-  void notifyAccessChanged() {
-    // Realtime channel also emits; this supports manual refresh hooks.
-  }
+  void notifyAccessChanged() {}
 
   Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(
       String patientId,
@@ -267,27 +245,6 @@ class AccessService {
     return result.toString();
   }
 
-  Future<String?> _patientIdForInviteToken(String inviteToken) async {
-    final rows = await _supabase
-        .from('access_invites_dashboard')
-        .select('patient_id, id')
-        .eq('invite_token', inviteToken.trim())
-        .limit(1);
-    if (rows.isEmpty) return null;
-    final row = Map<String, dynamic>.from(rows.first as Map);
-    return row['patient_id']?.toString();
-  }
-
-  Future<String?> _patientIdForGrant(String grantId) async {
-    final row = await _supabase
-        .from('access_grants')
-        .select('patient_id')
-        .eq('id', grantId.trim())
-        .maybeSingle();
-    if (row == null) return null;
-    return Map<String, dynamic>.from(row)['patient_id']?.toString();
-  }
-
   Future<dynamic> acceptInvite(
       String inviteToken, {
         String? patientId,
@@ -299,15 +256,6 @@ class AccessService {
       params: {'_invite_token': inviteToken.trim()},
     );
 
-    final pid =
-        patientId ?? await _patientIdForInviteToken(inviteToken) ?? '';
-    if (pid.isNotEmpty) {
-      await _notifications.recordInviteAcceptedIfNeeded(
-        patientId: pid,
-        entityId: inviteId ?? inviteToken,
-        actorUserId: actorUserId,
-      );
-    }
     notifyAccessChanged();
     return result;
   }
@@ -323,15 +271,6 @@ class AccessService {
       params: {'_invite_token': inviteToken.trim()},
     );
 
-    final pid =
-        patientId ?? await _patientIdForInviteToken(inviteToken) ?? '';
-    if (pid.isNotEmpty) {
-      await _notifications.recordInviteRejectedIfNeeded(
-        patientId: pid,
-        entityId: inviteId ?? inviteToken,
-        actorUserId: actorUserId,
-      );
-    }
     notifyAccessChanged();
     return result;
   }
@@ -354,14 +293,6 @@ class AccessService {
       },
     );
 
-    final pid = patientId ?? await _patientIdForGrant(grantId) ?? '';
-    if (pid.isNotEmpty) {
-      await _notifications.recordPermissionUpdatedIfNeeded(
-        patientId: pid,
-        grantId: grantId,
-        actorUserId: actorUserId,
-      );
-    }
     notifyAccessChanged();
     return result;
   }
@@ -376,14 +307,6 @@ class AccessService {
       params: {'_grant_id': grantId.trim()},
     );
 
-    final pid = patientId ?? await _patientIdForGrant(grantId) ?? '';
-    if (pid.isNotEmpty) {
-      await _notifications.recordGrantRevokedIfNeeded(
-        patientId: pid,
-        grantId: grantId,
-        actorUserId: actorUserId,
-      );
-    }
     notifyAccessChanged();
     return result;
   }
