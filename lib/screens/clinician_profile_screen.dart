@@ -17,7 +17,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
 
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _licenseController = TextEditingController();
   final _specializationController = TextEditingController();
   final _facilityNameController = TextEditingController();
   final _workPhoneController = TextEditingController();
@@ -48,7 +47,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
-    _licenseController.dispose();
     _specializationController.dispose();
     _facilityNameController.dispose();
     _workPhoneController.dispose();
@@ -77,7 +75,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
       _addressId = profile.addressId;
       _fullNameController.text = profile.fullName;
       _phoneController.text = profile.phone ?? '';
-      _licenseController.text = profile.licenseNumber ?? '';
       _specializationController.text = profile.specialization ?? '';
       _facilityNameController.text = profile.facilityName ?? '';
       _workPhoneController.text = profile.workPhone ?? '';
@@ -181,9 +178,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
             ? null
             : _phoneController.text.trim(),
         addressId: addressId,
-        licenseNumber: _licenseController.text.trim().isEmpty
-            ? null
-            : _licenseController.text.trim(),
         specialization: _specializationController.text.trim().isEmpty
             ? null
             : _specializationController.text.trim(),
@@ -228,7 +222,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
 
       _fullNameController.clear();
       _phoneController.clear();
-      _licenseController.clear();
       _specializationController.clear();
       _facilityNameController.clear();
       _workPhoneController.clear();
@@ -280,13 +273,6 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
                 TextField(
                   controller: _phoneController,
                   decoration: const InputDecoration(labelText: 'Phone'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _licenseController,
-                  decoration: const InputDecoration(
-                    labelText: 'License number',
-                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(

@@ -6,7 +6,6 @@ class ClinicianProfileModel {
   final String fullName;
   final String? phone;
   final String? addressId;
-  final String? licenseNumber;
   final String? specialization;
   final String? facilityName;
   final String? workPhone;
@@ -22,7 +21,6 @@ class ClinicianProfileModel {
     required this.fullName,
     this.phone,
     this.addressId,
-    this.licenseNumber,
     this.specialization,
     this.facilityName,
     this.workPhone,
@@ -40,7 +38,6 @@ class ClinicianProfileModel {
       fullName: map['full_name']?.toString() ?? '',
       phone: map['phone']?.toString(),
       addressId: map['address_id']?.toString(),
-      licenseNumber: map['license_number']?.toString(),
       specialization: map['specialization']?.toString(),
       facilityName: map['facility_name']?.toString(),
       workPhone: map['work_phone']?.toString(),
@@ -57,7 +54,6 @@ class ClinicianProfileModel {
     'full_name': fullName,
     'phone': phone,
     'address_id': addressId,
-    'license_number': licenseNumber,
     'specialization': specialization,
     'facility_name': facilityName,
     'work_phone': workPhone,
@@ -71,7 +67,6 @@ class ClinicianProfileModel {
     'full_name': fullName,
     'phone': phone,
     'address_id': addressId,
-    'license_number': licenseNumber,
     'specialization': specialization,
     'facility_name': facilityName,
     'work_phone': workPhone,
