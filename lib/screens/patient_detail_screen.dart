@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
-import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 import 'patient_access_management_screen.dart';
@@ -103,38 +101,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
-  Future<void> _confirmRemove(BuildContext context) async {
-    final shouldRemove = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Remove patient'),
-          content: const Text(
-            'This will revoke your own access to this patient. '
-                'The patient record itself will not be deleted.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Remove'),
-            ),
-          ],
-        );
-      },
-    );
 
-    if (shouldRemove != true) return;
-
-    await AccessService().revokeGrant(widget.grantId);
-
-    if (context.mounted) {
-      Navigator.pop(context);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,14 +229,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 onTap: _openManageAccess,
               ),
             ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.person_remove_outlined),
-              title: const Text('Remove patient'),
-              subtitle: const Text('Revoke your own access to this patient'),
-              onTap: () => _confirmRemove(context),
-            ),
-          ),
+
           if (_access.permission == 'none' || _access.isExpired)
             const Card(
               child: Padding(
