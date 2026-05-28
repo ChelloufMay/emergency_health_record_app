@@ -303,6 +303,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
             return Card(
               child: ListTile(
                 title: Text(item.medicationName),
+
                 subtitle: Text(
                   [
                     if ((item.dosage ?? '').isNotEmpty)

@@ -5,7 +5,6 @@ class FamilyDoctorModel {
   final String fullName;
   final String? phone;
   final String? addressId; // Only the FK belongs in public.family_doctors.
-  final String? medicalLicenseNumber;
   final DateTime? firstSeenDate;
   final String? notes;
   final String? createdByUserId;
@@ -17,7 +16,6 @@ class FamilyDoctorModel {
     required this.fullName,
     this.phone,
     this.addressId,
-    this.medicalLicenseNumber,
     this.firstSeenDate,
     this.notes,
     this.createdByUserId,
@@ -36,7 +34,6 @@ class FamilyDoctorModel {
       fullName: map['full_name']?.toString() ?? '',
       phone: map['phone']?.toString(),
       addressId: map['address_id']?.toString(),
-      medicalLicenseNumber: map['medical_license_number']?.toString(),
       firstSeenDate: asDateTime(map['first_seen_date']),
       notes: map['notes']?.toString(),
       createdByUserId: map['created_by_user_id']?.toString(),
@@ -51,7 +48,6 @@ class FamilyDoctorModel {
     'full_name': fullName.trim(),
     'phone': phone?.trim(),
     'address_id': addressId,
-    'medical_license_number': medicalLicenseNumber?.trim(),
     'first_seen_date': _dateOnly(firstSeenDate),
     'notes': notes,
     'created_by_user_id': createdByUserId,
@@ -62,7 +58,6 @@ class FamilyDoctorModel {
     'full_name': fullName.trim(),
     'phone': phone?.trim(),
     'address_id': addressId,
-    'medical_license_number': medicalLicenseNumber?.trim(),
     'first_seen_date': _dateOnly(firstSeenDate),
     'notes': notes,
   });

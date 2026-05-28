@@ -33,6 +33,28 @@ class WelcomeScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
+
+              const SizedBox(height: 24),
+
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Powered by:',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 48,
+                    fit: BoxFit.contain,
+                  ),
+                ],
+              ),
+
               const Spacer(),
               FilledButton(
                 onPressed: () {

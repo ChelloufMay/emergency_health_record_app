@@ -97,8 +97,6 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
 
     final fullNameController = TextEditingController(text: current?.fullName ?? '');
     final phoneController = TextEditingController(text: current?.phone ?? '');
-    final licenseController =
-    TextEditingController(text: current?.medicalLicenseNumber ?? '');
     final notesController = TextEditingController(text: current?.notes ?? '');
 
     final countryController =
@@ -134,10 +132,6 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                   ? null
                   : phoneController.text.trim(),
               addressId: current?.addressId,
-              medicalLicenseNumber: licenseController.text.trim().isEmpty
-                  ? null
-                  : licenseController.text.trim(),
-              firstSeenDate: firstSeenDate,
               notes: notesController.text.trim().isEmpty
                   ? null
                   : notesController.text.trim(),
@@ -185,13 +179,6 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                         decoration: const InputDecoration(labelText: 'Phone'),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: licenseController,
-                        enabled: !saving,
-                        decoration: const InputDecoration(
-                          labelText: 'Medical license number',
-                        ),
-                      ),
                       const SizedBox(height: 12),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -292,7 +279,6 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
 
     fullNameController.dispose();
     phoneController.dispose();
-    licenseController.dispose();
     notesController.dispose();
     countryController.dispose();
     governorateController.dispose();
@@ -368,8 +354,6 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                     : [
                   if ((item.phone ?? '').isNotEmpty)
                     'Phone: ${item.phone}',
-                  if ((item.medicalLicenseNumber ?? '').isNotEmpty)
-                    'License: ${item.medicalLicenseNumber}',
                   if (item.firstSeenDate != null)
                     'First seen: ${item.firstSeenDate!.toIso8601String().split('T').first}',
                   if ((item.country ?? '').isNotEmpty)

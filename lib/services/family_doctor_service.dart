@@ -79,7 +79,6 @@ class FamilyDoctorService {
           '_street': _trimToNull(addressFields?['street']?.toString()),
           '_postal_code': _trimToNull(addressFields?['postal_code']?.toString()),
           '_extra_details': _trimToNull(addressFields?['extra_details']?.toString()),
-          '_medical_license_number': _trimToNull(doctor.medicalLicenseNumber),
           '_first_seen_date': doctor.firstSeenDate?.toIso8601String().split('T').first,
           '_notes': _trimToNull(doctor.notes),
         },
@@ -93,7 +92,7 @@ class FamilyDoctorService {
   Future<void> deleteForPatient({
     required String patientId,
     required String doctorId,
-    required String performedByUserId, // kept for client-side consistency
+    required String performedByUserId,
   }) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(doctorId, 'doctorId');

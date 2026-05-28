@@ -6,7 +6,7 @@ class PatientRiskPredictionApiService {
   final String baseUrl;
 
   PatientRiskPredictionApiService({
-    this.baseUrl = 'http://192.168.100.10:8000',
+    this.baseUrl = 'http://192.168.1.27:8000',
   });
 
   Future<Map<String, dynamic>> predict({
