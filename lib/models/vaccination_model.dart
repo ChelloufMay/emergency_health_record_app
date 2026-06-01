@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a vaccination record for a patient. --> maps to the 'vaccinations' table in the database.
 class VaccinationModel {
   final String? id;
   final String patientId;
@@ -23,6 +24,7 @@ class VaccinationModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD.
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;

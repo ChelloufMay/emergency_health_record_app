@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a hospitalization record for a patient. --> maps to the 'hospitalizations' table in the database.
 class HospitalizationModel {
   final String? id;
   final String patientId;
@@ -23,6 +24,7 @@ class HospitalizationModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD string
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;
@@ -52,7 +54,6 @@ class HospitalizationModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id stays fixed.
     'hospital_name': hospitalName,
     'admission_date': _dateOnly(admissionDate),
     'discharge_date': _dateOnly(dischargeDate),

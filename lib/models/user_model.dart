@@ -1,12 +1,13 @@
 import 'model_utils.dart';
 
+// Represents a user within the emergency health record system. --> maps to the 'users' table in the database.
 class UserModel {
   final String? id;
   final String authUserId;
   final String fullName;
   final String? phone;
   final String? email;
-  final String role; // DB enum: user_role.
+  final String role; // The role assigned to the user (owner, clinician, caregiver, guardian).
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -21,6 +22,7 @@ class UserModel {
     this.updatedAt,
   });
 
+  // Create a UserModel instance from a Map (typically from a database query result).
   factory UserModel.fromMap(Map map) {
     return UserModel(
       id: map['id']?.toString(),
@@ -34,9 +36,10 @@ class UserModel {
     );
   }
 
+  // Convert the UserModel to a Map suitable for inserting a new record into the database.
   Map<String, dynamic> toInsertMap() => cleanMap({
     // Used by the auth bootstrap / profile sync path.
-    // The DB defaults role to owner, but keeping it here preserves the current app flow and makes service-side inserts explicit.
+    // The DB defaults role to owner but keeping it preserves the current app flow and makes service side inserts explicit.
     'auth_user_id': authUserId,
     'full_name': fullName,
     'phone': phone,
@@ -44,11 +47,14 @@ class UserModel {
     'role': role,
   });
 
+  // Convert the UserModel to a Map suitable for updating an existing record.
+  // Only includes fields that are typically allowed to be updated by the user.
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // The current DB grants authenticated users updates only for full_name and phone, so the model only sends those fields.
+    // The current DB grants authenticated users updates only for full_name and phone.
     'full_name': fullName,
     'phone': phone,
   });
 
+  // Convert the UserModel to a Map. Defaults to the insertion map format.
   Map<String, dynamic> toMap() => toInsertMap();
 }

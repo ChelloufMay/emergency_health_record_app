@@ -1,3 +1,5 @@
+// Represents a row in the UI that displays a patient and the user's access level to their record.
+// Used in the "My Patients" or "Access" dashboard for caregivers and clinicians.
 class PatientAccessRowModel {
   final String patientId;
   final String patientName;
@@ -47,6 +49,7 @@ class PatientAccessRowModel {
     );
   }
 
+  // Converts the model back to a Map.
   Map<String, dynamic> toMap() {
     return {
       'patient_id': patientId,
@@ -60,7 +63,12 @@ class PatientAccessRowModel {
     };
   }
 
+  // True if the user has permission to edit.
   bool get canEdit => permission == 'edit' || permission == 'owner';
+
+  // True if the user only has emergency access.
   bool get isEmergencyOnly => permission == 'emergency_only';
+
+  // True if the user has at least read access.
   bool get canRead => permission == 'read' || canEdit || isEmergencyOnly;
 }

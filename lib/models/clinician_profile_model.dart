@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents the profile of a clinician (doctor, nurse ...). --> maps to the 'clinician_profiles' table in the database.
 class ClinicianProfileModel {
   final String? id;
   final String userId;
@@ -63,7 +64,6 @@ class ClinicianProfileModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // user_id should stay fixed for the clinician profile row.
     'full_name': fullName,
     'phone': phone,
     'address_id': addressId,

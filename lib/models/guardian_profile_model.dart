@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents the profile of a legal guardian. --> maps to the 'guardian_profiles' table in the database.
 class GuardianProfileModel {
   final String? id;
   final String userId;
@@ -51,7 +52,6 @@ class GuardianProfileModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // user_id is the ownership key and should stay fixed.
     'full_name': fullName,
     'relationship_to_patient': relationshipToPatient,
     'legal_authority_note': legalAuthorityNote,

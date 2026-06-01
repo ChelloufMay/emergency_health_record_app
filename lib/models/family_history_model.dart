@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a record in the patient's family medical history. --> maps to the 'family_history' table in the database.
 class FamilyHistoryModel {
   final String? id;
   final String patientId;

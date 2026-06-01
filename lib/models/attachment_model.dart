@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents an attachment or document associated with a patient's record. --> maps to the 'attachments' table in the database.
 class AttachmentModel {
   final String? id;
   final String patientId;
@@ -27,6 +28,7 @@ class AttachmentModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD string format for database compatibility.
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;

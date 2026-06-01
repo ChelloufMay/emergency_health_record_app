@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a patient's lifestyle and social history factors. --> maps to the 'lifestyle' table in the database.
 class LifestyleModel {
   final String? id;
   final String patientId;
@@ -95,7 +96,6 @@ class LifestyleModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id is the stable owner key.
     'lives_alone': livesAlone,
     'has_caregiver': hasCaregiver,
     'stairs_in_home': stairsInHome,

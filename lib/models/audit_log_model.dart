@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents an audit log entry for tracking actions performed on patient records. --> maps to the 'audit_logs' table in the database.
 class AuditLogModel {
   final String? id;
   final String patientId;

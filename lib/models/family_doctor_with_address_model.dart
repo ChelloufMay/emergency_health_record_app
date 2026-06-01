@@ -1,13 +1,14 @@
 import 'model_utils.dart';
 
+// A composite model that represents a family doctor along with their full address details.
+// Used for UI display because doctor information and address information are joined in a single view or query.
 class FamilyDoctorWithAddressModel {
   final String? id;
   final String fullName;
   final String? phone;
   final String? addressId;
 
-  // These come from the joined public.addresses row.
-  // This is a view/composite model only, not a table-backed model.
+  // These fields come from the joined 'addresses' table record.
   final String? country;
   final String? governorate;
   final String? city;
@@ -16,7 +17,6 @@ class FamilyDoctorWithAddressModel {
   final String? postalCode;
   final String? extraDetails;
 
-  final String? medicalLicenseNumber;
   final DateTime? firstSeenDate;
   final String? notes;
   final String? createdByUserId;
@@ -35,7 +35,7 @@ class FamilyDoctorWithAddressModel {
     this.street,
     this.postalCode,
     this.extraDetails,
-    this.medicalLicenseNumber,
+
     this.firstSeenDate,
     this.notes,
     this.createdByUserId,
@@ -56,7 +56,6 @@ class FamilyDoctorWithAddressModel {
       street: map['street']?.toString(),
       postalCode: map['postal_code']?.toString(),
       extraDetails: map['extra_details']?.toString(),
-      medicalLicenseNumber: map['medical_license_number']?.toString(),
       firstSeenDate: asDateTime(map['first_seen_date']),
       notes: map['notes']?.toString(),
       createdByUserId: map['created_by_user_id']?.toString(),

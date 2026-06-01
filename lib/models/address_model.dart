@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a physical address within the system. --> maps to the 'addresses' table in the database.
 class AddressModel {
   final String? id;
   final String country;
@@ -9,7 +10,7 @@ class AddressModel {
   final String? street;
   final String? postalCode;
   final String? extraDetails;
-  final String? createdByUserId; // Matches public.addresses.created_by_user_id.
+  final String? createdByUserId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -27,6 +28,7 @@ class AddressModel {
     this.updatedAt,
   });
 
+  // Create an AddressModel instance from a Map.
   factory AddressModel.fromMap(Map map) {
     return AddressModel(
       id: map['id']?.toString(),
@@ -43,9 +45,8 @@ class AddressModel {
     );
   }
 
+  // Convert the AddressModel to a Map suitable for inserting a new record.
   Map<String, dynamic> toInsertMap() => cleanMap({
-    // created_by_user_id is DB-managed by default(current_app_user_id()).
-    // Keeping it optional here allows service-side inserts when needed.
     'country': country,
     'governorate': governorate,
     'city': city,
@@ -56,8 +57,8 @@ class AddressModel {
     'created_by_user_id': createdByUserId,
   });
 
+  // Convert the AddressModel to a Map suitable for updating an existing record.
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // The creator owns the row, so creator identity should not change.
     'country': country,
     'governorate': governorate,
     'city': city,

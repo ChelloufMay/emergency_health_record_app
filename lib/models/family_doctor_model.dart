@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a family doctor record. --> maps to the 'family_doctors' table in the database.
 class FamilyDoctorModel {
   final String? id;
   final String fullName;
@@ -43,7 +44,7 @@ class FamilyDoctorModel {
   }
 
   Map<String, dynamic> toInsertMap() => cleanMap({
-    // The model now matches public.family_doctors only.
+    // The model matches public.family_doctors only.
     // Address details live in public.addresses and are linked by address_id.
     'full_name': fullName.trim(),
     'phone': phone?.trim(),

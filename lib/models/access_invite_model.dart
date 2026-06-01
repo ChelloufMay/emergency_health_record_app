@@ -1,12 +1,15 @@
 import 'model_utils.dart';
 
+// An invitation sent to a user to grant them access to a patient's record. --> maps to the 'access_invites' table in the database.
 class AccessInviteModel {
   final String? id;
   final String patientId;
   final String invitedEmail;
-  final String invitedRole; // DB enum: user_role, but the table accepts only caregiver/guardian/clinician.
-  final String permission; // DB enum: permission_type.
-  final String status; // DB enum: access_invite_status.
+  final String invitedRole;
+  final String permission;
+  final String status;
+
+  // A token used to validate the invitation when the recipient accepts it.
   final String? inviteToken;
   final String? invitedByUserId;
   final String? acceptedByUserId;
@@ -19,7 +22,7 @@ class AccessInviteModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Keeps the original row available for screens that still rely on raw JSON-like access.
+  // Keeps the original row available for screens that rely on raw JSON like access.
   final Map<String, dynamic> raw;
 
   const AccessInviteModel({
@@ -43,6 +46,7 @@ class AccessInviteModel {
     required this.raw,
   });
 
+  // Create an AccessInviteModel instance from a Map.
   factory AccessInviteModel.fromMap(Map map) {
     final raw = Map<String, dynamic>.from(map);
 
@@ -68,14 +72,10 @@ class AccessInviteModel {
     );
   }
 
+  // Convert the AccessInviteModel to a Map suitable for inserting a new record.
   Map<String, dynamic> toInsertMap() => cleanMap({
     // This payload is intentionally minimal.
-    // Database defaults and the create_access_invite() RPC handle:
-    // - invite_token
-    // - invited_at
-    // - invited_by_user_id
-    // - accepted/rejected columns
-    'patient_id': patientId,
+    // Database defaults and the create_access_invite() RPC handle
     'invited_email': invitedEmail.trim().toLowerCase(),
     'invited_role': invitedRole,
     'permission': permission,
@@ -83,6 +83,7 @@ class AccessInviteModel {
     'notes': notes,
   });
 
+  // Converts the [AccessInviteModel] to a Map suitable for updating an existing record.
   Map<String, dynamic> toUpdateMap() => cleanMap({
     // Only mutable invite lifecycle fields should be updated.
     // Identity fields stay fixed after creation.
@@ -96,5 +97,6 @@ class AccessInviteModel {
     'notes': notes,
   });
 
+  // Converts the [AccessInviteModel] to a Map. Defaults to insertion format.
   Map<String, dynamic> toMap() => toInsertMap();
 }

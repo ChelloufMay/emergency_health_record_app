@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a temporary access token for emergency situations. --> maps to the 'emergency_access_tokens' table in the database.
 class EmergencyAccessTokenModel {
   final String? id;
   final String patientId;
@@ -39,7 +40,7 @@ class EmergencyAccessTokenModel {
 
   Map<String, dynamic> toInsertMap() => cleanMap({
     // Keep the model aligned with public.emergency_access_tokens.
-    // token is optional because the DB can generate it automatically.
+    // token optional cus the DB can generate it automatically.
     'patient_id': patientId,
     'token': token,
     'is_active': isActive,

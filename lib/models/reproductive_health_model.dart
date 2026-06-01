@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a patient's reproductive health history and current status. --> maps to the 'reproductive_health' table in the database.
 class ReproductiveHealthModel {
   final String? id;
   final String patientId;
@@ -45,6 +46,7 @@ class ReproductiveHealthModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD.
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;
@@ -96,7 +98,6 @@ class ReproductiveHealthModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id stays fixed.
     'has_menstrual_cycle': hasMenstrualCycle,
     'cycle_regular': cycleRegular,
     'cycle_painful': cyclePainful,

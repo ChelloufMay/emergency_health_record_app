@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a patient's core profile information. --> maps to the 'patient_profiles' table in the database.
 class PatientProfileModel {
   final String? id;
   final String userId;
@@ -37,6 +38,7 @@ class PatientProfileModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD.
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;
@@ -80,7 +82,6 @@ class PatientProfileModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // user_id is the ownership key and should remain fixed.
     'first_name': firstName,
     'family_name': familyName,
     'sex': sex,

@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents the profile of a caregiver. --> maps to the 'caregiver_profiles' table in the database.
 class CaregiverProfileModel {
   final String? id;
   final String userId;
@@ -59,7 +60,6 @@ class CaregiverProfileModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // user_id is the ownership key and should not change.
     'full_name': fullName,
     'relationship_to_patient': relationshipToPatient,
     'phone': phone,

@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents an allergy record for a patient. --> maps to the 'allergies' table in the database.
 class AllergyModel {
   final String? id;
   final String patientId;
@@ -23,8 +24,7 @@ class AllergyModel {
     this.updatedAt,
   });
 
-  // This model is intentionally lightweight.
-  // The schema stores the allergy source as a DB enum-like text field.
+  // Hardcoded verification status cus records are user entered.
   String? get verificationStatus => 'user_entered';
 
   factory AllergyModel.fromMap(Map map) {
@@ -51,7 +51,6 @@ class AllergyModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id should not change on update.
     'allergen_name': allergenName,
     'allergy_type': allergyType,
     'reaction': reaction,

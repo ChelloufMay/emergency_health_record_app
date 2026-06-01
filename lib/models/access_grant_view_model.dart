@@ -1,15 +1,11 @@
 import 'access_grant_model.dart';
 import 'model_utils.dart';
 
-/// UI-friendly grant row used by both owner-management screens and caregiver
-/// access screens.
+// A view model representing an access grant, optimized for display . --> aggregates data from the access grant and potentially related entities like patient names.
 class AccessGrantViewModel {
   final String grantId;
   final String patientId;
-
-  /// CHANGED: display name for the patient in caregiver access screens.
   final String patientName;
-
   final String granteeUserId;
   final String granteeRole;
   final String granteeLabel;
@@ -17,6 +13,8 @@ class AccessGrantViewModel {
   final String status;
   final DateTime? expiresAt;
   final String? notes;
+
+  // The underlying AccessGrantModel if available.
   final AccessGrantModel? grant;
 
   const AccessGrantViewModel({
@@ -33,6 +31,7 @@ class AccessGrantViewModel {
     this.grant,
   });
 
+  // Helper to extract a non-empty string value from a map using a list of possible keys.
   static String _stringValue(
       Map row,
       List keys, {
@@ -48,6 +47,7 @@ class AccessGrantViewModel {
     return fallback;
   }
 
+  // Helper to construct a full name from various possible patient name fields in a map.
   static String _fullNameFromRow(Map row) {
     final direct = _stringValue(
       row,
@@ -67,6 +67,7 @@ class AccessGrantViewModel {
     return [firstName, familyName].where((part) => part.trim().isNotEmpty).join(' ').trim();
   }
 
+  // Create a view model from a base AccessGrantModel.
   factory AccessGrantViewModel.fromGrant(AccessGrantModel grant) {
     return AccessGrantViewModel(
       grantId: grant.id ?? '',
@@ -83,6 +84,7 @@ class AccessGrantViewModel {
     );
   }
 
+  // Create a view model from a database row (Map), handling various potential field names.
   factory AccessGrantViewModel.fromDashboardRow(Map map) {
     final row = Map.from(map);
 

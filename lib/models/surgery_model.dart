@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a surgical procedure record for a patient. --> maps to the 'surgeries' table in the database.
 class SurgeryModel {
   final String? id;
   final String patientId;
@@ -23,6 +24,7 @@ class SurgeryModel {
     this.updatedAt,
   });
 
+  // Formats a DateTime to a YYYY-MM-DD.
   static String? _dateOnly(DateTime? value) {
     if (value == null) return null;
     return value.toIso8601String().split('T').first;
@@ -52,7 +54,6 @@ class SurgeryModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id should not be edited on an existing surgery row.
     'surgery_name': surgeryName,
     'surgery_date': _dateOnly(surgeryDate),
     'place': place,

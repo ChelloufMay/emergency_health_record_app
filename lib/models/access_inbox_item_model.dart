@@ -1,19 +1,20 @@
 import 'model_utils.dart';
 
-/// UI-friendly wrapper for invite dashboard rows shown in the recipient inbox.
+// Represents an invitation in a user's inbox. --> display incoming access requests to a caregiver or clinician.
 class AccessInboxItemModel {
   final String? id;
   final String patientId;
   final String patientName;
   final String inviteToken;
-  final String invitedRole;
-  final String permission;
-  final String status;
+  final String invitedRole; // The role being offered (caregiver, clinician).
+  final String permission; // The level of permission
+  final String status; // The current status of the invitation
   final String invitedEmail;
-  final String? senderLabel;
+  final String? senderLabel; // A label for the person who sent the invitation.
   final String? message;
   final DateTime? eventAt;
-  final Map<String, dynamic> raw;
+
+  final Map<String, dynamic> raw; // The original raw data from the database.
 
   const AccessInboxItemModel({
     this.id,
@@ -30,6 +31,7 @@ class AccessInboxItemModel {
     required this.raw,
   });
 
+  // Helper to extract a string value from a map using a list of prioritized keys.
   static String _stringValue(
     Map<String, dynamic> row,
     List<String> keys, {
@@ -45,6 +47,7 @@ class AccessInboxItemModel {
     return fallback;
   }
 
+  // Helper to extract or construct a patient's full name from a database row.
   static String patientNameFromRow(Map<String, dynamic> row) {
     final directName = _stringValue(
       row,
@@ -65,6 +68,7 @@ class AccessInboxItemModel {
     return fullName.isEmpty ? 'Unknown patient' : fullName;
   }
 
+  // Create an AccessInboxItemModel instance from a Map, handling various status based timestamps.
   factory AccessInboxItemModel.fromMap(Map map) {
     final raw = Map<String, dynamic>.from(map);
     final status = raw['status']?.toString() ?? 'pending';

@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a medical condition record for a patient. --> maps to the 'medical_conditions' table in the database.
 class MedicalConditionModel {
   final String? id;
   final String patientId;
@@ -55,7 +56,6 @@ class MedicalConditionModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id is the owner link and should not change.
     'condition_name': conditionName,
     'type': type,
     'diagnosis_date': diagnosisDate?.toIso8601String().split('T').first,

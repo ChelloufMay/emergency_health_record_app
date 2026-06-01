@@ -1,5 +1,6 @@
 import 'model_utils.dart';
 
+// Represents a medication record for a patient. --> maps to the 'medications' table in the database.
 class MedicationModel {
   final String? id;
   final String patientId;
@@ -27,6 +28,7 @@ class MedicationModel {
     this.updatedAt,
   });
 
+  // Verification status cus records are typically user entered.
   String? get verificationStatus => 'user_entered';
 
   factory MedicationModel.fromMap(Map map) {
@@ -57,7 +59,6 @@ class MedicationModel {
   });
 
   Map<String, dynamic> toUpdateMap() => cleanMap({
-    // patient_id is immutable.
     'medication_name': medicationName,
     'dosage': dosage,
     'frequency': frequency,
