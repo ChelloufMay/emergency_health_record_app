@@ -522,17 +522,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _tile(
                   icon: Icons.info_outline,
                   title: 'App version',
-                  subtitle: '1.0.0 — MVP',
+                  subtitle: '1.0.0 - MVP',
                   trailing: const SizedBox.shrink(),
                 ),
                 _divider(),
                 _tile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy policy',
-                  subtitle: 'How your data is protected',
-                  onTap: () => _showSnack(
-                    'Privacy policy — coming in a future version.',
-                  ),
+                  subtitle: 'Read how your data is handled',
+                  onTap: () => Navigator.pushNamed(context, '/privacy-policy'),
                 ),
                 _divider(),
                 _tile(
@@ -540,9 +538,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Terms of use',
                   subtitle:
                   'This app supplements but does not replace clinical records',
-                  onTap: () => _showSnack(
-                    'Terms of use — coming in a future version.',
-                  ),
+                  onTap: () => Navigator.pushNamed(context, '/terms-of-use'),
                 ),
               ],
             ),

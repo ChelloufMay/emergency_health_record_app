@@ -14,7 +14,7 @@ class ClinicianSettingsScreen extends StatelessWidget {
       showQr: false,
       showCaregivers: false,
       showAuditLog: true,
-      showDeleteAccount: false,
+      showDeleteAccount: true,
     );
   }
 }
