@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/allergy_model.dart';
 import 'verification_badge.dart';
 
+// Displays information about a patient's allergy.
 class AllergyCard extends StatelessWidget {
   final AllergyModel allergy;
   final bool canEdit;

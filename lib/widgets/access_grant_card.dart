@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/access_grant_view_model.dart';
 
-/// Reusable active grant row for patient-owner access management.
-
+// Represents an active access grant, used for managing patient-owner access.
 class AccessGrantCard extends StatelessWidget {
   final AccessGrantViewModel grant;
   final bool canManage;
   final VoidCallback? onEditPermission;
   final VoidCallback? onRevoke;
 
-  /// CHANGED: optional override for the main card label.
   final String? titleLabel;
 
-  /// CHANGED: optional tap action for caregiver access cards.
   final VoidCallback? onTap;
 
   const AccessGrantCard({
@@ -25,6 +22,7 @@ class AccessGrantCard extends StatelessWidget {
     this.onTap,
   });
 
+  // Returns a human-readable label for a user role
   String _roleLabel(String role) {
     switch (role.toLowerCase()) {
       case 'caregiver':
@@ -38,6 +36,7 @@ class AccessGrantCard extends StatelessWidget {
     }
   }
 
+  // Returns a human-readable label for a permission type.
   String _permissionLabel(String permission) {
     switch (permission.toLowerCase()) {
       case 'read':
@@ -51,6 +50,7 @@ class AccessGrantCard extends StatelessWidget {
     }
   }
 
+  // Returns an appropriate icon based on the grant's permission level
   IconData _permissionIcon() {
     switch (grant.permission.toLowerCase()) {
       case 'edit':

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
+// Displays the verification status of a health record entry.
 class VerificationBadge extends StatelessWidget {
   final String status;
 

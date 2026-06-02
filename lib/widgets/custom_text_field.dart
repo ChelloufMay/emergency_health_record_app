@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
+// A customized TextFormField with consistent styling and support for validation and icons.
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String labelText;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
+// A customized ElevatedButton with a full-width design and loading state.
 class CustomButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;

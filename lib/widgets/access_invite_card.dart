@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/access_inbox_item_model.dart';
 
-/// Reusable invite row for the recipient inbox (accept/reject on pending only).
+// Represents an access invitation, allowing users to accept or reject pending requests.
 class AccessInviteCard extends StatelessWidget {
   final AccessInboxItemModel item;
   final VoidCallback? onAccept;
@@ -17,6 +17,7 @@ class AccessInviteCard extends StatelessWidget {
     this.onTap,
   });
 
+  // Formats a DateTime into YYYY-MM-DD HH:MM
   String _formatDate(DateTime? date) {
     if (date == null) return '-';
     final y = date.year.toString().padLeft(4, '0');
@@ -27,6 +28,7 @@ class AccessInviteCard extends StatelessWidget {
     return '$y-$m-$d $hh:$mm';
   }
 
+  // Returns a human-readable label for a user role.
   String _roleLabel(String role) {
     switch (role.toLowerCase()) {
       case 'caregiver':
@@ -40,6 +42,7 @@ class AccessInviteCard extends StatelessWidget {
     }
   }
 
+  // Returns the appropriate color for the invitation status.
   Color _statusColor(BuildContext context) {
     switch (item.status.toLowerCase()) {
       case 'pending':

@@ -1,4 +1,6 @@
+// A collection of static validation methods for form fields.
 class Validators {
+  // Validates that a field is not empty.
   static String? requiredField(String? value, {String label = 'This field'}) {
     if (value == null || value.trim().isEmpty) {
       return '$label is required';
@@ -6,6 +8,7 @@ class Validators {
     return null;
   }
 
+  // Validates that a field contains a properly formatted email address
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Email is required';
@@ -17,6 +20,7 @@ class Validators {
     return null;
   }
 
+  // Validates that a password meets the minimum length requirement
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -27,6 +31,7 @@ class Validators {
     return null;
   }
 
+  // Validates that a field contains a valid date string (YYYY-MM-DD) or is empty
   static String? optionalDate(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     final parsed = DateTime.tryParse(value.trim());
@@ -36,6 +41,7 @@ class Validators {
     return null;
   }
 
+  // Validates that a field contains a valid number or is empty
   static String? optionalNumber(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     final parsed = num.tryParse(value.trim());
@@ -44,9 +50,8 @@ class Validators {
     }
     return null;
   }
-
-  // Useful for contact fields where you want lightweight validation
-  // without forcing a single country format.
+  
+  // Validates that a field contains a valid phone number format or is empty.
   static String? optionalPhone(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     final cleaned = value.trim();
@@ -56,9 +61,9 @@ class Validators {
     }
     return null;
   }
-
-  // Useful for dropdown-backed fields when you want to keep values aligned
-  // with the enums/allowed strings in the database.
+  
+  // Validates that a value belongs to a specific set of allowed strings.
+  // Useful for dropdown-backed fields when to keep values aligned with the enums/allowed strings in the database.
   static String? valueInSet(
     String? value, {
     required Set<String> allowed,

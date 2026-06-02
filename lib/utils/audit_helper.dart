@@ -1,23 +1,29 @@
+// Helper class for formatting and normalizing data for audit logs and UI display.
 class AuditHelper {
+  // Returns null if the string is empty or only contains whitespace.
   static String? nullIfEmpty(String? value) {
     final v = value?.trim();
     if (v == null || v.isEmpty) return null;
     return v;
   }
 
+  // Trims whitespace from the string.
   static String normalize(String value) {
     return value.trim();
   }
 
+  // Normalizes a date string for database storage.
   static String dateToDb(String? value) {
     if (value == null || value.trim().isEmpty) return '';
     return value.trim();
   }
 
+  // Formats an action and entity type into a label
   static String actionLabel(String action, String entityType) {
     return '$action:$entityType';
   }
 
+  // Joins non empty strings with a separator.
   static String joinNonEmpty(
       Iterable<String?> values, {
         String separator = ' • ',
@@ -32,16 +38,18 @@ class AuditHelper {
     return parts.isEmpty ? fallback : parts.join(separator);
   }
 
+  // Checks if the verification status indicates clinician verification
   static bool isClinicianVerified(String? status) {
     return status?.trim().toLowerCase() == 'clinician_verified';
   }
 
+  // Returns the value or a fallback string if it is null or empty
   static String labelOrUnknown(String? value, {String fallback = 'Unknown'}) {
     final v = value?.trim();
     return v == null || v.isEmpty ? fallback : v;
   }
 
-  // CHANGED: build a consistent audit payload so all callers use the same shape.
+  // Builds a standard audit record map for database insertion
   static Map<String, dynamic> buildAuditRecord({
     required String patientId,
     required String action,

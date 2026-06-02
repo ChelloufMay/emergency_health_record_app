@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Shows a confirmation dialog before deleting a record, returning true if the user confirms.
 Future<bool> showDeleteConfirmDialog({
   required BuildContext context,
   required String title,

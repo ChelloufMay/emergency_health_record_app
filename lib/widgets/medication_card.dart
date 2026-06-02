@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/medication_model.dart';
 import 'verification_badge.dart';
 
+// Displays information about a patient's medication.
 class MedicationCard extends StatelessWidget {
   final MedicationModel medication;
   final bool canEdit;

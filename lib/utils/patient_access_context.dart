@@ -6,23 +6,13 @@ import '../services/access_realtime_service.dart';
 import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 
-/// Backward-compatible patient access context.
-///
-/// Supports both styles:
-/// 1) Old value-object usage:
-///    final ctx = PatientAccessContext(...);
-///
-/// 2) New reactive singleton usage:
-///    await PatientAccessContext.instance.bindPatient(patientId);
-///    PatientAccessContext.instance.addListener(...)
-///
-/// This version also enforces grant expiry locally:
-/// - it stores the active grant expiry time when available
-/// - it schedules a timer for the expiry moment
-/// - when the timer fires, it re-checks the DB and drops access if the grant
-///   is expired, revoked, or otherwise no longer active
+// Backward-compatible patient access context.
+
+// Stores the active grant expiry time when available
+// Schedules a timer for the expiry moment
+// When the timer fires, it rechecks the DB and drops access if the grant is expired, revoked, or otherwise no longer active
 class PatientAccessContext extends ChangeNotifier {
-  /// Old-style constructor used by existing screens.
+  // Old-style constructor used by existing screens.
   PatientAccessContext({
     required String patientId,
     required bool canEdit,
@@ -35,7 +25,7 @@ class PatientAccessContext extends ChangeNotifier {
         _actorUserId = actorUserId,
         _actorRole = actorRole;
 
-  /// Internal constructor for the reactive singleton.
+  // Internal constructor for the reactive singleton.
   PatientAccessContext._reactive()
       : _patientId = '',
         _legacyCanEdit = false,
@@ -43,6 +33,7 @@ class PatientAccessContext extends ChangeNotifier {
         _actorUserId = null,
         _actorRole = null;
 
+  // Singleton instance of PatientAccessContext for reactive usage.
   static final PatientAccessContext instance = PatientAccessContext._reactive();
 
   final AccessService _accessService = AccessService();
@@ -64,55 +55,61 @@ class PatientAccessContext extends ChangeNotifier {
   bool _isRefreshing = false;
   int _revision = 0;
 
+  // The ID of the patient currently in context.
   String get patientId => _patientId;
+
+  // The ID of the active access grant, if any.
   String? get grantId => _grantId;
 
-  /// Canonical permission value for the current patient context.
-  /// Expected values:
-  /// - none
-  /// - read
-  /// - edit
-  /// - emergency_only
+  // Canonical permission value for the current patient context.
+  // Expected values:
+  // - none
+  // - read
+  // - edit
+  // - emergency_only
   String get permission => _permission;
 
-  /// Active grant expiry, when known.
+  // Active grant expiry, when known.
   DateTime? get expiresAt => _expiresAt;
 
-  /// Used by UI keys to force rebuilds when the context changes.
+  // Used by UI keys to force rebuilds when the context changes.
   int get revision => _revision;
 
+  // ID of the user performing actions in this context.
   String? get actorUserId => _actorUserId;
+
+  // Role of the user performing actions in this context.
   String? get actorRole => _actorRole;
 
-  /// Backward-compatible access flags.
+  // Backward-compatible access flags.
   bool get canEdit => _legacyCanEdit || _permission == 'edit';
   bool get isEmergencyOnly =>
       _legacyIsEmergencyOnly || _permission == 'emergency_only';
 
-  /// Read access for normal sections.
+  // Read access for normal sections.
   bool get canViewProfile => !isEmergencyOnly;
 
-  /// Medical summary is visible in read/edit modes.
+  // Medical summary is visible in read/edit modes.
   bool get canViewMedicalSummary => !isEmergencyOnly;
 
-  /// Emergency screen is available only in emergency-only mode.
+  // Emergency screen is available only in emergency-only mode.
   bool get canViewEmergency => isEmergencyOnly;
 
-  /// QR screen is available only in emergency-only mode.
+  // QR screen is available only in emergency-only mode.
   bool get canViewQr => isEmergencyOnly;
 
-  /// Mutation access for section screens.
+  // Mutation access for section screens.
   bool get canMutate => canEdit && !isEmergencyOnly;
 
-  /// Backward-compatible alias used by existing screens.
+  // Backward-compatible alias used by existing screens.
   bool get allowMutations => canMutate;
 
-  /// True only when the current grant is known to be expired locally.
-  /// This is mainly useful for UI messaging.
+  // True only when the current grant is known to be expired locally.
+  // This is mainly useful for UI messaging.
   bool get isExpired =>
       _expiresAt != null && DateTime.now().isAfter(_expiresAt!);
 
-  /// Build a context from route arguments and session fallback.
+  // Resolves the patient access context from route arguments or session fallbacks.
   static PatientAccessContext resolve({
     Map<String, dynamic>? arguments,
     String? fallbackPatientId,
@@ -155,6 +152,7 @@ class PatientAccessContext extends ChangeNotifier {
     );
   }
 
+  // Map this context's properties to a map suitable for route arguments
   Map<String, dynamic> toRouteArguments() => {
     'patientId': patientId,
     'canEdit': canEdit,
@@ -163,7 +161,7 @@ class PatientAccessContext extends ChangeNotifier {
     if (actorRole != null) 'actorRole': actorRole,
   };
 
-  /// Bind the reactive singleton to a patient and refresh it.
+  // Binds the reactive singleton to a specific patient and refreshes the access state
   Future<void> bindPatient(String patientId) async {
     final normalized = patientId.trim();
     if (normalized.isEmpty) return;
@@ -189,6 +187,7 @@ class PatientAccessContext extends ChangeNotifier {
     _isListening = true;
   }
 
+  // Refreshes the access state from the database.
   Future<void> refresh() async {
     if (_patientId.isEmpty || _isRefreshing) return;
 
@@ -277,9 +276,7 @@ class PatientAccessContext extends ChangeNotifier {
     return null;
   }
 
-  /// Manual override for screens that already know the permission.
-  ///
-  /// If you do not provide [expiresAt], the current expiry value is kept.
+  // Manually overrides the current permission for this context.
   void setPermission({
     required String permission,
     String? grantId,
@@ -292,7 +289,7 @@ class PatientAccessContext extends ChangeNotifier {
     );
   }
 
-  /// Reset the reactive singleton when leaving a patient.
+  // Reset the reactive singleton when leaving a patient.
   Future<void> clear() async {
     _expiryTimer?.cancel();
     _expiryTimer = null;
@@ -330,7 +327,7 @@ class PatientAccessContext extends ChangeNotifier {
   }
 }
 
-/// Merges widget route args with [PatientSessionService] for section screens.
+// Merges widget route args with PatientSessionService for section screens.
 PatientAccessContext resolveScreenAccess({
   required BuildContext context,
   String? widgetPatientId,

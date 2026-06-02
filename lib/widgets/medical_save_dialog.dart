@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 typedef MedicalDialogBuilder =
     Widget Function(BuildContext context, bool saving);
 
+// A reusable dialog for saving or updating medical records, supporting validation and a loading state.
 class MedicalSaveDialog extends StatefulWidget {
   final String title;
   final MedicalDialogBuilder contentBuilder;
