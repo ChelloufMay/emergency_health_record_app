@@ -4,8 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/clinician_profile_model.dart';
 import '../services/clinician_profile_service.dart';
 
+ // Viewing and editing the profile of a Clinician.
 class ClinicianProfileScreen extends StatefulWidget {
-  const ClinicianProfileScreen({super.key});
+    const ClinicianProfileScreen({super.key});
 
   @override
   State<ClinicianProfileScreen> createState() => _ClinicianProfileScreenState();

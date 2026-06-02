@@ -9,6 +9,7 @@ import '../utils/field_helpers.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Viewing and managing family medical history for a patient.
 class FamilyHistoryScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -59,6 +60,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     _load();
   }
 
+  // Reloads the screen data when the patient access permissions change.
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
 
@@ -81,6 +83,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Fetches the family history records for the current patient.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -99,6 +102,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     });
   }
 
+  // Opens a dialog to add or edit a family history entry.
   Future<void> _openEditor({FamilyHistoryModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -131,7 +135,6 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
                   ? null
                   : relationController.text.trim(),
               conditionName: conditionController.text.trim(),
-              // CHANGED: category is a dropdown and unknown is stored as unknown
               category: category.trim().isEmpty ? 'unknown' : category.trim(),
               isGenetic: isGenetic,
               notes: notesController.text.trim().isEmpty
@@ -164,7 +167,6 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        // CHANGED: category is a list
                         initialValue: category,
                         decoration: const InputDecoration(labelText: 'Category'),
                         items: [
@@ -228,12 +230,13 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     }
   }
 
+  // Deletes a specific family history entry after user confirmation.
   Future<void> _deleteItem(FamilyHistoryModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
     if (patientId == null || item.id == null) return;
 
-    // CHANGED: confirmation before delete
+    // Confirmation before delete
     final confirmed = await showDeleteConfirmDialog(
       context: context,
       title: 'Delete family history item?',

@@ -1,3 +1,4 @@
+// Screen for managing patient surgical history --> recording surgery names, dates, locations, and any associated implants or prosthetics.
 import 'package:flutter/material.dart';
 
 import '../models/surgery_model.dart';
@@ -71,6 +72,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Loads the list of surgery records for the resolved patient ID
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -89,6 +91,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
     });
   }
 
+  // Opens a dialog to add or edit a surgery record
   Future<void> _openEditor({SurgeryModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -229,6 +232,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
     }
   }
 
+  // Deletes a surgery record after confirmation
   Future<void> _deleteItem(SurgeryModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;

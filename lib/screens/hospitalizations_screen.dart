@@ -8,6 +8,7 @@ import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Viewing and managing hospitalization history for a patient.
 class HospitalizationsScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -47,6 +48,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     _load();
   }
 
+  // Reloads the screen data when the patient access permissions change.
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
 
@@ -69,6 +71,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Fetches the hospitalization records for the current patient.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -87,6 +90,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     });
   }
 
+  // Opens a dialog to add or edit a hospitalization record.
   Future<void> _openEditor({HospitalizationModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -222,6 +226,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     }
   }
 
+  // Deletes a specific hospitalization record after user confirmation.
   Future<void> _deleteItem(HospitalizationModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;

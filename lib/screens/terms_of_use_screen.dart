@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Displaying the application's terms of use and legal disclaimers.
 class TermsOfUseScreen extends StatelessWidget {
   const TermsOfUseScreen({super.key});
 

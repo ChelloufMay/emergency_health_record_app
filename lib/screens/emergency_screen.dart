@@ -1,3 +1,4 @@
+// Viewing emergency medical information + resolves emergency access tokens or patient IDs to display a read-only summary for responders.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -85,6 +86,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return out;
   }
 
+  // Parses the raw input payload (URI or JSON) to extract the emergency access token
   String? _extractTokenFromPayload(String? raw) {
     if (raw == null || raw.trim().isEmpty) return null;
 
@@ -209,6 +211,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return null;
   }
 
+  // Orchestrates the loading and resolution of emergency data from various input paths
   Future<void> _load() async {
     final rawInput = _resolveRawPayload();
     final token = _extractTokenFromPayload(rawInput);
@@ -354,6 +357,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     }
   }
 
+  // Fetches a consolidated emergency summary from the database via RPC
   Future<Map<String, dynamic>?> _fetchEmergencySummary(String patientId) async {
     try {
       final result = await _supabase.rpc(

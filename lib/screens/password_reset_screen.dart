@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 
+// Screen for users to reset their password after following a recovery link.
 class PasswordResetScreen extends StatefulWidget {
   const PasswordResetScreen({super.key});
 
@@ -26,6 +27,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     super.dispose();
   }
 
+  // Updates the user's password in the authentication system and logs them out.
   Future<void> _updatePassword() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {

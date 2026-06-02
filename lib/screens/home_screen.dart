@@ -1,3 +1,4 @@
+// The main dashboard for the patient/owner +provides quick access to all medical sections and emergency features.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -24,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _load();
   }
 
+  // Loads the patient session and summary data
   Future<void> _load() async {
     PatientSession? session = PatientSessionService.instance.current;
 
@@ -63,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // Navigates to a specific section with the required patient context
   void _openSection(String routeName) {
     final session = _session;
 

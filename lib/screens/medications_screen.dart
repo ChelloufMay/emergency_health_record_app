@@ -1,3 +1,4 @@
+// Managing and viewing a patient's medications.
 import 'package:flutter/material.dart';
 
 import '../models/medication_model.dart';
@@ -8,6 +9,7 @@ import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Screen for displaying and editing patient medications.
 class MedicationsScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -34,6 +36,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   @override
   void initState() {
+    // Listen for global permission changes.
     super.initState();
 
     PatientAccessContext.instance.addListener(
@@ -71,6 +74,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  /// Loads medications from the service.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -89,6 +93,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     });
   }
 
+  /// Helper to pick a date from a date picker.
   Future<void> _pickDate({
     required BuildContext context,
     required DateTime? initialDate,
@@ -103,6 +108,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     if (picked != null) onPicked(picked);
   }
 
+  /// Opens a dialog to create or update a medication entry.
   Future<void> _openEditor({MedicationModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -257,6 +263,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     if (saved == true) await _load();
   }
 
+  /// Deletes a specific medication record.
   Future<void> _deleteItem(MedicationModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -277,6 +284,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Builds the list of medications or a loading indicator.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Medications'),

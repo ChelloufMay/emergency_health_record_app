@@ -1,3 +1,4 @@
+// A unified hub for non-owner roles (Caregiver, Guardian, Clinician)--> Provides a tabbed interface to access the dashboard, invites, and profile.
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
@@ -30,12 +31,14 @@ class _RoleHubScreenState extends State<RoleHubScreen> {
   final AuthService _authService = AuthService();
   int _selectedIndex = 0;
 
+  // Signs the user out and redirects to the login screen
   Future<void> _signOut(BuildContext context) async {
     await _authService.signOut();
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
+  // Navigates to a specific route
   void _open(BuildContext context, String routeName) {
     Navigator.pushNamed(context, routeName);
   }

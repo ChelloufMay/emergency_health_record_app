@@ -1,3 +1,4 @@
+// Managing patient lifestyle information.
 import 'package:flutter/material.dart';
 
 import '../models/lifestyle_model.dart';
@@ -72,6 +73,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Loads the lifestyle record for the resolved patient ID
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -90,6 +92,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
     });
   }
 
+  // Opens a dialog to add or edit lifestyle factors
   Future<void> _edit() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -360,6 +363,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
     }
   }
 
+  // Deletes the lifestyle record after confirmation
   Future<void> _delete() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;

@@ -1,3 +1,4 @@
+// User authentication (Sign In) --> Handles email/password login and password reset requests.
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
@@ -25,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // Attempts to sign in with provided credentials and routes via RoleRouter
   Future<void> _signIn() async {
     setState(() {
       _loading = true;
@@ -53,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Displays a dialog to request a password reset email
   Future<void> _showForgotPasswordDialog() async {
     final sent = await showDialog<bool>(
       context: context,

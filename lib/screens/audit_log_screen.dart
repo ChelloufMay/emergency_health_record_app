@@ -1,3 +1,4 @@
+// Viewing audit logs associated with a patient's medical record+ displays who performed what action, when, and where.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -67,6 +68,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     super.dispose();
   }
 
+  // Loads audit logs and resolves user IDs to human readable labels
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -87,6 +89,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     });
   }
 
+  // Fetches full names or emails for users identified in the audit logs
   Future<void> _loadUserLabels(List<AuditLogModel> logs) async {
     final ids = logs
         .map((log) => log.performedByUserId)

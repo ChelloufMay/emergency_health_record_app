@@ -1,3 +1,4 @@
+// Generating and managing Emergency Access QR codes. --> Encodes patient ID and emergency summary into a payload for offline/online emergency access.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,11 +10,13 @@ import '../services/emergency_payload_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
+// Displays and manages emergency access QR codes for a patient.
 class QrScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
   final bool isEmergencyOnly;
 
+  // Creates a new [QrScreen] instance.
   const QrScreen({
     super.key,
     this.patientId,
@@ -39,6 +42,7 @@ class _QrScreenState extends State<QrScreen> {
   final _notesController = TextEditingController();
   DateTime? _selectedExpiresAt;
 
+  // Resolves the patient ID from widget parameters or current session
   String? _resolvePatientId() {
     return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
@@ -68,6 +72,7 @@ class _QrScreenState extends State<QrScreen> {
     return envelope;
   }
 
+  // Encodes the emergency payload into a web link for the emergency viewer
   String _buildEmergencyLink({
     String? token,
     required String patientId,
@@ -139,6 +144,7 @@ class _QrScreenState extends State<QrScreen> {
     super.dispose();
   }
 
+  // Loads patient summary and active token data from services
   Future<void> _load() async {
     final patientId = _resolvePatientId();
 
@@ -211,6 +217,7 @@ class _QrScreenState extends State<QrScreen> {
     }
   }
 
+  // Creates a new emergency access token in the database
   Future<void> _createToken() async {
     final patientId = _patientId;
     if (patientId == null || patientId.isEmpty) return;
@@ -256,6 +263,7 @@ class _QrScreenState extends State<QrScreen> {
     }
   }
 
+  // Deactivates the current emergency token
   Future<void> _revokeToken() async {
     final tokenId = _tokenRow?.id;
     if (tokenId == null) return;

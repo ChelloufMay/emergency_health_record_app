@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Displaying the application's privacy policy and data collection practices.
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 

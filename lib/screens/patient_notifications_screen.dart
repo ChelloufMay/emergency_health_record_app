@@ -6,6 +6,7 @@ import '../services/patient_notifications_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
+// Viewing and filtering notification events related to a patient, such as access changes or medical record updates.
 class PatientNotificationsScreen extends StatefulWidget {
   final String? patientId;
 
@@ -65,6 +66,7 @@ class _PatientNotificationsScreenState
     }
   }
 
+  // Resolves the patient ID from the widget arguments, the current session, or the authenticated user's identity.
   Future<String?> _resolvePatientId() async {
     if (widget.patientId != null && widget.patientId!.trim().isNotEmpty) {
       return widget.patientId!.trim();
@@ -77,6 +79,7 @@ class _PatientNotificationsScreenState
     return identity?.patientProfileId;
   }
 
+  // Fetches notification events for the resolved patient ID
   Future<void> _load() async {
     setState(() {
       _loading = true;

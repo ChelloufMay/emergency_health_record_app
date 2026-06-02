@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Handles authentication callbacks, such as email confirmation + password recovery redirects.
 class AuthCallbackScreen extends StatefulWidget {
   final String? callbackUri;
   final bool isRecovery;
@@ -24,8 +25,9 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     _handle();
   }
 
+  // Processes the authentication result and redirects the user to the appropriate screen (e.g., password reset or home).
   Future<void> _handle() async {
-    // CHANGED: give Supabase a short moment to finish processing the deep link.
+    // Give Supabase a short moment to finish processing the deep link.
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted || _handled) return;
@@ -43,13 +45,13 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
     if (!mounted) return;
 
-    // CHANGED: only route to password reset for recovery callbacks.
+    // Only route to password reset for recovery callbacks.
     if (session != null && shouldResetPassword) {
       Navigator.of(context).pushReplacementNamed('/reset-password');
       return;
     }
 
-    // CHANGED: normal auth callbacks go back into the role router flow.
+    // Normal auth callbacks go back into the role router flow.
     if (session != null) {
       Navigator.of(context).pushReplacementNamed('/entry');
       return;

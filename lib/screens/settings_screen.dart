@@ -1,3 +1,4 @@
+// Application settings and user account management. --> users can update their password, sign out, and request account deletion.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadUser();
   }
 
+  // Loads current user information from Supabase auth and the public users table
   Future<void> _loadUser() async {
     try {
       final authUser = _supabase.auth.currentUser;
@@ -50,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // Displays a dialog to change the user's password.
   Future<void> _showChangePasswordDialog() async {
     final formKey = GlobalKey<FormState>();
     final passwordController = TextEditingController();
@@ -172,9 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     confirmController.dispose();
   }
 
-  // CHANGED: removed the password recovery email action completely.
-  // Password recovery should be handled from the login flow only.
-
+  // Signs the user out after confirmation
   Future<void> _signOut() async {
     final confirmed = await _confirm(
       title: 'Sign out',
@@ -190,6 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // Displays a dialog to submit an account deletion request
   Future<void> _requestAccountDeletion() async {
     final reasonController = TextEditingController();
 

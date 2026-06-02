@@ -5,16 +5,15 @@ import '../models/access_invite_model.dart';
 import '../services/access_service.dart';
 import '../services/patient_session_service.dart';
 
-/// Patient-owner access management screen.
-///
-/// This screen is intentionally for the patient's own flow only.
-/// It shows current grants, lets the patient change permission, revoke access,
-/// and send new invites by email for caregivers / guardians / clinicians.
-class PatientAccessManagementScreen extends StatefulWidget {
-  /// Optional explicit patient id, usually passed from the patient home flow.
-  final String? patientId;
+// Patient-owner access management screen.
 
-  /// Optional display name for the current patient.
+// This screen is for the patient's flow
+// It shows current grants, lets the patient change permission, revoke access, and send new invites by email for caregivers / guardians / clinicians.
+
+class PatientAccessManagementScreen extends StatefulWidget {
+  // The unique identifier of the patient.
+  final String? patientId;
+  
   final String? patientName;
 
   const PatientAccessManagementScreen({

@@ -7,6 +7,7 @@ import '../services/patient_risk_prediction_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
+// Displays AI-generated risk predictions for a patient.
 class PatientRiskPredictionsScreen extends StatefulWidget {
   final String? patientId;
 

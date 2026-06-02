@@ -1,3 +1,4 @@
+// Screen for new user registration. --> Handles account creation with email, password, and initial role selection.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -34,6 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // Performs registration by signing up to Supabase and updating the public users table
   Future<void> _register() async {
     final passwordError = _validatePassword(_passwordController.text);
     if (passwordError != null) {
@@ -106,6 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Ensures the password meets security requirements
   String? _validatePassword(String password) {
     if (password.length <= 8) {
       return 'Password must be more than 8 characters.';

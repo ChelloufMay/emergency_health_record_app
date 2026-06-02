@@ -1,3 +1,4 @@
+// Managing and viewing a patient's vaccinations, including PNV schedule and others.
 import 'package:flutter/material.dart';
 
 import '../models/vaccination_model.dart';
@@ -8,18 +9,14 @@ import '../services/vaccination_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
-// ---------------------------------------------------------------------------
-// PNV schedule data
-// ---------------------------------------------------------------------------
-
+// Defines a specific vaccination slot in the national vaccination program (PNV).
 class _PnvSlot {
-  /// Unique key — this is what gets stored as vaccine_name in the DB.
+  // What gets stored as vaccine_name in the DB.
   final String key;
 
-  /// Short age label shown prominently on the left (e.g. "À la naissance").
   final String ageLabel;
 
-  /// Friendly vaccine description shown as subtitle.
+  // Friendly vaccine description shown as subtitle.
   final String description;
 
   const _PnvSlot({
@@ -29,6 +26,7 @@ class _PnvSlot {
   });
 }
 
+// Represents a group of PNV vaccination slots
 class _PnvGroup {
   final String title;
   final List<_PnvSlot> slots;
@@ -36,8 +34,9 @@ class _PnvGroup {
   const _PnvGroup({required this.title, required this.slots});
 }
 
+// Static list of PNV vaccination groups and their respective slots.
 const List<_PnvGroup> _pnvGroups = [
-  // ── À la naissance ──────────────────────────────────────────────────────
+  // ------------------------------ À la naissance ------------------------------
   _PnvGroup(
     title: 'À la naissance',
     slots: [
@@ -45,18 +44,18 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'BCG',
         ageLabel: 'À la naissance',
         description:
-        'BCG — Vaccin contre la tuberculose (1 seule dose, le plus tôt possible après la naissance)',
+        'BCG - Vaccin contre la tuberculose (1 seule dose, le plus tôt possible après la naissance)',
       ),
       _PnvSlot(
         key: 'HBV-0',
         ageLabel: 'À la naissance',
         description:
-        'HBV-0 — Vaccin contre l\'hépatite B (dans les 24 h suivant la naissance)',
+        'HBV-0 - Vaccin contre l\'hépatite B (dans les 24 h suivant la naissance)',
       ),
     ],
   ),
 
-  // ── Enfant en âge préscolaire ────────────────────────────────────────────
+  // ------------------------------ Enfant en âge préscolaire ------------------------------
   _PnvGroup(
     title: 'Enfant en âge préscolaire',
     slots: [
@@ -64,90 +63,90 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'Pentavalent-1',
         ageLabel: 'À 2 mois',
         description:
-        'Pentavalent-1 — 1re prise (DTC + Hib + HBV)',
+        'Pentavalent-1 - 1re prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-1',
         ageLabel: 'À 2 mois',
         description:
-        'VPI-1 — 1re prise du vaccin contre la poliomyélite (injectable)',
+        'VPI-1 - 1re prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV1',
         ageLabel: 'À 2 mois',
         description:
-        'PCV1 — 1re prise du vaccin pneumococcique',
+        'PCV1 - 1re prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'Pentavalent-2',
         ageLabel: 'À 3 mois',
         description:
-        'Pentavalent-2 — 2e prise (DTC + Hib + HBV)',
+        'Pentavalent-2 - 2e prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-2',
         ageLabel: 'À 3 mois',
         description:
-        'VPI-2 — 2e prise du vaccin contre la poliomyélite (injectable)',
+        'VPI-2 - 2e prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV2',
         ageLabel: 'À 4 mois',
         description:
-        'PCV2 — 2e prise du vaccin pneumococcique',
+        'PCV2 - 2e prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'Pentavalent-3',
         ageLabel: 'À 6 mois',
         description:
-        'Pentavalent-3 — 3e prise (DTC + Hib + HBV)',
+        'Pentavalent-3 - 3e prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-3',
         ageLabel: 'À 6 mois',
         description:
-        'VPI-3 — 3e prise du vaccin contre la poliomyélite (injectable)',
+        'VPI-3 - 3e prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV3',
         ageLabel: 'À 11 mois',
         description:
-        'PCV3 — 3e prise du vaccin pneumococcique',
+        'PCV3 - 3e prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'RR-1',
         ageLabel: 'À 12 mois',
         description:
-        'RR-1 — 1re prise du vaccin combiné rougeole-rubéole',
+        'RR-1 - 1re prise du vaccin combiné rougeole-rubéole',
       ),
       _PnvSlot(
         key: 'HVA-18m',
         ageLabel: 'À 18 mois',
         description:
-        'HVA — Vaccin contre l\'hépatite virale A',
+        'HVA - Vaccin contre l\'hépatite virale A',
       ),
       _PnvSlot(
         key: 'DTC4',
         ageLabel: 'À 18 mois',
         description:
-        'DTC4 — Rappel par les vaccins DTC',
+        'DTC4 - Rappel par les vaccins DTC',
       ),
       _PnvSlot(
         key: 'VPO-1',
         ageLabel: 'À 18 mois',
         description:
-        'VPO — Rappel par le vaccin contre la poliomyélite (oral)',
+        'VPO - Rappel par le vaccin contre la poliomyélite (oral)',
       ),
       _PnvSlot(
         key: 'RR-2',
         ageLabel: 'À 18 mois',
         description:
-        'RR-2 — Rappel par le vaccin combiné rougeole-rubéole',
+        'RR-2 - Rappel par le vaccin combiné rougeole-rubéole',
       ),
     ],
   ),
 
-  // ── Enfant en âge scolaire ───────────────────────────────────────────────
+  // ------------------------------ Enfant en âge scolaire ------------------------------
   _PnvGroup(
     title: 'Enfant en âge scolaire',
     slots: [
@@ -155,48 +154,48 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'DTCa-VPI-6ans',
         ageLabel: 'À 6 ans\n(1re année)',
         description:
-        'DTCa-VPI — Rappel quadrivalent (diphtérie, tétanos, coqueluche acellulaire, poliomyélite)',
+        'DTCa-VPI - Rappel quadrivalent (diphtérie, tétanos, coqueluche acellulaire, poliomyélite)',
       ),
       _PnvSlot(
         key: 'VHA-6ans',
         ageLabel: 'À 6 ans\n(1re année)',
         description:
-        'VHA — 1 prise du vaccin contre l\'hépatite virale A',
+        'VHA - 1 prise du vaccin contre l\'hépatite virale A',
       ),
       _PnvSlot(
         key: 'dT-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
         description:
-        'dT — Rappel contre la diphtérie et le tétanos',
+        'dT - Rappel contre la diphtérie et le tétanos',
       ),
       _PnvSlot(
         key: 'VPO-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
         description:
-        'VPO — Rappel par le vaccin oral contre la poliomyélite',
+        'VPO - Rappel par le vaccin oral contre la poliomyélite',
       ),
       _PnvSlot(
         key: 'VPH-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
         description:
-        'VPH — 1 prise du vaccin contre le Virus du Papillome Humain',
+        'VPH - 1 prise du vaccin contre le Virus du Papillome Humain',
       ),
       _PnvSlot(
         key: 'dT-18ans',
         ageLabel: 'À 18 ans\n(3e secondaire)',
         description:
-        'dT — Rappel contre la diphtérie et le tétanos',
+        'dT - Rappel contre la diphtérie et le tétanos',
       ),
       _PnvSlot(
         key: 'VPO-18ans',
         ageLabel: 'À 18 ans\n(3e secondaire)',
         description:
-        'VPO — Rappel par le vaccin oral contre la poliomyélite',
+        'VPO - Rappel par le vaccin oral contre la poliomyélite',
       ),
     ],
   ),
 
-  // ── Femmes en âge de procréation ─────────────────────────────────────────
+  // ------------------------------  Femmes en âge de procréation ------------------------------
   _PnvGroup(
     title: 'Femmes en âge de procréation',
     slots: [
@@ -204,42 +203,39 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'dT1-femme',
         ageLabel: 'dT1',
         description:
-        'dT1 — Dès le premier contact avec la structure de santé',
+        'dT1 - Dès le premier contact avec la structure de santé',
       ),
       _PnvSlot(
         key: 'dT2-femme',
         ageLabel: 'dT2',
-        description: 'dT2 — 1 mois après dT1',
+        description: 'dT2 - 1 mois après dT1',
       ),
       _PnvSlot(
         key: 'dT3-femme',
         ageLabel: 'dT3',
-        description: 'dT3 — 1 an après dT2',
+        description: 'dT3 - 1 an après dT2',
       ),
       _PnvSlot(
         key: 'dT4-femme',
         ageLabel: 'dT4',
-        description: 'dT4 — 5 ans après dT3',
+        description: 'dT4 - 5 ans après dT3',
       ),
       _PnvSlot(
         key: 'dT5-femme',
         ageLabel: 'dT5',
-        description: 'dT5 — 10 ans après dT4 (puis tous les 10 ans)',
+        description: 'dT5 - 10 ans après dT4 (puis tous les 10 ans)',
       ),
       _PnvSlot(
         key: 'Rubeole-femme',
         ageLabel: 'Rubéole',
         description:
-        'Vaccin contre la rubéole — Pour les femmes non immunisées',
+        'Vaccin contre la rubéole - Pour les femmes non immunisées',
       ),
     ],
   ),
 ];
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
-
+// --------------------------- Screen for displaying and recording vaccinations.
 class VaccinationsScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -265,22 +261,23 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
   bool _loading = true;
   String? _patientId;
 
-  /// All DB rows where category == 'pnv', keyed by vaccine_name (= slot key).
+  // All DB rows where category == 'pnv', keyed by vaccine_name
   final Map<String, VaccinationModel> _pnvRows = {};
 
-  /// Which PNV slot keys are currently toggled on (pending save).
+  // Which PNV slot keys are currently toggled on
   final Set<String> _pnvChecked = {};
 
-  /// In-progress toggles (keys being saved right now) to disable their checkbox.
+  // In progress toggles to disable checkbox.
   final Set<String> _pnvBusy = {};
 
-  /// Vaccinations that are NOT PNV (category != 'pnv').
+  // Vaccinations that are NOT PNV
   List<VaccinationModel> _otherItems = [];
 
   late SectionScreenAccess _access;
 
   @override
   void initState() {
+    // Initialize tab controller and load vaccination data.
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
@@ -311,6 +308,7 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Loads both PNV and other vaccinations from the service.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -346,8 +344,9 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
     });
   }
 
-  // ── PNV checkbox toggle ──────────────────────────────────────────────────
+  // ------------------------------  PNV checkbox toggle ------------------------------
 
+  // Toggles a PNV vaccination slot (adds or removes the record).
   Future<void> _onPnvToggle(_PnvSlot slot, bool checked) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -416,8 +415,9 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
     }
   }
 
-  // ── Other vaccinations editor ────────────────────────────────────────────
+  // ------------------------------ Other vaccinations editor ------------------------------
 
+  // Opens an editor dialog for non-PNV vaccinations.
   Future<void> _openEditor({VaccinationModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -534,6 +534,7 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
     if (saved == true) await _load();
   }
 
+  // Deletes a specific non PNV vaccination entry.
   Future<void> _deleteOtherItem(VaccinationModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -551,10 +552,11 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
     await _load();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
+  // ------------------------------ Build ------------------------------
 
   @override
   Widget build(BuildContext context) {
+    // Builds the scaffold with tabs for PNV and other vaccinations.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vaccinations'),
@@ -598,9 +600,7 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tab 1 — PNV checklist
-// ---------------------------------------------------------------------------
+// --------------------------------------- PNV checklist ------------------------------
 
 class _PnvTab extends StatelessWidget {
   final List<_PnvGroup> groups;
@@ -711,7 +711,7 @@ class _PnvRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Age label — prominent, left column
+            // Age label: prominent, left column
             SizedBox(
               width: 90,
               child: Text(
@@ -726,7 +726,7 @@ class _PnvRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Vaccine description — fills remaining space
+            // Vaccine description: fills remaining space
             Expanded(
               child: Text(
                 slot.description,
@@ -760,9 +760,7 @@ class _PnvRow extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tab 2 — Other vaccinations
-// ---------------------------------------------------------------------------
+// ------------------------------------ Other vaccinations ------------------------------
 
 class _OtherTab extends StatelessWidget {
   final List<VaccinationModel> items;
@@ -784,7 +782,7 @@ class _OtherTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // FAB for adding — only visible in this tab
+      // FAB for adding: only visible in this tab
       floatingActionButton: allowMutations
           ? FloatingActionButton(
         onPressed: onAdd,

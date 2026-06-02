@@ -1,3 +1,4 @@
+// Landing screen of the application --> rovides options to sign in or create a new account.
 import 'package:flutter/material.dart';
 
 import 'login_screen.dart';

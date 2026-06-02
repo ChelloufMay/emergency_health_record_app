@@ -6,6 +6,7 @@ import '../utils/patient_access_context.dart';
 import '../utils/section_screen_access.dart';
 import 'patient_access_management_screen.dart';
 
+// Viewing a patient's profile details, including demographics, contact information, and medical basics.
 class PatientProfileViewScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit; // only true if permission == 'edit'
@@ -58,6 +59,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     return PatientSessionService.instance.current?.permission == 'owner';
   }
 
+  // Opens the access management screen for the patient
   Future<void> _openManageAccess() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) return;
@@ -87,6 +89,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     _load();
   }
 
+  // Reloads the screen data when the patient access permissions change
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
     setState(() {
@@ -131,6 +134,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     _familyDoctorIdController.text = _textOf(profile, 'family_doctor_id');
   }
 
+  // Fetches the patient's profile information from the server.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -201,6 +205,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     );
   }
 
+  // Saves the edited profile information to the server.
   Future<void> _saveEdits() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) return;
@@ -247,6 +252,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     }
   }
 
+  // Displays a dialog to edit the patient's profile details.
   Future<void> _openEditDialog() async {
     final shouldSave = await showDialog<bool>(
       context: context,

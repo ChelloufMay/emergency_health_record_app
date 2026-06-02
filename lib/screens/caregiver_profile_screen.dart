@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/caregiver_profile_model.dart';
 import '../services/caregiver_profile_service.dart';
 
+// Viewing and editing the profile of a Caregiver.
 class CaregiverProfileScreen extends StatefulWidget {
+  // Creates a new CaregiverProfileScreen instance.
   const CaregiverProfileScreen({super.key});
 
   @override
@@ -98,8 +100,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   }
 
   Future<String?> _saveAddress() async {
-    // Keep address writes separate here only because the profile service and
-    // the current schema still treat addresses as a linked row.
+    // Keep address writes separate cus the profile service and the current schema still treat addresses as a linked row.
     final country = _countryController.text.trim();
 
     final hasAnyAddressData = [
@@ -161,7 +162,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
 
       final model = CaregiverProfileModel(
         id: _profileId,
-        userId: '', // The service replaces this with the authenticated app user.
+        userId: '', // The service replaces this with the authenticated app user
         fullName: _fullNameController.text.trim(),
         relationshipToPatient: _relationshipController.text.trim().isEmpty
             ? null

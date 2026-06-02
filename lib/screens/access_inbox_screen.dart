@@ -6,12 +6,11 @@ import '../models/access_inbox_item_model.dart';
 import '../services/access_realtime_service.dart';
 import '../services/access_service.dart';
 
-/// Recipient-side inbox with three tabs:
-/// Received (pending), Accepted, and Rejected.
-///
-/// Pending items can be accepted or rejected from here.
+// Recipient-side inbox with three tabs: Received (pending), Accepted, and Rejected.
+
+// Pending items can be accepted or rejected from here.
 class AccessInboxScreen extends StatefulWidget {
-  /// When true, renders body only for embedded tab layouts.
+  // When true, renders body only for embedded tab layouts.
   final bool embedded;
 
   const AccessInboxScreen({super.key, this.embedded = false});
@@ -36,6 +35,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     _subscribeRealtime();
   }
 
+  // Subscribes to real-time updates for the inbox items.
   void _subscribeRealtime() {
     AccessRealtimeService.instance.subscribe();
     _realtimeSub = AccessRealtimeService.instance.onChanged.listen((_) {
@@ -50,6 +50,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     super.dispose();
   }
 
+  // Fetches pending, accepted, and rejected invitations from the server.
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
 
@@ -76,6 +77,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     }
   }
 
+  // Accepts a specific invitation and refreshes the list.
   Future<void> _accept(AccessInboxItemModel item) async {
     if (item.inviteToken.isEmpty) return;
 
@@ -99,6 +101,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     }
   }
 
+  // Rejects a specific invitation and refreshes the list.
   Future<void> _reject(AccessInboxItemModel item) async {
     if (item.inviteToken.isEmpty) return;
 

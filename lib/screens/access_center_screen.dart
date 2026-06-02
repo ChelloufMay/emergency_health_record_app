@@ -5,12 +5,7 @@ import '../models/access_grant_view_model.dart';
 import '../widgets/access_grant_card.dart';
 import 'access_inbox_screen.dart';
 
-/// Single entry for the split access flow: inbox + my access.
-///
-/// CHANGED:
-/// - Role-side users see their own active grants here.
-/// - The old caregiver detail screen was removed.
-/// - Tapping a patient now opens the shared patient detail screen.
+// Single entry for the split access flow: inbox + my access.
 class AccessCenterScreen extends StatefulWidget {
   final int initialTab;
   final String? patientId;
@@ -55,12 +50,14 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
     super.dispose();
   }
 
+  // Retrieve the current app user ID from the DB via an RPC call.
   Future<String?> _currentAppUserId() async {
     final value = await _supabase.rpc('current_app_user_id');
     final text = value?.toString().trim();
     return text == null || text.isEmpty ? null : text;
   }
 
+  // Retrieve the first and family names of a specific patient.
   Future<Map<String, dynamic>?> _patientNameRow(String patientId) async {
     final result = await _supabase
         .from('patient_profiles_enriched')
@@ -78,6 +75,7 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
     return [first, family].where((p) => p.isNotEmpty).join(' ').trim();
   }
 
+  // Fetche the active access grants for the current user.
   Future<void> _loadMyGrants() async {
     if (mounted) setState(() => _loadingGrants = true);
 
@@ -139,6 +137,7 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
     }
   }
 
+  // Navigates to the detailed view of a specific patient record.
   void _openPatient(AccessGrantViewModel grant) {
     if (grant.patientId.trim().isEmpty) return;
 
@@ -147,7 +146,7 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
       '/patient_detail',
       arguments: {
         'patientId': grant.patientId,
-        'grantId': grant.grantId, // <-- FIX: pass the required grantId
+        'grantId': grant.grantId,
         'patientName': grant.patientName,
         'permission': grant.permission,
         'roleLabel': grant.granteeRole,

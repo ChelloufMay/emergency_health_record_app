@@ -1,3 +1,4 @@
+// Viewing and editing the patient's personal profile and address information. --> handles data persistence for identity, contact, and basic medical demographic info.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -101,6 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return options.contains(trimmed) ? trimmed : null;
   }
 
+  // Fetches the current user's profile and associated address from the database
   Future<void> _load() async {
     try {
       final identity = await _patientService.resolveIdentity();
@@ -202,6 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Validates and saves profile and address updates to the DB
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(

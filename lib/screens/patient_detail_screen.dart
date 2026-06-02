@@ -5,6 +5,7 @@ import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 import 'patient_access_management_screen.dart';
 
+// View of a patient's record, accessible to caregivers, clinicians, or guardians based on their specific permissions and roles.
 class PatientDetailScreen extends StatefulWidget {
   final String patientId;
   final String patientName;
@@ -34,6 +35,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     setState(() {});
   }
 
+  // Synchronises the current patient session with the screen's state
   void _syncSession() {
     PatientSessionService.instance.setSession(
       patientId: widget.patientId,
@@ -59,6 +61,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     super.dispose();
   }
 
+  // Navigates to a specific medical section of the patient's record
   void _open(BuildContext context, String routeName) {
     final ctx = PatientAccessContext(
       patientId: widget.patientId,
@@ -74,6 +77,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
+  // Opens the access management screen for the patient.
   Future<void> _openManageAccess() async {
     await Navigator.push(
       context,

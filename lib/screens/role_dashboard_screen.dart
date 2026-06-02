@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/patient_session_service.dart';
 import 'patient_detail_screen.dart';
 
+// Generic dashboard screen for different user roles --> displaying accessible patient records and pending invites.
 class RoleDashboardScreen extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -57,6 +58,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     super.dispose();
   }
 
+  // Fetches patient access rows and pending invites from the server.
   Future<void> _loadData() async {
     if (mounted) setState(() => _loading = true);
 
@@ -86,6 +88,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
+  // Sets the current patient session and navigates to the detailed patient record view.
   void _openPatient(PatientAccessRowModel row) {
     PatientSessionService.instance.setSession(
       patientId: row.patientId,
@@ -111,6 +114,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     Navigator.pushNamed(context, '/access_inbox');
   }
 
+  // Prompts the user to confirm removal of a patient and revokes the access grant.
   Future<void> _confirmRemove(PatientAccessRowModel row) async {
     final grantId = row.grantId;
     if (grantId == null || grantId.trim().isEmpty) {

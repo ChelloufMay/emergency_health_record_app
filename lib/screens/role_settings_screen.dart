@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 
+// Customizable settings screen for various user roles, allowing profile management, security updates, and role-specific feature access. :)
 class RoleSettingsScreen extends StatefulWidget {
   final String title;
   final String profileRoute;
@@ -42,6 +43,7 @@ class _RoleSettingsScreenState extends State<RoleSettingsScreen> {
     _loadUser();
   }
 
+  // Loads the current user's profile and role information from the database.
   Future<void> _loadUser() async {
     try {
       final authUser = _supabase.auth.currentUser;
@@ -67,6 +69,7 @@ class _RoleSettingsScreenState extends State<RoleSettingsScreen> {
     }
   }
 
+  // Displays a dialog to change the user's password.
   Future<void> _showChangePasswordDialog() async {
     final formKey = GlobalKey<FormState>();
     final passwordController = TextEditingController();
@@ -207,6 +210,7 @@ class _RoleSettingsScreenState extends State<RoleSettingsScreen> {
     }
   }
 
+  // Sends a request to the administrator to delete the user's account.
   Future<void> _requestAccountDeletion() async {
     final reasonController = TextEditingController();
 

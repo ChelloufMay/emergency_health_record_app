@@ -1,3 +1,4 @@
+// Editing the permissions of an existing access grant + allows updating permission type, expiry date, and internal notes.
 import 'package:flutter/material.dart';
 
 import '../services/access_service.dart';
@@ -56,6 +57,7 @@ class _AccessPermissionEditorScreenState
     super.dispose();
   }
 
+  // Helper to format role names for display
   String _roleLabel(String role) {
     switch (role.toLowerCase()) {
       case 'caregiver':
@@ -69,6 +71,7 @@ class _AccessPermissionEditorScreenState
     }
   }
 
+  // Returns a user-friendly label for the permission string
   String _labelFor(String value) {
     switch (value) {
       case 'read':
@@ -91,6 +94,7 @@ class _AccessPermissionEditorScreenState
     return '$y-$m-$day';
   }
 
+  // Opens a date picker to set the expiry date
   Future<void> _pickExpiry() async {
     final initial = _expiresAt ?? DateTime.now().add(const Duration(days: 30));
 
@@ -116,6 +120,7 @@ class _AccessPermissionEditorScreenState
     });
   }
 
+  // Saves the updated permission details to the database via AccessService
   Future<void> _save() async {
     setState(() => _saving = true);
 

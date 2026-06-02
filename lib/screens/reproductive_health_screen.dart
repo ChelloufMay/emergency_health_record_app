@@ -9,6 +9,7 @@ import '../utils/field_helpers.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Viewing and managing reproductive health information for a patient.
 class ReproductiveHealthScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -50,6 +51,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     _load();
   }
 
+  // Reloads the screen data when the patient access permissions change.
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
 
@@ -73,6 +75,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Fetches the reproductive health record for the current patient
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -91,6 +94,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     });
   }
 
+  // Opens a dialog to add or edit the reproductive health record
   Future<void> _edit() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -396,6 +400,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     }
   }
 
+  // Deletes the reproductive health record after user confirmation.
   Future<void> _delete() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;

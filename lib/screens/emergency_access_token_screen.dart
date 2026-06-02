@@ -7,6 +7,7 @@ import '../services/emergency_access_token_service.dart';
 import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 
+// Managing emergency "break-glass" access tokens, allowing patients to generate, view, and revoke temporary access codes for medical emergencies.
 class EmergencyAccessTokenScreen extends StatefulWidget {
   final String? patientId;
 
@@ -72,6 +73,7 @@ class _EmergencyAccessTokenScreenState
     return 'healthapp://emergency?payload=${Uri.encodeComponent(token)}';
   }
 
+  // Resolves the patient ID from widget arguments, session, or identity
   Future<String?> _resolvePatientId() async {
     if (widget.patientId != null && widget.patientId!.trim().isNotEmpty) {
       return widget.patientId!.trim();
@@ -84,6 +86,7 @@ class _EmergencyAccessTokenScreenState
     return identity?.patientProfileId;
   }
 
+  // Displays a date picker for selecting the token's expiry date
   Future<void> _pickExpiryDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -98,6 +101,7 @@ class _EmergencyAccessTokenScreenState
     setState(() => _selectedExpiryDate = picked);
   }
 
+  // Fetches the list of emergency access tokens for the patient
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -159,6 +163,7 @@ class _EmergencyAccessTokenScreenState
     );
   }
 
+  // Generates a new emergency access token with the specified expiry and notes.
   Future<void> _createToken() async {
     final patientId = _patientId;
     if (patientId == null || patientId.isEmpty) return;
@@ -209,6 +214,7 @@ class _EmergencyAccessTokenScreenState
     }
   }
 
+  // Revokes an existing emergency access token.
   Future<void> _revokeToken(EmergencyAccessTokenModel token) async {
     final tokenId = token.id;
     if (tokenId == null || tokenId.isEmpty) return;

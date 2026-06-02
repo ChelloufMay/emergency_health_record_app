@@ -1,3 +1,4 @@
+// Routes the user to the appropriate screen based on their role and profile status.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,6 +13,7 @@ import 'home_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
+// Routes the user to the correct initial screen based on their authentication and role.
 class RoleRouterScreen extends StatefulWidget {
   const RoleRouterScreen({super.key});
 
@@ -24,10 +26,12 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
 
   @override
   void initState() {
+    // Start resolving the destination on init
     super.initState();
     _future = _resolveDestination();
   }
 
+  // Resolves which screen to show based on the user's role and profile
   Future<Widget> _resolveDestination() async {
     final client = Supabase.instance.client;
     final session = client.auth.currentSession;
@@ -117,6 +121,7 @@ class _RoleRouterScreenState extends State<RoleRouterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Shows a loading indicator while the destination is being resolved.
     return FutureBuilder<Widget>(
       future: _future,
       builder: (context, snapshot) {

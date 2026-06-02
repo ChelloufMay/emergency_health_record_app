@@ -1,3 +1,4 @@
+// Managing and viewing a patient's medical conditions.
 import 'package:flutter/material.dart';
 
 import '../models/medical_condition_model.dart';
@@ -8,6 +9,7 @@ import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Screen for displaying and editing medical conditions.
 class ConditionsScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -34,6 +36,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
 
   @override
   void initState() {
+    // Listen for global permission changes.
     super.initState();
 
     PatientAccessContext.instance.addListener(
@@ -69,6 +72,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Loads medical conditions from the service.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -87,6 +91,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     });
   }
 
+  // Opens a dialog to create or update a medical condition
   Future<void> _openEditor({MedicalConditionModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -235,6 +240,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     if (saved == true) await _load();
   }
 
+  // Deletes a specific medical condition.
   Future<void> _deleteItem(MedicalConditionModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -255,6 +261,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Builds the list of conditions or a loading indicator.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Conditions'),

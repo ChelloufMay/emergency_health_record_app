@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'role_hub_screen.dart';
 
+// Provides navigation options for the Caregiver role.
 class CaregiverChoiceScreen extends StatelessWidget {
+  // Creates a new CaregiverChoiceScreen instance.
   const CaregiverChoiceScreen({super.key});
 
   @override

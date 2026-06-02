@@ -9,6 +9,7 @@ import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// viewing and managing family doctor information for a patient.
 class FamilyDoctorScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -48,6 +49,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
     _load();
   }
 
+  // Reloads the screen data when the patient access permissions change.
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
 
@@ -70,6 +72,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   String? _resolvePatientId() =>
       widget.patientId ?? PatientSessionService.instance.current?.patientId;
 
+  // Fetches the family doctor record for the current patient.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -88,6 +91,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
     });
   }
 
+  // Opens a dialog to add or edit the family doctor information.
   Future<void> _edit() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -293,6 +297,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
     }
   }
 
+  // Deletes the family doctor record after user confirmation.
   Future<void> _delete() async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;

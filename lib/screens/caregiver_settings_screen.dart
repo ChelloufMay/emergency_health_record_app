@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'role_settings_screen.dart';
 
+// Managing settings specific to the Caregiver role.
 class CaregiverSettingsScreen extends StatelessWidget {
+  // Creates a new CaregiverSettingsScreen instance.
   const CaregiverSettingsScreen({super.key});
 
   @override

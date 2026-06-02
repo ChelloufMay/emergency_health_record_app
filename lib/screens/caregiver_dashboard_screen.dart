@@ -6,7 +6,9 @@ import '../services/access_realtime_service.dart';
 import '../utils/patient_access_context.dart';
 import 'role_dashboard_screen.dart';
 
+// A dashboard screen for the Caregiver role, showing accessible patients.
 class CaregiverDashboardScreen extends StatefulWidget {
+  // Creates a new CaregiverDashboardScreen instance.
   const CaregiverDashboardScreen({super.key});
 
   @override
@@ -26,10 +28,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   void initState() {
     super.initState();
 
-    // Start the realtime listener once this dashboard is shown.
+    // Start the realtime listener once the dashboard is shown.
     unawaited(AccessRealtimeService.instance.subscribe());
 
-    // Rebuild this screen whenever the reactive access context changes.
+    // Rebuild the screen whenever the reactive access context changes.
     PatientAccessContext.instance.addListener(_onAccessChanged);
   }
 
@@ -37,7 +39,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   void dispose() {
     PatientAccessContext.instance.removeListener(_onAccessChanged);
 
-    // Balance the subscribe() call made in initState.
+    // Balance the subscribe call made in initState.
     unawaited(AccessRealtimeService.instance.unsubscribe());
 
     super.dispose();

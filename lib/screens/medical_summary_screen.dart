@@ -4,6 +4,7 @@ import '../services/patient_service.dart';
 import '../services/patient_session_service.dart';
 import '../utils/patient_access_context.dart';
 
+// Displays a consolidated medical summary for a patient.
 class MedicalSummaryScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;

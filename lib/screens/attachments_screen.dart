@@ -1,3 +1,4 @@
+// Managing and viewing patient document attachments.
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +14,7 @@ import '../utils/section_screen_access.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/medical_save_dialog.dart';
 
+// Screen for displaying, uploading, and managing patient attachments.
 class AttachmentsScreen extends StatefulWidget {
   final String? patientId;
   final bool canEdit;
@@ -40,6 +42,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   @override
   void initState() {
+    // Listen for global permission changes.
     super.initState();
 
     PatientAccessContext.instance.addListener(
@@ -78,6 +81,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     return widget.patientId ?? PatientSessionService.instance.current?.patientId;
   }
 
+  // Loads attachments from the service.
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -96,7 +100,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     });
   }
 
-  // CHANGED: upload flow now supports a real file picker and storage upload.
+  // Opens a dialog to upload or update an attachment.
   Future<void> _openEditor({AttachmentModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -339,7 +343,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     if (saved == true) await _load();
   }
 
-  // CHANGED: delete now asks for confirmation first.
+  // Deletes a specific attachment.
   Future<void> _deleteItem(AttachmentModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -358,6 +362,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     await _load();
   }
 
+  // Opens the attachment in an external application.
   Future<void> _openItem(AttachmentModel item) async {
     try {
       final url = await _service.getOpenUrl(item.storagePath);
@@ -380,6 +385,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Builds the list of attachments or a loading indicator.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Attachments'),

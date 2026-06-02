@@ -1,3 +1,4 @@
+// Managing patient allergies + supports viewing, adding, editing, and deleting allergy records based on access permissions.
 import 'package:flutter/material.dart';
 
 import '../models/allergy_model.dart';
@@ -74,6 +75,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     return PatientSessionService.instance.current?.patientId;
   }
 
+  // Loads allergy records for the resolved patient ID
   Future<void> _load() async {
     final patientId = _resolvePatientId();
     if (patientId == null || patientId.isEmpty) {
@@ -92,6 +94,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     });
   }
 
+  // Opens a dialog to add or edit an allergy record
   Future<void> _openEditor({AllergyModel? initial}) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
@@ -216,6 +219,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     if (saved == true) await _load();
   }
 
+  // Deletes an allergy record after user confirmation
   Future<void> _deleteItem(AllergyModel item) async {
     if (!_access.allowMutations) return;
     final patientId = _patientId;
