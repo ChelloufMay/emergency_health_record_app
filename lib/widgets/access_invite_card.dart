@@ -59,8 +59,7 @@ class AccessInviteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showActions =
-        item.status.toLowerCase() == 'pending' &&
-        item.inviteToken.isNotEmpty;
+        item.status.toLowerCase() == 'pending' && item.inviteToken.isNotEmpty;
 
     return Card(
       child: ListTile(
