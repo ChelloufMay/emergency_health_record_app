@@ -2,24 +2,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/audit_log_model.dart';
 
-/// A service that manages retrieval of audit logs for patients.
+// Manages retrieval of audit logs for patients.
 class AuditService {
   AuditService._();
 
-  /// Singleton instance of [AuditService].
+  // Singleton instance of AuditService.
   static final AuditService instance = AuditService._();
 
   final SupabaseClient _client = Supabase.instance.client;
 
-  /// Fetches audit logs from a specified source for a given patient.
+  // Fetches audit logs from a specified source for a given patient.
   Future<List<AuditLogModel>> _fetchLogs(
-      String source,
-      String patientId, {
-        String? entityType,
-        String? action,
-        int? limit,
-        bool ranked = false,
-      }) async {
+    String source,
+    String patientId, {
+    String? entityType,
+    String? action,
+    int? limit,
+    bool ranked = false,
+  }) async {
     final query = _client.from(source).select().eq('patient_id', patientId);
 
     if (entityType != null && entityType.trim().isNotEmpty) {
@@ -39,29 +39,23 @@ class AuditService {
         .toList();
   }
 
-  /// Retrieves all audit logs for a specific patient.
+  // Retrieves all audit logs for a specific patient
   Future<List<AuditLogModel>> getAuditLogsForPatient(String patientId) {
     return _fetchLogs('audit_logs', patientId);
   }
 
-  /// Retrieves audit logs for a patient from the ranked view (newest first).
-  Future<List<AuditLogModel>> getRankedAuditLogsForPatient(
-      String patientId,
-      ) {
-    return _fetchLogs(
-      'audit_logs_ranked',
-      patientId,
-      ranked: true,
-    );
+  // Retrieves audit logs for a patient from the ranked view (newest first)
+  Future<List<AuditLogModel>> getRankedAuditLogsForPatient(String patientId) {
+    return _fetchLogs('audit_logs_ranked', patientId, ranked: true);
   }
 
-  /// Retrieves filtered audit logs for a patient, optionally by entity type or action.
+  // Retrieves filtered audit logs for a patient, optionally by entity type or action
   Future<List<AuditLogModel>> getAuditLogsForPatientEntity(
-      String patientId, {
-        String? entityType,
-        String? action,
-        int? limit,
-      }) {
+    String patientId, {
+    String? entityType,
+    String? action,
+    int? limit,
+  }) {
     return _fetchLogs(
       'audit_logs',
       patientId,

@@ -7,7 +7,7 @@ import 'service_exceptions.dart';
 class MedicalConditionService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Fetches all medical conditions 
+  // Fetches all medical conditions
   Future<List<MedicalConditionModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -70,7 +70,7 @@ class MedicalConditionService {
     }
   }
 
-  // Deletes a specific medical condition record 
+  // Deletes a specific medical condition record
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

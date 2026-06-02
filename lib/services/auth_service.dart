@@ -11,8 +11,9 @@ class AuthService {
     String fullName = '',
     String? phone,
   }) async {
-    final safeFullName =
-    fullName.trim().isEmpty ? email.split('@').first : fullName.trim();
+    final safeFullName = fullName.trim().isEmpty
+        ? email.split('@').first
+        : fullName.trim();
 
     // keep auth creation separate from domain/profile logic.
     // The DB sync layer fills public.users and related tables.
@@ -42,7 +43,7 @@ class AuthService {
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }
-  
+
   // Sends a password reset email to the specified user.
   Future<void> sendPasswordResetEmail({required String email}) async {
     await _supabase.auth.resetPasswordForEmail(
@@ -50,21 +51,19 @@ class AuthService {
       redirectTo: 'healthapp://auth-callback?type=recovery',
     );
   }
-  
+
   // Updates the current user's password.
   Future<void> updatePassword(String newPassword) async {
     await _supabase.auth.updateUser(
       UserAttributes(password: newPassword.trim()),
     );
   }
-  
+
   // Submits a request to delete the user's account, optionally providing a reason.
   Future<void> requestAccountDeletion({String? reason}) async {
     final res = await _supabase.functions.invoke(
       'request-account-deletion',
-      body: {
-        'reason': reason?.trim().isEmpty == true ? null : reason?.trim(),
-      },
+      body: {'reason': reason?.trim().isEmpty == true ? null : reason?.trim()},
     );
     if (res.status < 200 || res.status >= 300) {
       throw Exception('Deletion request failed');

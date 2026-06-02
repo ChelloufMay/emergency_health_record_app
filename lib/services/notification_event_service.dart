@@ -30,16 +30,16 @@ class NotificationEventService {
     return (rows as List)
         .map(
           (row) => NotificationEventModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 
   // Fetches notification events that have not been sent yet for a specific patient
   Future<List<NotificationEventModel>> fetchPendingByPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final rows = await _supabase
         .from('notification_events')
         .select()
@@ -50,23 +50,23 @@ class NotificationEventService {
     return (rows as List)
         .map(
           (row) => NotificationEventModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 
   // Fetches notification events related to access management
   Future<List<NotificationEventModel>> fetchAccessRelatedForPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final all = await fetchByPatient(patientId);
     return all
         .where(
           (e) =>
-      accessEventTypes.contains(e.eventType) ||
-          e.eventType.startsWith('access_'),
-    )
+              accessEventTypes.contains(e.eventType) ||
+              e.eventType.startsWith('access_'),
+        )
         .toList();
   }
 

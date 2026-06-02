@@ -80,7 +80,7 @@ class LifestyleService {
     }
   }
 
-  // Deletes the lifestyle factor record 
+  // Deletes the lifestyle factor record
   Future<void> delete({required String patientId}) async {
     final pid = requireText(patientId, 'patientId');
 

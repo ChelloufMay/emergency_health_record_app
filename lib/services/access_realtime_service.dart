@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Subscribes to access-related tables so inbox/management screens refresh.
-//
 // Tracks the logged-in app user and only emits grant-change +refreshes when the change is relevant to that user.
 class AccessRealtimeService {
   AccessRealtimeService._();
+
   static final AccessRealtimeService instance = AccessRealtimeService._();
 
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -58,9 +58,7 @@ class AccessRealtimeService {
       if (or is Map) {
         oldRecord = Map<String, dynamic>.from(or);
       }
-    } catch (_) {
-      
-    }
+    } catch (_) {}
 
     final newGrantee = newRecord?['grantee_user_id']?.toString();
     final oldGrantee = oldRecord?['grantee_user_id']?.toString();
@@ -94,28 +92,28 @@ class AccessRealtimeService {
 
     _channel!
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'access_invites',
-      callback: (_) => _emit(),
-    )
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'access_invites',
+          callback: (_) => _emit(),
+        )
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'notification_events',
-      callback: (_) => _emit(),
-    )
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notification_events',
+          callback: (_) => _emit(),
+        )
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'access_grants',
-      callback: (payload) {
-        // Only refresh when the change touches the currently logged in user.
-        if (_payloadTouchesWatchedUser(payload)) {
-          _emit();
-        }
-      },
-    );
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'access_grants',
+          callback: (payload) {
+            // Only refresh when the change touches the currently logged in user.
+            if (_payloadTouchesWatchedUser(payload)) {
+              _emit();
+            }
+          },
+        );
 
     _channel!.subscribe();
   }

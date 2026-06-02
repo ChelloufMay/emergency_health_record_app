@@ -9,14 +9,11 @@ class EmergencyAccessTokenService {
 
   // Fetches all emergency access tokens for a specific patient.
   Future<List<EmergencyAccessTokenModel>> fetchByPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
 
-    // NOTE:
-    // This method is still a direct table read, but it is only for the
-    // owner/admin-style management screen path.
     final rows = await _supabase
         .from('emergency_access_tokens')
         .select()
@@ -26,9 +23,9 @@ class EmergencyAccessTokenService {
     return (rows as List)
         .map(
           (row) => EmergencyAccessTokenModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 
@@ -70,10 +67,13 @@ class EmergencyAccessTokenService {
     final rowId = requireText(id, 'id');
 
     try {
-      await _supabase.from('emergency_access_tokens').update({
-        'is_active': false,
-        'revoked_at': DateTime.now().toIso8601String(),
-      }).eq('id', rowId);
+      await _supabase
+          .from('emergency_access_tokens')
+          .update({
+            'is_active': false,
+            'revoked_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', rowId);
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Emergency token revoke'));
     }
@@ -97,11 +97,10 @@ class EmergencyAccessTokenService {
 
   // Fetches an active and visible emergency token for a specific patient.
   Future<EmergencyAccessTokenModel?> fetchActiveVisibleTokenForPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
-
 
     try {
       final result = await _supabase.rpc(
@@ -135,8 +134,8 @@ class EmergencyAccessTokenService {
 
   // Resolves an emergency access token to its associated data.
   Future<Map<String, dynamic>?> resolveEmergencyAccessToken(
-      String token,
-      ) async {
+    String token,
+  ) async {
     final normalized = token.trim();
     if (normalized.isEmpty) return null;
 
@@ -162,10 +161,7 @@ class EmergencyAccessTokenService {
       final parsed = _parseSingleMapRow(result);
       if (parsed != null) return parsed;
     } on PostgrestException catch (e) {
-      throw Exception(readablePostgrestMessage(
-        e,
-        'Emergency token resolve',
-      ));
+      throw Exception(readablePostgrestMessage(e, 'Emergency token resolve'));
     }
 
     return null;
