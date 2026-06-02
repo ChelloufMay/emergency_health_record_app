@@ -53,8 +53,10 @@ import 'screens/vaccinations_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/emergency_payload_service.dart';
 
+// Global key for accessing the NavigatorState without a context
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+// Application entry point --> Initializes Supabase and runs the app.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -66,6 +68,7 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+// Root widget.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -92,6 +95,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  // Bootstraps the app from an existing session if available.
   Future<void> _bootstrapFromExistingSession() async {
     if (_startupHandled) return;
     _startupHandled = true;
@@ -102,6 +106,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Sets up a listener for authentication state changes.
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
           (data) async {
@@ -127,6 +132,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  // Configures deep link handling for the application.
   Future<void> _setupDeepLinks() async {
     Future<void> handleUri(Uri uri) async {
       final nav = navigatorKey.currentState;
@@ -188,6 +194,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  // Navigates to the entry router screen.
   void _goEntry() {
     final nav = navigatorKey.currentState;
     if (nav == null) {
@@ -197,6 +204,7 @@ class _MyAppState extends State<MyApp> {
     nav.pushNamedAndRemoveUntil('/entry', (route) => false);
   }
 
+  // Navigates to the login screen.
   void _goLogin() {
     final nav = navigatorKey.currentState;
     if (nav == null) {
@@ -206,6 +214,7 @@ class _MyAppState extends State<MyApp> {
     nav.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
+  // Navigates to the password reset screen.
   void _goPasswordReset() {
     final nav = navigatorKey.currentState;
     if (nav == null) {
@@ -597,6 +606,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// A utility screen that redirects users to the correct settings page based on their role.
 class SettingsRouteScreen extends StatefulWidget {
   const SettingsRouteScreen({super.key});
 
@@ -613,6 +623,7 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
     _future = _resolveDestination();
   }
 
+  // Resolves the destination settings screen based on the user's role and profile status.
   Future<Widget> _resolveDestination() async {
     final client = Supabase.instance.client;
     final session = client.auth.currentSession;
@@ -724,6 +735,7 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
   }
 }
 
+// Screen that handles authentication callbacks and session retrieval from deep links
 class AuthCallbackScreen extends StatefulWidget {
   final String? callbackUri;
   final bool isRecovery;
@@ -747,6 +759,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     _finish();
   }
 
+  // Completes the authentication flow or password recovery and redirects the user
   Future<void> _finish() async {
     if (_handled) return;
     _handled = true;
