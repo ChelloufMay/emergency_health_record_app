@@ -70,11 +70,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       actorRole: widget.roleLabel,
     );
 
-    Navigator.pushNamed(
-      context,
-      routeName,
-      arguments: ctx.toRouteArguments(),
-    );
+    Navigator.pushNamed(context, routeName, arguments: ctx.toRouteArguments());
   }
 
   // Opens the access management screen for the patient.
@@ -91,11 +87,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   }
 
   Widget _sectionTile(
-      BuildContext context,
-      String title,
-      IconData icon,
-      String routeName,
-      ) {
+    BuildContext context,
+    String title,
+    IconData icon,
+    String routeName,
+  ) {
     return Card(
       child: ListTile(
         leading: Icon(icon),
@@ -105,8 +101,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final canEdit = _access.canEdit;
@@ -114,12 +108,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final canViewMedicalSummary = _access.canViewMedicalSummary;
     final canViewEmergency = _access.canViewEmergency;
     final canViewQr = _access.canViewQr;
-    final isOwner = PatientSessionService.instance.current?.permission == 'owner';
+    final isOwner =
+        PatientSessionService.instance.current?.permission == 'owner';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.patientName),
-      ),
+      appBar: AppBar(title: Text(widget.patientName)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -238,9 +231,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text(
-                  'Access to this patient is no longer active.',
-                ),
+                child: Text('Access to this patient is no longer active.'),
               ),
             ),
         ],

@@ -135,9 +135,9 @@ class _RoleHubScreenState extends State<RoleHubScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _tabTitle(),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(_tabSubtitle()),
@@ -159,9 +159,7 @@ class _RoleHubScreenState extends State<RoleHubScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: Navigator.of(context).canPop()
-            ? BackButton(
-          onPressed: () => Navigator.pop(context),
-        )
+            ? BackButton(onPressed: () => Navigator.pop(context))
             : null,
         title: Text(widget.title),
         actions: [

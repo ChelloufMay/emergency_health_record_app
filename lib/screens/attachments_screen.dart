@@ -45,9 +45,7 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
     // Listen for global permission changes.
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -70,15 +68,14 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
 
     super.dispose();
   }
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    return widget.patientId ??
+        PatientSessionService.instance.current?.patientId;
   }
 
   // Loads attachments from the service.
@@ -257,14 +254,17 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                       label: Text(
                         pickedBytes == null
                             ? (initial == null
-                            ? 'Choose file to upload'
-                            : 'Choose file to replace')
+                                  ? 'Choose file to upload'
+                                  : 'Choose file to replace')
                             : 'File selected',
                       ),
                     ),
                     if (pickedFileName != null) ...[
                       const SizedBox(height: 8),
-                      Text(pickedFileName!, style: const TextStyle(fontSize: 12)),
+                      Text(
+                        pickedFileName!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ],
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -284,9 +284,9 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                       onChanged: saving
                           ? null
                           : (v) {
-                        fileKind = v ?? 'other';
-                        setDialogState(() {});
-                      },
+                              fileKind = v ?? 'other';
+                              setDialogState(() {});
+                            },
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -315,7 +315,9 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                             : documentDate!.toIso8601String().split('T').first,
                       ),
                       trailing: IconButton(
-                        onPressed: saving ? null : () => pickDate(setDialogState),
+                        onPressed: saving
+                            ? null
+                            : () => pickDate(setDialogState),
                         icon: const Icon(Icons.calendar_month),
                       ),
                     ),
@@ -323,7 +325,9 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
                     TextField(
                       controller: descriptionController,
                       enabled: !saving,
-                      decoration: const InputDecoration(labelText: 'Description'),
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
                       maxLines: 3,
                     ),
                   ],
@@ -377,9 +381,9 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Open failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Open failed: $e')));
     }
   }
 
@@ -403,65 +407,65 @@ class _AttachmentsScreenState extends State<AttachmentsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: Text(item.fileName),
-                subtitle: Text(
-                  [
-                    'Kind: ${item.fileKind}',
-                    if ((item.fileType ?? '').isNotEmpty)
-                      'Type: ${item.fileType}',
-                    if (item.documentDate != null)
-                      'Date: ${item.documentDate!.toIso8601String().split('T').first}',
-                    if ((item.description ?? '').isNotEmpty)
-                      'Description: ${item.description}',
-                    if (item.storagePath.isNotEmpty)
-                      'Path: ${item.storagePath}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Open',
-                      onPressed: () => _openItem(item),
-                      icon: const Icon(Icons.open_in_new),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.attach_file),
+                      title: Text(item.fileName),
+                      subtitle: Text(
+                        [
+                          'Kind: ${item.fileKind}',
+                          if ((item.fileType ?? '').isNotEmpty)
+                            'Type: ${item.fileType}',
+                          if (item.documentDate != null)
+                            'Date: ${item.documentDate!.toIso8601String().split('T').first}',
+                          if ((item.description ?? '').isNotEmpty)
+                            'Description: ${item.description}',
+                          if (item.storagePath.isNotEmpty)
+                            'Path: ${item.storagePath}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Open',
+                                  onPressed: () => _openItem(item),
+                                  icon: const Icon(Icons.open_in_new),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (value) async {
+                                    if (value == 'edit') {
+                                      await _openEditor(initial: item);
+                                    } else if (value == 'delete') {
+                                      await _deleteItem(item);
+                                    }
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Edit'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        if (value == 'edit') {
-                          await _openEditor(initial: item);
-                        } else if (value == 'delete') {
-                          await _deleteItem(item);
-                        }
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

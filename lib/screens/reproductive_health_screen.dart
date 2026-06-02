@@ -39,9 +39,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -65,9 +63,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
 
     super.dispose();
   }
@@ -113,30 +109,41 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
     DateTime? lastPeriodStart = current?.lastPeriodStart;
     DateTime? lastPeriodEnd = current?.lastPeriodEnd;
 
-    final pregnancyTermWeeksController =
-    TextEditingController(text: current?.pregnancyTermWeeks?.toString() ?? '');
-    final gestityController =
-    TextEditingController(text: current?.gestity?.toString() ?? '');
-    final parityController =
-    TextEditingController(text: current?.parity?.toString() ?? '');
-    final abortionsController =
-    TextEditingController(text: current?.abortions?.toString() ?? '');
-    final pubertyAgeController =
-    TextEditingController(text: current?.pubertyAge?.toString() ?? '');
-    final breastExamNotesController =
-    TextEditingController(text: current?.breastExamNotes ?? '');
-    final pregnancyHistoryController =
-    TextEditingController(text: current?.pregnancyHistory ?? '');
-    final birthHistoryController =
-    TextEditingController(text: current?.birthHistory ?? '');
-    final abortionHistoryController =
-    TextEditingController(text: current?.abortionHistory ?? '');
+    final pregnancyTermWeeksController = TextEditingController(
+      text: current?.pregnancyTermWeeks?.toString() ?? '',
+    );
+    final gestityController = TextEditingController(
+      text: current?.gestity?.toString() ?? '',
+    );
+    final parityController = TextEditingController(
+      text: current?.parity?.toString() ?? '',
+    );
+    final abortionsController = TextEditingController(
+      text: current?.abortions?.toString() ?? '',
+    );
+    final pubertyAgeController = TextEditingController(
+      text: current?.pubertyAge?.toString() ?? '',
+    );
+    final breastExamNotesController = TextEditingController(
+      text: current?.breastExamNotes ?? '',
+    );
+    final pregnancyHistoryController = TextEditingController(
+      text: current?.pregnancyHistory ?? '',
+    );
+    final birthHistoryController = TextEditingController(
+      text: current?.birthHistory ?? '',
+    );
+    final abortionHistoryController = TextEditingController(
+      text: current?.abortionHistory ?? '',
+    );
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
-          title: current == null ? 'Add reproductive health' : 'Edit reproductive health',
+          title: current == null
+              ? 'Add reproductive health'
+              : 'Edit reproductive health',
           validate: () => null,
           onSave: () async {
             final model = ReproductiveHealthModel(
@@ -149,7 +156,9 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
               lastPeriodStart: lastPeriodStart,
               lastPeriodEnd: lastPeriodEnd,
               currentlyPregnant: currentlyPregnant,
-              pregnancyTermWeeks: int.tryParse(pregnancyTermWeeksController.text.trim()),
+              pregnancyTermWeeks: int.tryParse(
+                pregnancyTermWeeksController.text.trim(),
+              ),
               gestity: int.tryParse(gestityController.text.trim()),
               parity: int.tryParse(parityController.text.trim()),
               abortions: int.tryParse(abortionsController.text.trim()),
@@ -174,26 +183,17 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
           },
           contentBuilder: (_, saving) {
             DropdownButtonFormField<bool?> boolField(
-                String label,
-                bool? value,
-                void Function(bool?) onChanged,
-                ) {
+              String label,
+              bool? value,
+              void Function(bool?) onChanged,
+            ) {
               return DropdownButtonFormField<bool?>(
                 initialValue: value,
                 decoration: InputDecoration(labelText: label),
                 items: const [
-                  DropdownMenuItem<bool?>(
-                    value: null,
-                    child: Text('None'),
-                  ),
-                  DropdownMenuItem<bool?>(
-                    value: true,
-                    child: Text('Yes'),
-                  ),
-                  DropdownMenuItem<bool?>(
-                    value: false,
-                    child: Text('No'),
-                  ),
+                  DropdownMenuItem<bool?>(value: null, child: Text('None')),
+                  DropdownMenuItem<bool?>(value: true, child: Text('Yes')),
+                  DropdownMenuItem<bool?>(value: false, child: Text('No')),
                 ],
                 onChanged: saving ? null : onChanged,
               );
@@ -219,9 +219,7 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Expanded(
-                            child: Text('Pain level'),
-                          ),
+                          const Expanded(child: Text('Pain level')),
                           Text(painLevel.round().toString()),
                         ],
                       ),
@@ -242,22 +240,28 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                         subtitle: Text(
                           lastPeriodStart == null
                               ? 'Not set'
-                              : lastPeriodStart!.toIso8601String().split('T').first,
+                              : lastPeriodStart!
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: lastPeriodStart ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => lastPeriodStart = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        lastPeriodStart ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => lastPeriodStart = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -268,22 +272,28 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
                         subtitle: Text(
                           lastPeriodEnd == null
                               ? 'Not set'
-                              : lastPeriodEnd!.toIso8601String().split('T').first,
+                              : lastPeriodEnd!
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: lastPeriodEnd ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => lastPeriodEnd = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        lastPeriodEnd ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => lastPeriodEnd = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -443,48 +453,47 @@ class _ReproductiveHealthScreenState extends State<ReproductiveHealthScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              title: const Text('Reproductive health'),
-              subtitle: Text(
-                item == null
-                    ? 'No record'
-                    : [
-                  'Has menstrual cycle: ${yesNo(item.hasMenstrualCycle)}',
-                  'Cycle regular: ${yesNo(item.cycleRegular)}',
-                  'Cycle painful: ${yesNo(item.cyclePainful)}',
-                  'Pain level: ${displayUnknownAsNone(item.painLevel)}',
-                  if (item.lastPeriodStart != null)
-                    'Last period start: ${item.lastPeriodStart!.toIso8601String().split('T').first}',
-                  if (item.lastPeriodEnd != null)
-                    'Last period end: ${item.lastPeriodEnd!.toIso8601String().split('T').first}',
-                  'Currently pregnant: ${yesNo(item.currentlyPregnant)}',
-                  if (item.pregnancyTermWeeks != null)
-                    'Pregnancy term weeks: ${item.pregnancyTermWeeks}',
-                  if (item.gestity != null)
-                    'Gestity: ${item.gestity}',
-                  if (item.parity != null)
-                    'Parity: ${item.parity}',
-                  if (item.abortions != null)
-                    'Abortions: ${item.abortions}',
-                  if (item.pubertyAge != null)
-                    'Puberty age: ${item.pubertyAge}',
-                  if ((item.breastExamNotes ?? '').isNotEmpty)
-                    'Breast exam notes: ${item.breastExamNotes}',
-                  if ((item.pregnancyHistory ?? '').isNotEmpty)
-                    'Pregnancy history: ${item.pregnancyHistory}',
-                  if ((item.birthHistory ?? '').isNotEmpty)
-                    'Birth history: ${item.birthHistory}',
-                  if ((item.abortionHistory ?? '').isNotEmpty)
-                    'Abortion history: ${item.abortionHistory}',
-                ].join('\n'),
-              ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: ListTile(
+                    title: const Text('Reproductive health'),
+                    subtitle: Text(
+                      item == null
+                          ? 'No record'
+                          : [
+                              'Has menstrual cycle: ${yesNo(item.hasMenstrualCycle)}',
+                              'Cycle regular: ${yesNo(item.cycleRegular)}',
+                              'Cycle painful: ${yesNo(item.cyclePainful)}',
+                              'Pain level: ${displayUnknownAsNone(item.painLevel)}',
+                              if (item.lastPeriodStart != null)
+                                'Last period start: ${item.lastPeriodStart!.toIso8601String().split('T').first}',
+                              if (item.lastPeriodEnd != null)
+                                'Last period end: ${item.lastPeriodEnd!.toIso8601String().split('T').first}',
+                              'Currently pregnant: ${yesNo(item.currentlyPregnant)}',
+                              if (item.pregnancyTermWeeks != null)
+                                'Pregnancy term weeks: ${item.pregnancyTermWeeks}',
+                              if (item.gestity != null)
+                                'Gestity: ${item.gestity}',
+                              if (item.parity != null) 'Parity: ${item.parity}',
+                              if (item.abortions != null)
+                                'Abortions: ${item.abortions}',
+                              if (item.pubertyAge != null)
+                                'Puberty age: ${item.pubertyAge}',
+                              if ((item.breastExamNotes ?? '').isNotEmpty)
+                                'Breast exam notes: ${item.breastExamNotes}',
+                              if ((item.pregnancyHistory ?? '').isNotEmpty)
+                                'Pregnancy history: ${item.pregnancyHistory}',
+                              if ((item.birthHistory ?? '').isNotEmpty)
+                                'Birth history: ${item.birthHistory}',
+                              if ((item.abortionHistory ?? '').isNotEmpty)
+                                'Abortion history: ${item.abortionHistory}',
+                            ].join('\n'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

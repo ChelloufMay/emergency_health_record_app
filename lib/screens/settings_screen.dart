@@ -72,7 +72,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setDialogState(() => saving = true);
 
               try {
-                await _authService.updatePassword(passwordController.text.trim());
+                await _authService.updatePassword(
+                  passwordController.text.trim(),
+                );
                 if (!dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
                 _showSnack('Password updated successfully.');
@@ -158,10 +160,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onPressed: saving ? null : submit,
                   child: saving
                       ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Update password'),
                 ),
               ],
@@ -205,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               const Text(
                 'This will send an email request to the administrator. '
-                    'Your account will not be deleted immediately from this screen.',
+                'Your account will not be deleted immediately from this screen.',
               ),
               const SizedBox(height: 16),
               TextField(
@@ -226,9 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Send request'),
           ),
         ],
@@ -247,10 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       _showSnack('Deletion request sent to the administrator.');
     } catch (e) {
-      _showSnack(
-        'Could not send deletion request: $e',
-        error: true,
-      );
+      _showSnack('Could not send deletion request: $e', error: true);
     } finally {
       reasonController.dispose();
     }
@@ -317,21 +314,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color? iconColor,
     Color? titleColor,
     Widget? trailing,
-  }) =>
-      ListTile(
-        leading: Icon(
-          icon,
-          color: iconColor ?? Theme.of(context).colorScheme.primary,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(color: titleColor),
-        ),
-        subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing:
+  }) => ListTile(
+    leading: Icon(
+      icon,
+      color: iconColor ?? Theme.of(context).colorScheme.primary,
+    ),
+    title: Text(title, style: TextStyle(color: titleColor)),
+    subtitle: subtitle != null ? Text(subtitle) : null,
+    trailing:
         trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
-        onTap: onTap,
-      );
+    onTap: onTap,
+  );
 
   Widget _divider() => const Divider(height: 1, indent: 56);
 
@@ -344,239 +337,244 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-            child: Card(
-              elevation: 0,
-              color: cs.primaryContainer,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: cs.primary,
-                      child: Text(
-                        _initials(_fullName ?? _email ?? '?'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                  child: Card(
+                    elevation: 0,
+                    color: cs.primaryContainer,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
                         children: [
-                          Text(
-                            _fullName ?? 'No name set',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: cs.primary,
+                            child: Text(
+                              _initials(_fullName ?? _email ?? '?'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _email ?? '',
-                            style: TextStyle(
-                              color:
-                              cs.onPrimaryContainer.withValues(alpha: 0.7),
-                              fontSize: 13,
-                            ),
-                          ),
-                          if (_role != null) ...[
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cs.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _role!.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.primary,
-                                  letterSpacing: 0.8,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _fullName ?? 'No name set',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _email ?? '',
+                                  style: TextStyle(
+                                    color: cs.onPrimaryContainer.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if (_role != null) ...[
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _role!.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: cs.primary,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-          _sectionHeader('Profile'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: cs.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                _tile(
-                  icon: Icons.person_outline,
-                  title: 'Edit profile',
-                  subtitle: 'Update your personal profile',
-                  onTap: () => Navigator.pushNamed(context, '/profile'),
+                _sectionHeader('Profile'),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _tile(
+                        icon: Icons.person_outline,
+                        title: 'Edit profile',
+                        subtitle: 'Update your personal profile',
+                        onTap: () => Navigator.pushNamed(context, '/profile'),
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.medical_information_outlined,
+                        title: 'Medical summary',
+                        subtitle: 'Allergies, medications, conditions',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/medical_summary'),
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.qr_code_outlined,
+                        title: 'My emergency QR',
+                        subtitle: 'View or share your emergency card',
+                        onTap: () => Navigator.pushNamed(context, '/qr'),
+                      ),
+                    ],
+                  ),
                 ),
-                _divider(),
-                _tile(
-                  icon: Icons.medical_information_outlined,
-                  title: 'Medical summary',
-                  subtitle: 'Allergies, medications, conditions',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/medical_summary'),
+                _sectionHeader('Access & Caregivers'),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _tile(
+                        icon: Icons.people_outline,
+                        title: 'Caregivers',
+                        subtitle: 'Manage who can view or edit your record',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/caregivers'),
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.history_outlined,
+                        title: 'Actions performed',
+                        subtitle: 'See all access and edit events',
+                        onTap: () => Navigator.pushNamed(context, '/audit_log'),
+                      ),
+                    ],
+                  ),
                 ),
-                _divider(),
-                _tile(
-                  icon: Icons.qr_code_outlined,
-                  title: 'My emergency QR',
-                  subtitle: 'View or share your emergency card',
-                  onTap: () => Navigator.pushNamed(context, '/qr'),
+                _sectionHeader('Security'),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _tile(
+                        icon: Icons.lock_reset_outlined,
+                        title: 'Change password',
+                        subtitle: 'Open a dialog and update your password now',
+                        onTap: _showChangePasswordDialog,
+                      ),
+                      _divider(),
+                      // CHANGED: password recovery email tile removed.
+                      _tile(
+                        icon: Icons.shield_outlined,
+                        title: 'Data protection',
+                        subtitle: 'Protected by Supabase Auth + RLS',
+                        trailing: Icon(
+                          Icons.check_circle,
+                          color: Colors.green.shade600,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-          _sectionHeader('Access & Caregivers'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: cs.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                _tile(
-                  icon: Icons.people_outline,
-                  title: 'Caregivers',
-                  subtitle: 'Manage who can view or edit your record',
-                  onTap: () => Navigator.pushNamed(context, '/caregivers'),
+                _sectionHeader('About'),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _tile(
+                        icon: Icons.info_outline,
+                        title: 'App version',
+                        subtitle: '1.0.0 - MVP',
+                        trailing: const SizedBox.shrink(),
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.privacy_tip_outlined,
+                        title: 'Privacy policy',
+                        subtitle: 'Read how your data is handled',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/privacy-policy'),
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.description_outlined,
+                        title: 'Terms of use',
+                        subtitle:
+                            'This app supplements but does not replace clinical records',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/terms-of-use'),
+                      ),
+                    ],
+                  ),
                 ),
-                _divider(),
-                _tile(
-                  icon: Icons.history_outlined,
-                  title: 'Actions performed',
-                  subtitle: 'See all access and edit events',
-                  onTap: () => Navigator.pushNamed(context, '/audit_log'),
-                ),
-              ],
-            ),
-          ),
-          _sectionHeader('Security'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: cs.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                _tile(
-                  icon: Icons.lock_reset_outlined,
-                  title: 'Change password',
-                  subtitle: 'Open a dialog and update your password now',
-                  onTap: _showChangePasswordDialog,
-                ),
-                _divider(),
-                // CHANGED: password recovery email tile removed.
-                _tile(
-                  icon: Icons.shield_outlined,
-                  title: 'Data protection',
-                  subtitle: 'Protected by Supabase Auth + RLS',
-                  trailing: Icon(
-                    Icons.check_circle,
-                    color: Colors.green.shade600,
-                    size: 20,
+                _sectionHeader('Account'),
+                Card(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _tile(
+                        icon: Icons.logout,
+                        title: 'Sign out',
+                        iconColor: cs.error,
+                        titleColor: cs.error,
+                        trailing: const SizedBox.shrink(),
+                        onTap: _signOut,
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.delete_forever_outlined,
+                        title: 'Delete account',
+                        subtitle:
+                            'Send a deletion request to the administrator',
+                        iconColor: cs.error,
+                        titleColor: cs.error,
+                        onTap: _requestAccountDeletion,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          _sectionHeader('About'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: cs.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                _tile(
-                  icon: Icons.info_outline,
-                  title: 'App version',
-                  subtitle: '1.0.0 - MVP',
-                  trailing: const SizedBox.shrink(),
-                ),
-                _divider(),
-                _tile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy policy',
-                  subtitle: 'Read how your data is handled',
-                  onTap: () => Navigator.pushNamed(context, '/privacy-policy'),
-                ),
-                _divider(),
-                _tile(
-                  icon: Icons.description_outlined,
-                  title: 'Terms of use',
-                  subtitle:
-                  'This app supplements but does not replace clinical records',
-                  onTap: () => Navigator.pushNamed(context, '/terms-of-use'),
-                ),
-              ],
-            ),
-          ),
-          _sectionHeader('Account'),
-          Card(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: cs.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                _tile(
-                  icon: Icons.logout,
-                  title: 'Sign out',
-                  iconColor: cs.error,
-                  titleColor: cs.error,
-                  trailing: const SizedBox.shrink(),
-                  onTap: _signOut,
-                ),
-                _divider(),
-                _tile(
-                  icon: Icons.delete_forever_outlined,
-                  title: 'Delete account',
-                  subtitle: 'Send a deletion request to the administrator',
-                  iconColor: cs.error,
-                  titleColor: cs.error,
-                  onTap: _requestAccountDeletion,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

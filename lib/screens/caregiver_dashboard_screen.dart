@@ -53,7 +53,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       key: ValueKey('caregiver-dashboard-${access.revision}'),
       title: 'Caregiver dashboard',
       subtitle:
-      'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
+          'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active caregiver access found.',
     );
   }

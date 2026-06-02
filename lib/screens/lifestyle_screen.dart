@@ -38,9 +38,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -63,9 +61,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
 
     super.dispose();
   }
@@ -101,13 +97,28 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
     final current = _item;
 
     String workStatus = current?.workStatus ?? 'unemployed';
-    if (!['unemployed', 'employed', 'retired', 'student'].contains(workStatus)) {
+    if (![
+      'unemployed',
+      'employed',
+      'retired',
+      'student',
+    ].contains(workStatus)) {
       workStatus = 'unemployed';
     }
-    final drugTypeController = TextEditingController(text: current?.drugType ?? '');
-    final drugQuantityController = TextEditingController(text: current?.drugQuantity ?? '');
+    final drugTypeController = TextEditingController(
+      text: current?.drugType ?? '',
+    );
+    final drugQuantityController = TextEditingController(
+      text: current?.drugQuantity ?? '',
+    );
     String alcoholFrequency = current?.alcoholFrequency ?? 'never';
-    if (!['never', 'rarely', 'monthly', 'weekly', 'daily'].contains(alcoholFrequency)) {
+    if (![
+      'never',
+      'rarely',
+      'monthly',
+      'weekly',
+      'daily',
+    ].contains(alcoholFrequency)) {
       alcoholFrequency = 'never';
     }
     String foodQuality = current?.foodQuality ?? 'average';
@@ -122,9 +133,15 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
     if (!['tap', 'bottled', 'filtered'].contains(waterType)) {
       waterType = 'filtered';
     }
-    final packsController = TextEditingController(text: current?.packsPerDay?.toString() ?? '');
-    final smokingYearsController = TextEditingController(text: current?.smokingYears?.toString() ?? '');
-    final chichaYearsController = TextEditingController(text: current?.chichaYears?.toString() ?? '');
+    final packsController = TextEditingController(
+      text: current?.packsPerDay?.toString() ?? '',
+    );
+    final smokingYearsController = TextEditingController(
+      text: current?.smokingYears?.toString() ?? '',
+    );
+    final chichaYearsController = TextEditingController(
+      text: current?.chichaYears?.toString() ?? '',
+    );
 
     bool livesAlone = current?.livesAlone ?? false;
     bool hasCaregiver = current?.hasCaregiver ?? false;
@@ -188,14 +205,8 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                     initialValue: value,
                     decoration: InputDecoration(labelText: label),
                     items: const [
-                      DropdownMenuItem<bool>(
-                        value: true,
-                        child: Text('Yes'),
-                      ),
-                      DropdownMenuItem<bool>(
-                        value: false,
-                        child: Text('No'),
-                      ),
+                      DropdownMenuItem<bool>(value: true, child: Text('Yes')),
+                      DropdownMenuItem<bool>(value: false, child: Text('No')),
                     ],
                     onChanged: saving ? null : (v) => onChanged(v!),
                   );
@@ -211,24 +222,18 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                           labelText: 'Socioeconomic class',
                         ),
                         items: const [
-                          DropdownMenuItem(
-                            value: 'low',
-                            child: Text('Low'),
-                          ),
+                          DropdownMenuItem(value: 'low', child: Text('Low')),
                           DropdownMenuItem(
                             value: 'middle',
                             child: Text('Middle'),
                           ),
-                          DropdownMenuItem(
-                            value: 'high',
-                            child: Text('High'),
-                          ),
+                          DropdownMenuItem(value: 'high', child: Text('High')),
                         ],
                         onChanged: saving
                             ? null
                             : (v) => setDialogState(
-                              () => socioeconomicClass = v ?? 'middle',
-                            ),
+                                () => socioeconomicClass = v ?? 'middle',
+                              ),
                       ),
                       const SizedBox(height: 12),
                       boolDropdown('Lives alone', livesAlone, (v) {
@@ -245,14 +250,32 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: workStatus,
-                        decoration: const InputDecoration(labelText: 'Work status'),
+                        decoration: const InputDecoration(
+                          labelText: 'Work status',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'unemployed', child: Text('Unemployed')),
-                          DropdownMenuItem(value: 'employed', child: Text('Employed')),
-                          DropdownMenuItem(value: 'retired', child: Text('Retired')),
-                          DropdownMenuItem(value: 'student', child: Text('Student')),
+                          DropdownMenuItem(
+                            value: 'unemployed',
+                            child: Text('Unemployed'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'employed',
+                            child: Text('Employed'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'retired',
+                            child: Text('Retired'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'student',
+                            child: Text('Student'),
+                          ),
                         ],
-                        onChanged: saving ? null : (v) => setDialogState(() => workStatus = v ?? 'unemployed'),
+                        onChanged: saving
+                            ? null
+                            : (v) => setDialogState(
+                                () => workStatus = v ?? 'unemployed',
+                              ),
                       ),
                       const SizedBox(height: 12),
                       boolDropdown('Smoking', smoking, (v) {
@@ -262,13 +285,17 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                       TextField(
                         controller: packsController,
                         enabled: !saving,
-                        decoration: const InputDecoration(labelText: 'Packs/day'),
+                        decoration: const InputDecoration(
+                          labelText: 'Packs/day',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: smokingYearsController,
                         enabled: !saving,
-                        decoration: const InputDecoration(labelText: 'Smoking years'),
+                        decoration: const InputDecoration(
+                          labelText: 'Smoking years',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       boolDropdown('Drugs', drugs, (v) {
@@ -278,13 +305,17 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                       TextField(
                         controller: drugTypeController,
                         enabled: !saving,
-                        decoration: const InputDecoration(labelText: 'Drug type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Drug type',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: drugQuantityController,
                         enabled: !saving,
-                        decoration: const InputDecoration(labelText: 'Drug quantity'),
+                        decoration: const InputDecoration(
+                          labelText: 'Drug quantity',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       boolDropdown('Chicha', chicha, (v) {
@@ -294,53 +325,111 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
                       TextField(
                         controller: chichaYearsController,
                         enabled: !saving,
-                        decoration: const InputDecoration(labelText: 'Chicha years'),
+                        decoration: const InputDecoration(
+                          labelText: 'Chicha years',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: alcoholFrequency,
-                        decoration: const InputDecoration(labelText: 'Alcohol frequency'),
+                        decoration: const InputDecoration(
+                          labelText: 'Alcohol frequency',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'never', child: Text('Never')),
-                          DropdownMenuItem(value: 'rarely', child: Text('Rarely')),
-                          DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                          DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                          DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                          DropdownMenuItem(
+                            value: 'never',
+                            child: Text('Never'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'rarely',
+                            child: Text('Rarely'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'monthly',
+                            child: Text('Monthly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'weekly',
+                            child: Text('Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'daily',
+                            child: Text('Daily'),
+                          ),
                         ],
-                        onChanged: saving ? null : (v) => setDialogState(() => alcoholFrequency = v ?? 'never'),
+                        onChanged: saving
+                            ? null
+                            : (v) => setDialogState(
+                                () => alcoholFrequency = v ?? 'never',
+                              ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: foodQuality,
-                        decoration: const InputDecoration(labelText: 'Food quality'),
+                        decoration: const InputDecoration(
+                          labelText: 'Food quality',
+                        ),
                         items: const [
                           DropdownMenuItem(value: 'good', child: Text('Good')),
-                          DropdownMenuItem(value: 'average', child: Text('Average')),
+                          DropdownMenuItem(
+                            value: 'average',
+                            child: Text('Average'),
+                          ),
                           DropdownMenuItem(value: 'poor', child: Text('Poor')),
                         ],
-                        onChanged: saving ? null : (v) => setDialogState(() => foodQuality = v ?? 'average'),
+                        onChanged: saving
+                            ? null
+                            : (v) => setDialogState(
+                                () => foodQuality = v ?? 'average',
+                              ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: milkType,
-                        decoration: const InputDecoration(labelText: 'Milk type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Milk type',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'fresh', child: Text('Fresh')),
-                          DropdownMenuItem(value: 'powdered', child: Text('Powdered')),
-                          DropdownMenuItem(value: 'none', child: Text('No milk')),
+                          DropdownMenuItem(
+                            value: 'fresh',
+                            child: Text('Fresh'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'powdered',
+                            child: Text('Powdered'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'none',
+                            child: Text('No milk'),
+                          ),
                         ],
-                        onChanged: saving ? null : (v) => setDialogState(() => milkType = v ?? 'fresh'),
+                        onChanged: saving
+                            ? null
+                            : (v) =>
+                                  setDialogState(() => milkType = v ?? 'fresh'),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: waterType,
-                        decoration: const InputDecoration(labelText: 'Water type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Water type',
+                        ),
                         items: const [
                           DropdownMenuItem(value: 'tap', child: Text('Tap')),
-                          DropdownMenuItem(value: 'bottled', child: Text('Bottled')),
-                          DropdownMenuItem(value: 'filtered', child: Text('Filtered')),
+                          DropdownMenuItem(
+                            value: 'bottled',
+                            child: Text('Bottled'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'filtered',
+                            child: Text('Filtered'),
+                          ),
                         ],
-                        onChanged: saving ? null : (v) => setDialogState(() => waterType = v ?? 'filtered'),
+                        onChanged: saving
+                            ? null
+                            : (v) => setDialogState(
+                                () => waterType = v ?? 'filtered',
+                              ),
                       ),
                     ],
                   ),
@@ -406,48 +495,48 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              title: const Text('Lifestyle factors'),
-              subtitle: Text(
-                item == null
-                    ? 'No record'
-                    : [
-                  'Lives alone: ${yesNo(item.livesAlone)}',
-                  'Has caregiver: ${yesNo(item.hasCaregiver)}',
-                  'Stairs in home: ${yesNo(item.stairsInHome)}',
-                  'Socioeconomic class: ${displayUnknownAsNone(item.socioeconomicClass)}',
-                  if ((item.workStatus ?? '').isNotEmpty)
-                    'Work status: ${item.workStatus}',
-                  'Smoking: ${yesNo(item.smoking)}',
-                  if (item.packsPerDay != null)
-                    'Packs/day: ${item.packsPerDay}',
-                  if (item.smokingYears != null)
-                    'Smoking years: ${item.smokingYears}',
-                  'Drugs: ${yesNo(item.drugs)}',
-                  if ((item.drugType ?? '').isNotEmpty)
-                    'Drug type: ${item.drugType}',
-                  if ((item.drugQuantity ?? '').isNotEmpty)
-                    'Drug quantity: ${item.drugQuantity}',
-                  'Chicha: ${yesNo(item.chicha)}',
-                  if (item.chichaYears != null)
-                    'Chicha years: ${item.chichaYears}',
-                  if ((item.alcoholFrequency ?? '').isNotEmpty)
-                    'Alcohol frequency: ${item.alcoholFrequency}',
-                  if ((item.foodQuality ?? '').isNotEmpty)
-                    'Food quality: ${displayUnknownAsNone(item.foodQuality)}',
-                  if ((item.milkType ?? '').isNotEmpty)
-                    'Milk type: ${displayUnknownAsNone(item.milkType)}',
-                  if ((item.waterType ?? '').isNotEmpty)
-                    'Water type: ${displayUnknownAsNone(item.waterType)}',
-                ].join('\n'),
-              ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: ListTile(
+                    title: const Text('Lifestyle factors'),
+                    subtitle: Text(
+                      item == null
+                          ? 'No record'
+                          : [
+                              'Lives alone: ${yesNo(item.livesAlone)}',
+                              'Has caregiver: ${yesNo(item.hasCaregiver)}',
+                              'Stairs in home: ${yesNo(item.stairsInHome)}',
+                              'Socioeconomic class: ${displayUnknownAsNone(item.socioeconomicClass)}',
+                              if ((item.workStatus ?? '').isNotEmpty)
+                                'Work status: ${item.workStatus}',
+                              'Smoking: ${yesNo(item.smoking)}',
+                              if (item.packsPerDay != null)
+                                'Packs/day: ${item.packsPerDay}',
+                              if (item.smokingYears != null)
+                                'Smoking years: ${item.smokingYears}',
+                              'Drugs: ${yesNo(item.drugs)}',
+                              if ((item.drugType ?? '').isNotEmpty)
+                                'Drug type: ${item.drugType}',
+                              if ((item.drugQuantity ?? '').isNotEmpty)
+                                'Drug quantity: ${item.drugQuantity}',
+                              'Chicha: ${yesNo(item.chicha)}',
+                              if (item.chichaYears != null)
+                                'Chicha years: ${item.chichaYears}',
+                              if ((item.alcoholFrequency ?? '').isNotEmpty)
+                                'Alcohol frequency: ${item.alcoholFrequency}',
+                              if ((item.foodQuality ?? '').isNotEmpty)
+                                'Food quality: ${displayUnknownAsNone(item.foodQuality)}',
+                              if ((item.milkType ?? '').isNotEmpty)
+                                'Milk type: ${displayUnknownAsNone(item.milkType)}',
+                              if ((item.waterType ?? '').isNotEmpty)
+                                'Water type: ${displayUnknownAsNone(item.waterType)}',
+                            ].join('\n'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

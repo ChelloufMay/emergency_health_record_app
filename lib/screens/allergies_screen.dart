@@ -37,9 +37,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -62,9 +60,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     super.dispose();
   }
 
@@ -100,12 +96,15 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final allergenController =
-    TextEditingController(text: initial?.allergenName ?? '');
-    final reactionController =
-    TextEditingController(text: initial?.reaction ?? '');
-    final severityController =
-    TextEditingController(text: initial?.severity ?? '');
+    final allergenController = TextEditingController(
+      text: initial?.allergenName ?? '',
+    );
+    final reactionController = TextEditingController(
+      text: initial?.reaction ?? '',
+    );
+    final severityController = TextEditingController(
+      text: initial?.severity ?? '',
+    );
     String allergyType = initial?.allergyType ?? 'other';
     String source = initial?.source ?? 'user';
 
@@ -181,7 +180,10 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   decoration: const InputDecoration(labelText: 'Severity'),
                   items: const [
                     DropdownMenuItem(value: 'mild', child: Text('Mild')),
-                    DropdownMenuItem(value: 'moderate', child: Text('Moderate')),
+                    DropdownMenuItem(
+                      value: 'moderate',
+                      child: Text('Moderate'),
+                    ),
                     DropdownMenuItem(value: 'severe', child: Text('Severe')),
                   ],
                   onChanged: saving
@@ -268,51 +270,52 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.allergenName),
-                subtitle: Text(
-                  [
-                    'Type: ${item.allergyType}',
-                    if ((item.reaction ?? '').isNotEmpty)
-                      'Reaction: ${item.reaction}',
-                    if ((item.severity ?? '').isNotEmpty)
-                      'Severity: ${item.severity}',
-                    if ((item.source).isNotEmpty) 'Source: ${item.source}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.allergenName),
+                      subtitle: Text(
+                        [
+                          'Type: ${item.allergyType}',
+                          if ((item.reaction ?? '').isNotEmpty)
+                            'Reaction: ${item.reaction}',
+                          if ((item.severity ?? '').isNotEmpty)
+                            'Severity: ${item.severity}',
+                          if ((item.source).isNotEmpty)
+                            'Source: ${item.source}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

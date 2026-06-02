@@ -44,13 +44,13 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'BCG',
         ageLabel: 'À la naissance',
         description:
-        'BCG - Vaccin contre la tuberculose (1 seule dose, le plus tôt possible après la naissance)',
+            'BCG - Vaccin contre la tuberculose (1 seule dose, le plus tôt possible après la naissance)',
       ),
       _PnvSlot(
         key: 'HBV-0',
         ageLabel: 'À la naissance',
         description:
-        'HBV-0 - Vaccin contre l\'hépatite B (dans les 24 h suivant la naissance)',
+            'HBV-0 - Vaccin contre l\'hépatite B (dans les 24 h suivant la naissance)',
       ),
     ],
   ),
@@ -62,86 +62,75 @@ const List<_PnvGroup> _pnvGroups = [
       _PnvSlot(
         key: 'Pentavalent-1',
         ageLabel: 'À 2 mois',
-        description:
-        'Pentavalent-1 - 1re prise (DTC + Hib + HBV)',
+        description: 'Pentavalent-1 - 1re prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-1',
         ageLabel: 'À 2 mois',
         description:
-        'VPI-1 - 1re prise du vaccin contre la poliomyélite (injectable)',
+            'VPI-1 - 1re prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV1',
         ageLabel: 'À 2 mois',
-        description:
-        'PCV1 - 1re prise du vaccin pneumococcique',
+        description: 'PCV1 - 1re prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'Pentavalent-2',
         ageLabel: 'À 3 mois',
-        description:
-        'Pentavalent-2 - 2e prise (DTC + Hib + HBV)',
+        description: 'Pentavalent-2 - 2e prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-2',
         ageLabel: 'À 3 mois',
         description:
-        'VPI-2 - 2e prise du vaccin contre la poliomyélite (injectable)',
+            'VPI-2 - 2e prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV2',
         ageLabel: 'À 4 mois',
-        description:
-        'PCV2 - 2e prise du vaccin pneumococcique',
+        description: 'PCV2 - 2e prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'Pentavalent-3',
         ageLabel: 'À 6 mois',
-        description:
-        'Pentavalent-3 - 3e prise (DTC + Hib + HBV)',
+        description: 'Pentavalent-3 - 3e prise (DTC + Hib + HBV)',
       ),
       _PnvSlot(
         key: 'VPI-3',
         ageLabel: 'À 6 mois',
         description:
-        'VPI-3 - 3e prise du vaccin contre la poliomyélite (injectable)',
+            'VPI-3 - 3e prise du vaccin contre la poliomyélite (injectable)',
       ),
       _PnvSlot(
         key: 'PCV3',
         ageLabel: 'À 11 mois',
-        description:
-        'PCV3 - 3e prise du vaccin pneumococcique',
+        description: 'PCV3 - 3e prise du vaccin pneumococcique',
       ),
       _PnvSlot(
         key: 'RR-1',
         ageLabel: 'À 12 mois',
-        description:
-        'RR-1 - 1re prise du vaccin combiné rougeole-rubéole',
+        description: 'RR-1 - 1re prise du vaccin combiné rougeole-rubéole',
       ),
       _PnvSlot(
         key: 'HVA-18m',
         ageLabel: 'À 18 mois',
-        description:
-        'HVA - Vaccin contre l\'hépatite virale A',
+        description: 'HVA - Vaccin contre l\'hépatite virale A',
       ),
       _PnvSlot(
         key: 'DTC4',
         ageLabel: 'À 18 mois',
-        description:
-        'DTC4 - Rappel par les vaccins DTC',
+        description: 'DTC4 - Rappel par les vaccins DTC',
       ),
       _PnvSlot(
         key: 'VPO-1',
         ageLabel: 'À 18 mois',
-        description:
-        'VPO - Rappel par le vaccin contre la poliomyélite (oral)',
+        description: 'VPO - Rappel par le vaccin contre la poliomyélite (oral)',
       ),
       _PnvSlot(
         key: 'RR-2',
         ageLabel: 'À 18 mois',
-        description:
-        'RR-2 - Rappel par le vaccin combiné rougeole-rubéole',
+        description: 'RR-2 - Rappel par le vaccin combiné rougeole-rubéole',
       ),
     ],
   ),
@@ -154,43 +143,38 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'DTCa-VPI-6ans',
         ageLabel: 'À 6 ans\n(1re année)',
         description:
-        'DTCa-VPI - Rappel quadrivalent (diphtérie, tétanos, coqueluche acellulaire, poliomyélite)',
+            'DTCa-VPI - Rappel quadrivalent (diphtérie, tétanos, coqueluche acellulaire, poliomyélite)',
       ),
       _PnvSlot(
         key: 'VHA-6ans',
         ageLabel: 'À 6 ans\n(1re année)',
-        description:
-        'VHA - 1 prise du vaccin contre l\'hépatite virale A',
+        description: 'VHA - 1 prise du vaccin contre l\'hépatite virale A',
       ),
       _PnvSlot(
         key: 'dT-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
-        description:
-        'dT - Rappel contre la diphtérie et le tétanos',
+        description: 'dT - Rappel contre la diphtérie et le tétanos',
       ),
       _PnvSlot(
         key: 'VPO-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
-        description:
-        'VPO - Rappel par le vaccin oral contre la poliomyélite',
+        description: 'VPO - Rappel par le vaccin oral contre la poliomyélite',
       ),
       _PnvSlot(
         key: 'VPH-12ans',
         ageLabel: 'À 12 ans\n(6e année)',
         description:
-        'VPH - 1 prise du vaccin contre le Virus du Papillome Humain',
+            'VPH - 1 prise du vaccin contre le Virus du Papillome Humain',
       ),
       _PnvSlot(
         key: 'dT-18ans',
         ageLabel: 'À 18 ans\n(3e secondaire)',
-        description:
-        'dT - Rappel contre la diphtérie et le tétanos',
+        description: 'dT - Rappel contre la diphtérie et le tétanos',
       ),
       _PnvSlot(
         key: 'VPO-18ans',
         ageLabel: 'À 18 ans\n(3e secondaire)',
-        description:
-        'VPO - Rappel par le vaccin oral contre la poliomyélite',
+        description: 'VPO - Rappel par le vaccin oral contre la poliomyélite',
       ),
     ],
   ),
@@ -202,8 +186,7 @@ const List<_PnvGroup> _pnvGroups = [
       _PnvSlot(
         key: 'dT1-femme',
         ageLabel: 'dT1',
-        description:
-        'dT1 - Dès le premier contact avec la structure de santé',
+        description: 'dT1 - Dès le premier contact avec la structure de santé',
       ),
       _PnvSlot(
         key: 'dT2-femme',
@@ -229,7 +212,7 @@ const List<_PnvGroup> _pnvGroups = [
         key: 'Rubeole-femme',
         ageLabel: 'Rubéole',
         description:
-        'Vaccin contre la rubéole - Pour les femmes non immunisées',
+            'Vaccin contre la rubéole - Pour les femmes non immunisées',
       ),
     ],
   ),
@@ -378,9 +361,9 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
         });
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       } finally {
         if (mounted) setState(() => _pnvBusy.remove(slot.key));
       }
@@ -406,9 +389,9 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
         });
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       } finally {
         if (mounted) setState(() => _pnvBusy.remove(slot.key));
       }
@@ -423,10 +406,12 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController =
-    TextEditingController(text: initial?.vaccineName ?? '');
-    final doseController =
-    TextEditingController(text: initial?.doseNumber?.toString() ?? '');
+    final nameController = TextEditingController(
+      text: initial?.vaccineName ?? '',
+    );
+    final doseController = TextEditingController(
+      text: initial?.doseNumber?.toString() ?? '',
+    );
     final notesController = TextEditingController(text: initial?.notes ?? '');
     DateTime? dateAdministered = initial?.dateAdministered;
 
@@ -446,7 +431,8 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
               id: initial?.id,
               patientId: patientId,
               vaccineName: nameController.text.trim(),
-              category: 'other', // always 'other' in this tab
+              category: 'other',
+              // always 'other' in this tab
               doseNumber: int.tryParse(doseController.text.trim()),
               dateAdministered: dateAdministered,
               notes: notesController.text.trim().isEmpty
@@ -487,26 +473,27 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
                           dateAdministered == null
                               ? 'Not set'
                               : dateAdministered!
-                              .toIso8601String()
-                              .split('T')
-                              .first,
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate:
-                              dateAdministered ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(
-                                      () => dateAdministered = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        dateAdministered ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => dateAdministered = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -576,26 +563,26 @@ class _VaccinationsScreenState extends State<VaccinationsScreen>
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : TabBarView(
-        controller: _tabController,
-        children: [
-          _PnvTab(
-            groups: _pnvGroups,
-            checked: _pnvChecked,
-            busy: _pnvBusy,
-            allowMutations: _access.allowMutations,
-            onToggle: _onPnvToggle,
-            onRefresh: _load,
-          ),
-          _OtherTab(
-            items: _otherItems,
-            allowMutations: _access.allowMutations,
-            onAdd: () => _openEditor(),
-            onEdit: (item) => _openEditor(initial: item),
-            onDelete: _deleteOtherItem,
-            onRefresh: _load,
-          ),
-        ],
-      ),
+              controller: _tabController,
+              children: [
+                _PnvTab(
+                  groups: _pnvGroups,
+                  checked: _pnvChecked,
+                  busy: _pnvBusy,
+                  allowMutations: _access.allowMutations,
+                  onToggle: _onPnvToggle,
+                  onRefresh: _load,
+                ),
+                _OtherTab(
+                  items: _otherItems,
+                  allowMutations: _access.allowMutations,
+                  onAdd: () => _openEditor(),
+                  onEdit: (item) => _openEditor(initial: item),
+                  onDelete: _deleteOtherItem,
+                  onRefresh: _load,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -634,13 +621,16 @@ class _PnvTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 16, color: colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Cochez les vaccins que vous avez reçus. '
-                        'Chaque case est enregistrée immédiatement.',
+                    'Chaque case est enregistrée immédiatement.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -742,17 +732,17 @@ class _PnvRow extends StatelessWidget {
             // Checkbox / busy indicator
             isBusy
                 ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Checkbox(
-              value: isChecked,
-              onChanged: (allowMutations && !isBusy)
-                  ? (v) => onToggle(slot, v ?? false)
-                  : null,
-              activeColor: colorScheme.primary,
-            ),
+                    value: isChecked,
+                    onChanged: (allowMutations && !isBusy)
+                        ? (v) => onToggle(slot, v ?? false)
+                        : null,
+                    activeColor: colorScheme.primary,
+                  ),
           ],
         ),
       ),
@@ -785,64 +775,64 @@ class _OtherTab extends StatelessWidget {
       // FAB for adding: only visible in this tab
       floatingActionButton: allowMutations
           ? FloatingActionButton(
-        onPressed: onAdd,
-        tooltip: 'Add vaccination',
-        child: const Icon(Icons.add),
-      )
+              onPressed: onAdd,
+              tooltip: 'Add vaccination',
+              child: const Icon(Icons.add),
+            )
           : null,
       body: RefreshIndicator(
         onRefresh: onRefresh,
         child: items.isEmpty
             ? ListView(
-          // Allows pull-to-refresh even when empty
-          children: const [
-            SizedBox(height: 120),
-            Center(child: Text('No other vaccinations recorded.')),
-          ],
-        )
+                // Allows pull-to-refresh even when empty
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text('No other vaccinations recorded.')),
+                ],
+              )
             : ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.vaccineName),
-                subtitle: Text(
-                  [
-                    if (item.doseNumber != null)
-                      'Dose: ${item.doseNumber}',
-                    if (item.dateAdministered != null)
-                      'Date: ${item.dateAdministered!.toIso8601String().split('T').first}',
-                    if ((item.notes ?? '').isNotEmpty)
-                      'Notes: ${item.notes}',
-                  ].join('\n'),
-                ),
-                trailing: allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      onEdit(item);
-                    } else if (value == 'delete') {
-                      onDelete(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.vaccineName),
+                      subtitle: Text(
+                        [
+                          if (item.doseNumber != null)
+                            'Dose: ${item.doseNumber}',
+                          if (item.dateAdministered != null)
+                            'Date: ${item.dateAdministered!.toIso8601String().split('T').first}',
+                          if ((item.notes ?? '').isNotEmpty)
+                            'Notes: ${item.notes}',
+                        ].join('\n'),
+                      ),
+                      trailing: allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  onEdit(item);
+                                } else if (value == 'delete') {
+                                  onDelete(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }

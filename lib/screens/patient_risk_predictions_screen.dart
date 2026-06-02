@@ -52,9 +52,9 @@ class _PatientRiskPredictionsScreenState
       final map = Map<String, dynamic>.from(factor);
       final label =
           map['label']?.toString() ??
-              map['name']?.toString() ??
-              map['factor']?.toString() ??
-              'Factor';
+          map['name']?.toString() ??
+          map['factor']?.toString() ??
+          'Factor';
       final value = map['value']?.toString();
       final weight = map['weight']?.toString();
 
@@ -140,7 +140,7 @@ class _PatientRiskPredictionsScreenState
       if (!mounted) return;
       setState(() {
         _error =
-        'Failed to load predictions: $e\n\nMake sure the FastAPI server is running at http://127.0.0.1:8000';
+            'Failed to load predictions: $e\n\nMake sure the FastAPI server is running at http://127.0.0.1:8000';
         _loading = false;
         _generating = false;
       });
@@ -181,9 +181,9 @@ class _PatientRiskPredictionsScreenState
   }
 
   Widget _buildPredictionCard(
-      PatientRiskPredictionModel prediction, {
-        bool highlighted = false,
-      }) {
+    PatientRiskPredictionModel prediction, {
+    bool highlighted = false,
+  }) {
     final mainFactors = prediction.mainFactors;
     final snapshot = prediction.inputSnapshot;
     final riskColor = _riskColor(prediction.riskLevel);
@@ -290,10 +290,10 @@ class _PatientRiskPredictionsScreenState
             onPressed: _generating ? null : _generateNewPrediction,
             icon: _generating
                 ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.bolt),
             tooltip: 'Generate prediction',
           ),
@@ -303,55 +303,49 @@ class _PatientRiskPredictionsScreenState
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            _error!,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_error!, textAlign: TextAlign.center),
+              ),
+            )
           : _predictions.isEmpty
           ? const Center(
-        child: Text('No risk predictions have been recorded yet.'),
-      )
+              child: Text('No risk predictions have been recorded yet.'),
+            )
           : RefreshIndicator(
-        onRefresh: () => _load(generateIfMissing: false),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if ((_patientName ?? '').trim().isNotEmpty) ...[
-              Text(
-                _patientName!,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (current != null)
-              _buildPredictionCard(current, highlighted: true),
-            const SizedBox(height: 16),
-            const Text(
-              'History',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+              onRefresh: () => _load(generateIfMissing: false),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if ((_patientName ?? '').trim().isNotEmpty) ...[
+                    Text(
+                      _patientName!,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (current != null)
+                    _buildPredictionCard(current, highlighted: true),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'History',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._predictions
+                      .skip(1)
+                      .map(
+                        (prediction) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildPredictionCard(prediction),
+                        ),
+                      ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            ..._predictions
-                .skip(1)
-                .map(
-                  (prediction) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildPredictionCard(prediction),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

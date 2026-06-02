@@ -11,11 +11,7 @@ class EmergencyScreen extends StatefulWidget {
   final String? payload;
   final String? patientId;
 
-  const EmergencyScreen({
-    super.key,
-    this.payload,
-    this.patientId,
-  });
+  const EmergencyScreen({super.key, this.payload, this.patientId});
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
@@ -196,10 +192,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
     if (routeArgs is Map) {
       final map = Map<String, dynamic>.from(routeArgs);
-      final candidates = [
-        map['patientId'],
-        map['patient_id'],
-      ];
+      final candidates = [map['patientId'], map['patient_id']];
 
       for (final candidate in candidates) {
         if (candidate == null) continue;
@@ -246,7 +239,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         final resolved = await _tokenService.resolveEmergencyAccessToken(token);
 
         if (resolved != null) {
-          final resolvedPatientId = resolved['patient_id']?.toString() ??
+          final resolvedPatientId =
+              resolved['patient_id']?.toString() ??
               resolved['patient_profile_id']?.toString();
 
           Map<String, dynamic>? emergencySummary;
@@ -270,13 +264,17 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   '',
             ].join(' ').trim();
 
-            final dobValue = source['date_of_birth'] ?? resolved['date_of_birth'];
+            final dobValue =
+                source['date_of_birth'] ?? resolved['date_of_birth'];
             _dob = dobValue?.toString();
             _age =
-                source['age_years']?.toString() ?? resolved['age_years']?.toString();
-            _bloodType = source['blood_type']?.toString() ??
+                source['age_years']?.toString() ??
+                resolved['age_years']?.toString();
+            _bloodType =
+                source['blood_type']?.toString() ??
                 resolved['blood_type']?.toString();
-            _phone = source['phone']?.toString() ?? resolved['phone']?.toString();
+            _phone =
+                source['phone']?.toString() ?? resolved['phone']?.toString();
             _emergencyContact = [
               source['emergency_contact_name']?.toString() ??
                   resolved['emergency_contact_name']?.toString() ??
@@ -296,9 +294,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   resolved['address_city']?.toString() ??
                   '',
             ].where((e) => e.trim().isNotEmpty).join(' • ');
-            _insurancePlan = source['insurance_plan']?.toString() ??
+            _insurancePlan =
+                source['insurance_plan']?.toString() ??
                 resolved['insurance_plan']?.toString();
-            _covidVaccineType = source['covid_vaccine_type']?.toString() ??
+            _covidVaccineType =
+                source['covid_vaccine_type']?.toString() ??
                 resolved['covid_vaccine_type']?.toString();
             _allergies = _listFrom(source['allergies']);
             _medications = _listFrom(source['medications']);
@@ -383,9 +383,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   Widget _renderItem(Map<String, dynamic> item) {
     final title =
         item['allergen_name'] ??
-            item['medication_name'] ??
-            item['condition_name'] ??
-            'Item';
+        item['medication_name'] ??
+        item['condition_name'] ??
+        'Item';
 
     final detailParts = <String>[
       if ((item['reaction']?.toString() ?? '').trim().isNotEmpty)
@@ -419,7 +419,10 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            if (items.isEmpty) const Text('No data') else ...items.map(_renderItem),
+            if (items.isEmpty)
+              const Text('No data')
+            else
+              ...items.map(_renderItem),
           ],
         ),
       ),
@@ -446,63 +449,65 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           : !_hasResolvedToken
           ? const Center(child: Text('Invalid or missing emergency token.'))
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _name?.isNotEmpty == true
-                        ? _name!
-                        : 'Emergency patient',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+              children: [
+                Card(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _name?.isNotEmpty == true
+                              ? _name!
+                              : 'Emergency patient',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Patient ID: $patientIdLabel'),
+                        Text('DOB: ${_dob ?? 'Unknown'}'),
+                        Text('Age: ${_age ?? 'Unknown'}'),
+                        Text('Blood type: ${_bloodType ?? 'Unknown'}'),
+                        Text('Phone: ${_phone ?? 'Unknown'}'),
+                        Text(
+                          'Emergency contact: ${_emergencyContact ?? 'Unknown'}',
+                        ),
+                        Text('Address: ${_addressSummary ?? 'Unknown'}'),
+                        Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
+                        Text(
+                          'COVID vaccine: ${_covidVaccineType ?? 'Unknown'}',
+                        ),
+                        if (_hasOfflineSnapshot) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Offline summary was included in the token payload.',
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text('Patient ID: $patientIdLabel'),
-                  Text('DOB: ${_dob ?? 'Unknown'}'),
-                  Text('Age: ${_age ?? 'Unknown'}'),
-                  Text('Blood type: ${_bloodType ?? 'Unknown'}'),
-                  Text('Phone: ${_phone ?? 'Unknown'}'),
-                  Text(
-                    'Emergency contact: ${_emergencyContact ?? 'Unknown'}',
-                  ),
-                  Text('Address: ${_addressSummary ?? 'Unknown'}'),
-                  Text('Insurance: ${_insurancePlan ?? 'Unknown'}'),
-                  Text('COVID vaccine: ${_covidVaccineType ?? 'Unknown'}'),
-                  if (_hasOfflineSnapshot) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Offline summary was included in the token payload.',
+                ),
+                const SizedBox(height: 12),
+                _section('Allergies', _allergies),
+                const SizedBox(height: 12),
+                _section('Medications', _medications),
+                const SizedBox(height: 12),
+                _section('Chronic conditions', _conditions),
+                if (_allergies.isEmpty &&
+                    _medications.isEmpty &&
+                    _conditions.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'No detailed emergency data was returned for this token.',
                     ),
-                  ],
-                ],
-              ),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          _section('Allergies', _allergies),
-          const SizedBox(height: 12),
-          _section('Medications', _medications),
-          const SizedBox(height: 12),
-          _section('Chronic conditions', _conditions),
-          if (_allergies.isEmpty &&
-              _medications.isEmpty &&
-              _conditions.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'No detailed emergency data was returned for this token.',
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

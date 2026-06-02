@@ -172,10 +172,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
               if (!context.mounted) return;
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/login',
-                    (route) => false,
-              );
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
             },
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
@@ -186,215 +185,217 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
-        builder: (context, constraints) {
-          const spacing = 10.0;
-          final quickWidth = constraints.maxWidth > 700
-              ? (constraints.maxWidth - (spacing * 3)) / 4
-              : (constraints.maxWidth - spacing) / 2;
-          final medicalWidth = constraints.maxWidth > 900
-              ? (constraints.maxWidth - (spacing * 4)) / 3
-              : (constraints.maxWidth - spacing) / 2;
+              builder: (context, constraints) {
+                const spacing = 10.0;
+                final quickWidth = constraints.maxWidth > 700
+                    ? (constraints.maxWidth - (spacing * 3)) / 4
+                    : (constraints.maxWidth - spacing) / 2;
+                final medicalWidth = constraints.maxWidth > 900
+                    ? (constraints.maxWidth - (spacing * 4)) / 3
+                    : (constraints.maxWidth - spacing) / 2;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: Padding(
+                return ListView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Selected patient',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _displayName().isEmpty
-                            ? 'No patient selected yet.'
-                            : _displayName(),
-                      ),
-                      if (_summary != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Selected patient',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _displayName().isEmpty
+                                  ? 'No patient selected yet.'
+                                  : _displayName(),
+                            ),
+                            if (_summary != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
+                              ),
+                              Text(
+                                'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
+                              ),
+                              Text(
+                                'Address: ${((_summary?['address_country']?.toString() ?? '').trim().isEmpty) ? 'Not set' : [_summary?['address_country']?.toString(), _summary?['address_governorate']?.toString(), _summary?['address_city']?.toString()].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: () => Navigator.pushNamed(
+                                context,
+                                '/patient_access_management',
+                                arguments: {'patientId': session?.patientId},
+                              ),
+                              child: const Text('Change / manage access'),
+                            ),
+                          ],
                         ),
-                        Text(
-                          'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Quick access',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        _navCard(
+                          icon: Icons.person_outline,
+                          label: 'My Profile',
+                          onTap: () => _openSection('/profile'),
+                          width: quickWidth,
                         ),
-                        Text(
-                          'Address: ${((_summary?['address_country']?.toString() ?? '').trim().isEmpty) ? 'Not set' : [_summary?['address_country']?.toString(), _summary?['address_governorate']?.toString(), _summary?['address_city']?.toString()].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
+                        _navCard(
+                          icon: Icons.summarize_outlined,
+                          label: 'Medical Summary',
+                          onTap: () => _openSection('/medical_summary'),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.qr_code_2,
+                          label: 'Emergency Token',
+                          onTap: () => _openSection('/qr'),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.emergency_outlined,
+                          label: 'Emergency View',
+                          onTap: () => _openSection('/emergency'),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.people_outline,
+                          label: 'Access management',
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            '/patient_access_management',
+                            arguments: {'patientId': session?.patientId},
+                          ),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.notifications_outlined,
+                          label: 'Notifications',
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            '/patient_notifications',
+                            arguments: {'patientId': session?.patientId},
+                          ),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.history,
+                          label: 'Audit Log',
+                          onTap: () => _openSection('/audit_log'),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.psychology_outlined,
+                          label: 'Risk Predictions',
+                          onTap: () =>
+                              _openSection('/patient_risk_predictions'),
+                          width: quickWidth,
+                        ),
+                        _navCard(
+                          icon: Icons.settings_outlined,
+                          label: 'Settings',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/settings'),
+                          width: quickWidth,
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          '/patient_access_management',
-                          arguments: {'patientId': session?.patientId},
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Medical sections',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        _smallCard(
+                          icon: Icons.warning_amber,
+                          label: 'Allergies',
+                          onTap: () => _openSection('/allergies'),
+                          width: medicalWidth,
                         ),
-                        child: const Text('Change / manage access'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Quick access',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  _navCard(
-                    icon: Icons.person_outline,
-                    label: 'My Profile',
-                    onTap: () => _openSection('/profile'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.summarize_outlined,
-                    label: 'Medical Summary',
-                    onTap: () => _openSection('/medical_summary'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.qr_code_2,
-                    label: 'Emergency Token',
-                    onTap: () => _openSection('/qr'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.emergency_outlined,
-                    label: 'Emergency View',
-                    onTap: () => _openSection('/emergency'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.people_outline,
-                    label: 'Access management',
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/patient_access_management',
-                      arguments: {'patientId': session?.patientId},
+                        _smallCard(
+                          icon: Icons.medication,
+                          label: 'Medications',
+                          onTap: () => _openSection('/medications'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.local_hospital,
+                          label: 'Conditions',
+                          onTap: () => _openSection('/conditions'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.cut,
+                          label: 'Surgeries',
+                          onTap: () => _openSection('/surgeries'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.bed_outlined,
+                          label: 'Hospitalizations',
+                          onTap: () => _openSection('/hospitalizations'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.vaccines,
+                          label: 'Vaccinations',
+                          onTap: () => _openSection('/vaccinations'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.self_improvement,
+                          label: 'Lifestyle',
+                          onTap: () => _openSection('/lifestyle'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.family_restroom,
+                          label: 'Family history',
+                          onTap: () => _openSection('/family_history'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.healing,
+                          label: 'Reproductive',
+                          onTap: () => _openSection('/reproductive_health'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.person_search,
+                          label: 'Family doctor',
+                          onTap: () => _openSection('/family_doctor'),
+                          width: medicalWidth,
+                        ),
+                        _smallCard(
+                          icon: Icons.attach_file,
+                          label: 'Attachments',
+                          onTap: () => _openSection('/attachments'),
+                          width: medicalWidth,
+                        ),
+                      ],
                     ),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.notifications_outlined,
-                    label: 'Notifications',
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/patient_notifications',
-                      arguments: {'patientId': session?.patientId},
-                    ),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.history,
-                    label: 'Audit Log',
-                    onTap: () => _openSection('/audit_log'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.psychology_outlined,
-                    label: 'Risk Predictions',
-                    onTap: () => _openSection('/patient_risk_predictions'),
-                    width: quickWidth,
-                  ),
-                  _navCard(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    onTap: () => Navigator.pushNamed(context, '/settings'),
-                    width: quickWidth,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Medical sections',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  _smallCard(
-                    icon: Icons.warning_amber,
-                    label: 'Allergies',
-                    onTap: () => _openSection('/allergies'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.medication,
-                    label: 'Medications',
-                    onTap: () => _openSection('/medications'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.local_hospital,
-                    label: 'Conditions',
-                    onTap: () => _openSection('/conditions'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.cut,
-                    label: 'Surgeries',
-                    onTap: () => _openSection('/surgeries'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.bed_outlined,
-                    label: 'Hospitalizations',
-                    onTap: () => _openSection('/hospitalizations'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.vaccines,
-                    label: 'Vaccinations',
-                    onTap: () => _openSection('/vaccinations'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.self_improvement,
-                    label: 'Lifestyle',
-                    onTap: () => _openSection('/lifestyle'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.family_restroom,
-                    label: 'Family history',
-                    onTap: () => _openSection('/family_history'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.healing,
-                    label: 'Reproductive',
-                    onTap: () => _openSection('/reproductive_health'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.person_search,
-                    label: 'Family doctor',
-                    onTap: () => _openSection('/family_doctor'),
-                    width: medicalWidth,
-                  ),
-                  _smallCard(
-                    icon: Icons.attach_file,
-                    label: 'Attachments',
-                    onTap: () => _openSection('/attachments'),
-                    width: medicalWidth,
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }

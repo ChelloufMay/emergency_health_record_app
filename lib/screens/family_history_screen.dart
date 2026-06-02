@@ -49,9 +49,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -74,9 +72,7 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     super.dispose();
   }
 
@@ -108,9 +104,12 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final relationController = TextEditingController(text: initial?.relation ?? '');
-    final conditionController =
-    TextEditingController(text: initial?.conditionName ?? '');
+    final relationController = TextEditingController(
+      text: initial?.relation ?? '',
+    );
+    final conditionController = TextEditingController(
+      text: initial?.conditionName ?? '',
+    );
     final notesController = TextEditingController(text: initial?.notes ?? '');
 
     String category = initial?.category ?? 'unknown';
@@ -168,19 +167,23 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: category,
-                        decoration: const InputDecoration(labelText: 'Category'),
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                        ),
                         items: [
                           const DropdownMenuItem(
                             value: 'unknown',
                             child: Text('None'),
                           ),
                           ..._categories.map(
-                                (c) => DropdownMenuItem(value: c, child: Text(c)),
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
                           ),
                         ],
                         onChanged: saving
                             ? null
-                            : (v) => setDialogState(() => category = v ?? 'unknown'),
+                            : (v) => setDialogState(
+                                () => category = v ?? 'unknown',
+                              ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<bool?>(
@@ -269,51 +272,51 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.conditionName),
-                subtitle: Text(
-                  [
-                    if ((item.relation ?? '').isNotEmpty)
-                      'Relation: ${item.relation}',
-                    'Category: ${displayUnknownAsNone(item.category)}',
-                    'Genetic: ${yesNo(item.isGenetic)}',
-                    if ((item.notes ?? '').isNotEmpty)
-                      'Notes: ${item.notes}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.conditionName),
+                      subtitle: Text(
+                        [
+                          if ((item.relation ?? '').isNotEmpty)
+                            'Relation: ${item.relation}',
+                          'Category: ${displayUnknownAsNone(item.category)}',
+                          'Genetic: ${yesNo(item.isGenetic)}',
+                          if ((item.notes ?? '').isNotEmpty)
+                            'Notes: ${item.notes}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

@@ -38,9 +38,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -63,9 +61,7 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     super.dispose();
   }
 
@@ -99,21 +95,27 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
 
     final current = _item;
 
-    final fullNameController = TextEditingController(text: current?.fullName ?? '');
+    final fullNameController = TextEditingController(
+      text: current?.fullName ?? '',
+    );
     final phoneController = TextEditingController(text: current?.phone ?? '');
     final notesController = TextEditingController(text: current?.notes ?? '');
 
-    final countryController =
-    TextEditingController(text: current?.country ?? 'Tunisia');
-    final governorateController =
-    TextEditingController(text: current?.governorate ?? '');
+    final countryController = TextEditingController(
+      text: current?.country ?? 'Tunisia',
+    );
+    final governorateController = TextEditingController(
+      text: current?.governorate ?? '',
+    );
     final cityController = TextEditingController(text: current?.city ?? '');
     final avenueController = TextEditingController(text: current?.avenue ?? '');
     final streetController = TextEditingController(text: current?.street ?? '');
-    final postalCodeController =
-    TextEditingController(text: current?.postalCode ?? '');
-    final extraDetailsController =
-    TextEditingController(text: current?.extraDetails ?? '');
+    final postalCodeController = TextEditingController(
+      text: current?.postalCode ?? '',
+    );
+    final extraDetailsController = TextEditingController(
+      text: current?.extraDetails ?? '',
+    );
 
     DateTime? firstSeenDate = current?.firstSeenDate;
 
@@ -152,7 +154,8 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
               'extra_details': extraDetailsController.text.trim(),
             };
 
-            final performedByUserId = current?.createdByUserId ??
+            final performedByUserId =
+                current?.createdByUserId ??
                 PatientSessionService.instance.current?.patientId ??
                 '';
             await _service.saveForPatient(
@@ -190,22 +193,28 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                         subtitle: Text(
                           firstSeenDate == null
                               ? 'Not set'
-                              : firstSeenDate!.toIso8601String().split('T').first,
+                              : firstSeenDate!
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: firstSeenDate ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => firstSeenDate = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        firstSeenDate ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => firstSeenDate = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -234,8 +243,9 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                       TextField(
                         controller: governorateController,
                         enabled: !saving,
-                        decoration:
-                        const InputDecoration(labelText: 'Governorate'),
+                        decoration: const InputDecoration(
+                          labelText: 'Governorate',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -259,8 +269,9 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
                       TextField(
                         controller: postalCodeController,
                         enabled: !saving,
-                        decoration:
-                        const InputDecoration(labelText: 'Postal code'),
+                        decoration: const InputDecoration(
+                          labelText: 'Postal code',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -348,41 +359,41 @@ class _FamilyDoctorScreenState extends State<FamilyDoctorScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              title: Text(item?.fullName ?? 'No doctor set'),
-              subtitle: Text(
-                item == null
-                    ? 'No record'
-                    : [
-                  if ((item.phone ?? '').isNotEmpty)
-                    'Phone: ${item.phone}',
-                  if (item.firstSeenDate != null)
-                    'First seen: ${item.firstSeenDate!.toIso8601String().split('T').first}',
-                  if ((item.country ?? '').isNotEmpty)
-                    'Country: ${item.country}',
-                  if ((item.governorate ?? '').isNotEmpty)
-                    'Governorate: ${item.governorate}',
-                  if ((item.city ?? '').isNotEmpty)
-                    'City: ${item.city}',
-                  if ((item.avenue ?? '').isNotEmpty)
-                    'Avenue: ${item.avenue}',
-                  if ((item.street ?? '').isNotEmpty)
-                    'Street: ${item.street}',
-                  if ((item.postalCode ?? '').isNotEmpty)
-                    'Postal code: ${item.postalCode}',
-                  if ((item.extraDetails ?? '').isNotEmpty)
-                    'Extra details: ${item.extraDetails}',
-                  if ((item.notes ?? '').isNotEmpty)
-                    'Notes: ${item.notes}',
-                ].join('\n'),
-              ),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: ListTile(
+                    title: Text(item?.fullName ?? 'No doctor set'),
+                    subtitle: Text(
+                      item == null
+                          ? 'No record'
+                          : [
+                              if ((item.phone ?? '').isNotEmpty)
+                                'Phone: ${item.phone}',
+                              if (item.firstSeenDate != null)
+                                'First seen: ${item.firstSeenDate!.toIso8601String().split('T').first}',
+                              if ((item.country ?? '').isNotEmpty)
+                                'Country: ${item.country}',
+                              if ((item.governorate ?? '').isNotEmpty)
+                                'Governorate: ${item.governorate}',
+                              if ((item.city ?? '').isNotEmpty)
+                                'City: ${item.city}',
+                              if ((item.avenue ?? '').isNotEmpty)
+                                'Avenue: ${item.avenue}',
+                              if ((item.street ?? '').isNotEmpty)
+                                'Street: ${item.street}',
+                              if ((item.postalCode ?? '').isNotEmpty)
+                                'Postal code: ${item.postalCode}',
+                              if ((item.extraDetails ?? '').isNotEmpty)
+                                'Extra details: ${item.extraDetails}',
+                              if ((item.notes ?? '').isNotEmpty)
+                                'Notes: ${item.notes}',
+                            ].join('\n'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

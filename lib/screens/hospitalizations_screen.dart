@@ -37,9 +37,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -62,9 +60,7 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     super.dispose();
   }
 
@@ -96,8 +92,9 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final hospitalNameController =
-    TextEditingController(text: initial?.hospitalName ?? '');
+    final hospitalNameController = TextEditingController(
+      text: initial?.hospitalName ?? '',
+    );
     final reasonController = TextEditingController(text: initial?.reason ?? '');
     final notesController = TextEditingController(text: initial?.notes ?? '');
 
@@ -108,7 +105,9 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
       context: context,
       builder: (dialogContext) {
         return MedicalSaveDialog(
-          title: initial == null ? 'Add hospitalization' : 'Edit hospitalization',
+          title: initial == null
+              ? 'Add hospitalization'
+              : 'Edit hospitalization',
           validate: () => null,
           onSave: () async {
             final model = HospitalizationModel(
@@ -149,22 +148,28 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
                         subtitle: Text(
                           admissionDate == null
                               ? 'Not set'
-                              : admissionDate!.toIso8601String().split('T').first,
+                              : admissionDate!
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: admissionDate ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => admissionDate = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        admissionDate ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => admissionDate = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -175,22 +180,28 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
                         subtitle: Text(
                           dischargeDate == null
                               ? 'Not set'
-                              : dischargeDate!.toIso8601String().split('T').first,
+                              : dischargeDate!
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first,
                         ),
                         trailing: IconButton(
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: dischargeDate ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => dischargeDate = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate:
+                                        dischargeDate ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(
+                                      () => dischargeDate = picked,
+                                    );
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -265,53 +276,53 @@ class _HospitalizationsScreenState extends State<HospitalizationsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.hospitalName ?? 'Hospitalization'),
-                subtitle: Text(
-                  [
-                    if (item.admissionDate != null)
-                      'Admission: ${item.admissionDate!.toIso8601String().split('T').first}',
-                    if (item.dischargeDate != null)
-                      'Discharge: ${item.dischargeDate!.toIso8601String().split('T').first}',
-                    if ((item.reason ?? '').isNotEmpty)
-                      'Reason: ${item.reason}',
-                    if ((item.notes ?? '').isNotEmpty)
-                      'Notes: ${item.notes}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.hospitalName ?? 'Hospitalization'),
+                      subtitle: Text(
+                        [
+                          if (item.admissionDate != null)
+                            'Admission: ${item.admissionDate!.toIso8601String().split('T').first}',
+                          if (item.dischargeDate != null)
+                            'Discharge: ${item.dischargeDate!.toIso8601String().split('T').first}',
+                          if ((item.reason ?? '').isNotEmpty)
+                            'Reason: ${item.reason}',
+                          if ((item.notes ?? '').isNotEmpty)
+                            'Notes: ${item.notes}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

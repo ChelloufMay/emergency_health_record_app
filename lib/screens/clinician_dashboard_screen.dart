@@ -44,7 +44,7 @@ class _ClinicianDashboardScreenState extends State<ClinicianDashboardScreen> {
       key: ValueKey('clinician-dashboard-${access.revision}'),
       title: 'Clinician dashboard',
       subtitle:
-      'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
+          'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active clinician access found.',
     );
   }

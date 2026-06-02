@@ -44,7 +44,7 @@ class _GuardianDashboardScreenState extends State<GuardianDashboardScreen> {
       key: ValueKey('guardian-dashboard-${access.revision}'),
       title: 'Guardian dashboard',
       subtitle:
-      'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
+          'Patients shown here come from your active access grants. Permission limits are enforced by the active grant.',
       emptyMessage: 'No active guardian access found.',
     );
   }

@@ -39,9 +39,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     // Listen for global permission changes.
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -63,9 +61,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
     super.dispose();
   }
 
@@ -97,14 +93,18 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController =
-    TextEditingController(text: initial?.conditionName ?? '');
-    final diagnosisPlaceController =
-    TextEditingController(text: initial?.diagnosisPlace ?? '');
-    final followUpDoctorController =
-    TextEditingController(text: initial?.followUpDoctor ?? '');
-    final treatmentController =
-    TextEditingController(text: initial?.treatment ?? '');
+    final nameController = TextEditingController(
+      text: initial?.conditionName ?? '',
+    );
+    final diagnosisPlaceController = TextEditingController(
+      text: initial?.diagnosisPlace ?? '',
+    );
+    final followUpDoctorController = TextEditingController(
+      text: initial?.followUpDoctor ?? '',
+    );
+    final treatmentController = TextEditingController(
+      text: initial?.treatment ?? '',
+    );
     final notesController = TextEditingController(text: initial?.notes ?? '');
 
     DateTime? diagnosisDate = initial?.diagnosisDate;
@@ -179,16 +179,16 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                         onPressed: saving
                             ? null
                             : () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime.now(),
-                            initialDate: diagnosisDate ?? DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => diagnosisDate = picked);
-                          }
-                        },
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime.now(),
+                                  initialDate: diagnosisDate ?? DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => diagnosisDate = picked);
+                                }
+                              },
                         icon: const Icon(Icons.calendar_month),
                       ),
                     ),
@@ -279,54 +279,54 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.conditionName),
-                subtitle: Text(
-                  [
-                    'Type: ${item.type}',
-                    if (item.diagnosisDate != null)
-                      'Diagnosis date: ${item.diagnosisDate!.toIso8601String().split('T').first}',
-                    if ((item.diagnosisPlace ?? '').isNotEmpty)
-                      'Place: ${item.diagnosisPlace}',
-                    if ((item.followUpDoctor ?? '').isNotEmpty)
-                      'Doctor: ${item.followUpDoctor}',
-                    if ((item.treatment ?? '').isNotEmpty)
-                      'Treatment: ${item.treatment}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.conditionName),
+                      subtitle: Text(
+                        [
+                          'Type: ${item.type}',
+                          if (item.diagnosisDate != null)
+                            'Diagnosis date: ${item.diagnosisDate!.toIso8601String().split('T').first}',
+                          if ((item.diagnosisPlace ?? '').isNotEmpty)
+                            'Place: ${item.diagnosisPlace}',
+                          if ((item.followUpDoctor ?? '').isNotEmpty)
+                            'Doctor: ${item.followUpDoctor}',
+                          if ((item.treatment ?? '').isNotEmpty)
+                            'Treatment: ${item.treatment}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

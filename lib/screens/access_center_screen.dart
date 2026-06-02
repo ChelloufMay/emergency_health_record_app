@@ -93,10 +93,10 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
       final rows = await _supabase
           .from('access_grants')
           .select(
-        'id, patient_id, grantee_user_id, grantee_role, permission, status, '
+            'id, patient_id, grantee_user_id, grantee_role, permission, status, '
             'granted_by_user_id, granted_at, expires_at, source_invite_id, notes, '
             'created_at, updated_at',
-      )
+          )
           .eq('grantee_user_id', currentUserId)
           .eq('status', 'active')
           .order('created_at', ascending: false);
@@ -109,8 +109,9 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
 
         if (patientId.isNotEmpty) {
           final patientRow = await _patientNameRow(patientId);
-          final patientName =
-          patientRow == null ? '' : _fullNameFromMap(patientRow);
+          final patientName = patientRow == null
+              ? ''
+              : _fullNameFromMap(patientRow);
 
           if (patientName.isNotEmpty) {
             row['patient_name'] = patientName;
@@ -177,13 +178,14 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
             )
           else
             ..._myGrants.map(
-                  (grant) => Padding(
+              (grant) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: AccessGrantCard(
                   grant: grant,
                   canManage: false,
-                  titleLabel:
-                  grant.patientName.isNotEmpty ? grant.patientName : null,
+                  titleLabel: grant.patientName.isNotEmpty
+                      ? grant.patientName
+                      : null,
                   onTap: () => _openPatient(grant),
                 ),
               ),
@@ -208,10 +210,7 @@ class _AccessCenterScreenState extends State<AccessCenterScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          const AccessInboxScreen(embedded: true),
-          _myAccessTab(),
-        ],
+        children: [const AccessInboxScreen(embedded: true), _myAccessTab()],
       ),
     );
   }

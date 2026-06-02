@@ -137,9 +137,9 @@ class _EmergencyAccessTokenScreenState
   Future<void> _copyToken(String token) async {
     await Clipboard.setData(ClipboardData(text: token));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Token copied to clipboard.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Token copied to clipboard.')));
   }
 
   Future<void> _copyEmergencyPayload(String token) async {
@@ -155,10 +155,7 @@ class _EmergencyAccessTokenScreenState
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EmergencyScreen(
-          payload: token,
-          patientId: _patientId,
-        ),
+        builder: (_) => EmergencyScreen(payload: token, patientId: _patientId),
       ),
     );
   }
@@ -180,13 +177,13 @@ class _EmergencyAccessTokenScreenState
       final expiresAt = _selectedExpiryDate == null
           ? null
           : DateTime(
-        _selectedExpiryDate!.year,
-        _selectedExpiryDate!.month,
-        _selectedExpiryDate!.day,
-        23,
-        59,
-        59,
-      );
+              _selectedExpiryDate!.year,
+              _selectedExpiryDate!.month,
+              _selectedExpiryDate!.day,
+              23,
+              59,
+              59,
+            );
 
       final created = await _service.create(
         patientId: patientId,
@@ -201,14 +198,14 @@ class _EmergencyAccessTokenScreenState
         _tokens = [created, ..._tokens];
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Emergency token created.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Emergency token created.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Create failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Create failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -222,15 +219,15 @@ class _EmergencyAccessTokenScreenState
     try {
       await _service.revoke(tokenId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token revoked.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Token revoked.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Revoke failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Revoke failed: $e')));
     }
   }
 
@@ -328,78 +325,75 @@ class _EmergencyAccessTokenScreenState
           : _error != null
           ? Center(child: Text(_error!))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Create a new break-glass token',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _pickExpiryDate,
-              borderRadius: BorderRadius.circular(12),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Expiry date',
-                  helperText: 'Pick a date from the calendar',
-                  border: OutlineInputBorder(),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(_formatDate(_selectedExpiryDate)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Optional note for this token',
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _saving ? null : _createToken,
-              icon: const Icon(Icons.add),
-              label: _saving
-                  ? const Text('Creating...')
-                  : const Text('Create token'),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Tokens',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text(
+                    'Create a new break-glass token',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: _pickExpiryDate,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Expiry date',
+                        helperText: 'Pick a date from the calendar',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(_formatDate(_selectedExpiryDate)),
+                      ),
                     ),
                   ),
-                ),
-                Text('${_tokens.length} total'),
-              ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _notesController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes',
+                      hintText: 'Optional note for this token',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _createToken,
+                    icon: const Icon(Icons.add),
+                    label: _saving
+                        ? const Text('Creating...')
+                        : const Text('Create token'),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Tokens',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text('${_tokens.length} total'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_tokens.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 24),
+                      child: Center(
+                        child: Text('No emergency access tokens yet.'),
+                      ),
+                    )
+                  else
+                    ..._tokens.map(_buildTokenCard),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            if (_tokens.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 24),
-                child: Center(
-                  child: Text('No emergency access tokens yet.'),
-                ),
-              )
-            else
-              ..._tokens.map(_buildTokenCard),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -13,7 +13,7 @@ import '../services/patient_session_service.dart';
 class PatientAccessManagementScreen extends StatefulWidget {
   // The unique identifier of the patient.
   final String? patientId;
-  
+
   final String? patientName;
 
   const PatientAccessManagementScreen({
@@ -101,7 +101,8 @@ class _PatientAccessManagementScreenState
     final routeName = _routePatientName();
     if (routeName != null && routeName.isNotEmpty) return routeName;
 
-    final sessionName = PatientSessionService.instance.current?.patientName?.trim();
+    final sessionName = PatientSessionService.instance.current?.patientName
+        ?.trim();
     if (sessionName != null && sessionName.isNotEmpty) return sessionName;
 
     return null;
@@ -213,9 +214,9 @@ class _PatientAccessManagementScreenState
   }
 
   Future<DateTime?> _pickDateTime(
-      BuildContext context, {
-        DateTime? initial,
-      }) async {
+    BuildContext context, {
+    DateTime? initial,
+  }) async {
     final now = DateTime.now();
     final initialDate = initial ?? now.add(const Duration(days: 30));
 
@@ -458,9 +459,9 @@ class _PatientAccessManagementScreenState
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not send invite: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not send invite: $e')));
     } finally {
       emailController.dispose();
       notesController.dispose();
@@ -626,18 +627,14 @@ class _PatientAccessManagementScreenState
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Updated access for ${_granteeLabel(grant)}.',
-          ),
-        ),
+        SnackBar(content: Text('Updated access for ${_granteeLabel(grant)}.')),
       );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not update access: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update access: $e')));
     } finally {
       notesController.dispose();
       if (mounted) {
@@ -657,9 +654,7 @@ class _PatientAccessManagementScreenState
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Remove access?'),
-          content: Text(
-            'This will revoke access for ${_granteeLabel(grant)}.',
-          ),
+          content: Text('This will revoke access for ${_granteeLabel(grant)}.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -688,15 +683,15 @@ class _PatientAccessManagementScreenState
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Access revoked.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Access revoked.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not revoke access: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not revoke access: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -729,9 +724,8 @@ class _PatientAccessManagementScreenState
                       children: [
                         Text(
                           _granteeLabel(grant),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
                         Text(_roleLabel(grant.granteeRole)),
@@ -748,7 +742,11 @@ class _PatientAccessManagementScreenState
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: Text('Permission: ${_permissionLabel(grant.permission)}')),
+                  Expanded(
+                    child: Text(
+                      'Permission: ${_permissionLabel(grant.permission)}',
+                    ),
+                  ),
                   Expanded(
                     child: Text(
                       'Status: ${_prettyText(grant.status)}',
@@ -763,9 +761,9 @@ class _PatientAccessManagementScreenState
                 const SizedBox(height: 10),
                 Text(
                   'Notes',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(grant.notes!.trim()),
@@ -802,9 +800,9 @@ class _PatientAccessManagementScreenState
               invite.invitedEmail.trim().isEmpty
                   ? 'Pending invite'
                   : invite.invitedEmail.trim(),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(_roleLabel(role)),
@@ -818,9 +816,9 @@ class _PatientAccessManagementScreenState
               const SizedBox(height: 10),
               Text(
                 'Notes',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(invite.notes!.trim()),
@@ -845,10 +843,7 @@ class _PatientAccessManagementScreenState
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-              ),
+              Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _load,
@@ -902,9 +897,9 @@ class _PatientAccessManagementScreenState
           const SizedBox(height: 16),
           Text(
             'Active access (${_grants.length})',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           if (_grants.isEmpty)
@@ -919,9 +914,9 @@ class _PatientAccessManagementScreenState
           const SizedBox(height: 8),
           Text(
             'Pending invites (${_pendingInvites.length})',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           if (_pendingInvites.isEmpty)

@@ -37,9 +37,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
   void initState() {
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -62,9 +60,7 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
 
     super.dispose();
   }
@@ -97,7 +93,9 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController = TextEditingController(text: initial?.surgeryName ?? '');
+    final nameController = TextEditingController(
+      text: initial?.surgeryName ?? '',
+    );
     final placeController = TextEditingController(text: initial?.place ?? '');
     final notesController = TextEditingController(text: initial?.notes ?? '');
 
@@ -125,8 +123,8 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
                   ? null
                   : placeController.text.trim(),
               // CHANGED: dropdown list with None / Prosthetic / Implant
-              prostheticOrImplant: prostheticOrImplant == null ||
-                  prostheticOrImplant == 'none'
+              prostheticOrImplant:
+                  prostheticOrImplant == null || prostheticOrImplant == 'none'
                   ? null
                   : prostheticOrImplant,
               notes: notesController.text.trim().isEmpty
@@ -162,16 +160,16 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
                           onPressed: saving
                               ? null
                               : () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                              initialDate: surgeryDate ?? DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setDialogState(() => surgeryDate = picked);
-                            }
-                          },
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                    initialDate: surgeryDate ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => surgeryDate = picked);
+                                  }
+                                },
                           icon: const Icon(Icons.calendar_month),
                         ),
                       ),
@@ -204,7 +202,8 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
                         ],
                         onChanged: saving
                             ? null
-                            : (v) => setDialogState(() => prostheticOrImplant = v),
+                            : (v) =>
+                                  setDialogState(() => prostheticOrImplant = v),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -271,53 +270,53 @@ class _SurgeriesScreenState extends State<SurgeriesScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.surgeryName),
-                subtitle: Text(
-                  [
-                    if (item.surgeryDate != null)
-                      'Date: ${item.surgeryDate!.toIso8601String().split('T').first}',
-                    if ((item.place ?? '').isNotEmpty)
-                      'Place: ${item.place}',
-                    if ((item.prostheticOrImplant ?? '').isNotEmpty)
-                      'Implant: ${item.prostheticOrImplant}',
-                    if ((item.notes ?? '').isNotEmpty)
-                      'Notes: ${item.notes}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.surgeryName),
+                      subtitle: Text(
+                        [
+                          if (item.surgeryDate != null)
+                            'Date: ${item.surgeryDate!.toIso8601String().split('T').first}',
+                          if ((item.place ?? '').isNotEmpty)
+                            'Place: ${item.place}',
+                          if ((item.prostheticOrImplant ?? '').isNotEmpty)
+                            'Implant: ${item.prostheticOrImplant}',
+                          if ((item.notes ?? '').isNotEmpty)
+                            'Notes: ${item.notes}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

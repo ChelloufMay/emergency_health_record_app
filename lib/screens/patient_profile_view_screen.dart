@@ -43,7 +43,8 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
   final _familyDoctorIdController = TextEditingController();
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    return widget.patientId ??
+        PatientSessionService.instance.current?.patientId;
   }
 
   Map<String, dynamic> _routeContext(String patientId) {
@@ -125,10 +126,14 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
     _familyNameController.text = _textOf(profile, 'family_name');
     _phoneController.text = _textOf(profile, 'phone');
     _bloodTypeController.text = _textOf(profile, 'blood_type');
-    _emergencyContactNameController.text =
-        _textOf(profile, 'emergency_contact_name');
-    _emergencyContactPhoneController.text =
-        _textOf(profile, 'emergency_contact_phone');
+    _emergencyContactNameController.text = _textOf(
+      profile,
+      'emergency_contact_name',
+    );
+    _emergencyContactPhoneController.text = _textOf(
+      profile,
+      'emergency_contact_phone',
+    );
     _insurancePlanController.text = _textOf(profile, 'insurance_plan');
     _covidVaccineTypeController.text = _textOf(profile, 'covid_vaccine_type');
     _familyDoctorIdController.text = _textOf(profile, 'family_doctor_id');
@@ -218,8 +223,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
       'phone': _phoneController.text.trim(),
       'blood_type': _bloodTypeController.text.trim(),
       'emergency_contact_name': _emergencyContactNameController.text.trim(),
-      'emergency_contact_phone':
-      _emergencyContactPhoneController.text.trim(),
+      'emergency_contact_phone': _emergencyContactPhoneController.text.trim(),
       'insurance_plan': _insurancePlanController.text.trim(),
       'covid_vaccine_type': _covidVaccineTypeController.text.trim(),
       'family_doctor_id': _familyDoctorIdController.text.trim(),
@@ -242,9 +246,9 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save profile: $e')));
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -267,27 +271,19 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
                 children: [
                   TextField(
                     controller: _firstNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'First name',
-                    ),
+                    decoration: const InputDecoration(labelText: 'First name'),
                   ),
                   TextField(
                     controller: _familyNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Family name',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Family name'),
                   ),
                   TextField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Phone'),
                   ),
                   TextField(
                     controller: _bloodTypeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Blood type',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Blood type'),
                   ),
                   TextField(
                     controller: _emergencyContactNameController,
@@ -350,10 +346,7 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
       appBar: AppBar(
         title: const Text('Patient profile'),
         actions: [
-          IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
-          ),
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: _loading
@@ -361,148 +354,142 @@ class _PatientProfileViewScreenState extends State<PatientProfileViewScreen> {
           : patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
+              onRefresh: _load,
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fullName(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Patient ID: $patientId'),
-                    Text('Sex: ${_label('sex')}'),
-                    Text('Date of birth: ${_label('date_of_birth')}'),
-                    Text('Age: ${_label('age_years')}'),
-                    Text('Blood type: ${_label('blood_type')}'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Contact details',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    _row('Phone', _label('phone')),
-                    _row(
-                      'Emergency contact',
-                      _label('emergency_contact_name'),
-                    ),
-                    _row(
-                      'Emergency phone',
-                      _label('emergency_contact_phone'),
-                    ),
-                    _row('Address', _address()),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Medical basics',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    _row('Insurance plan', _label('insurance_plan')),
-                    _row(
-                      'COVID vaccine',
-                      _label('covid_vaccine_type'),
-                    ),
-                    _row(
-                      'Family doctor',
-                      _label('family_doctor_id'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Access',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _access.canEdit
-                          ? 'You can edit this patient profile.'
-                          : 'Read-only access.',
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/medical_summary',
-                            arguments: _routeContext(patientId),
-                          ),
-                          child: const Text('Open medical summary'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/emergency',
-                            arguments: _routeContext(patientId),
-                          ),
-                          child: const Text('Emergency view'),
-                        ),
-                        if (_isOwner())
-                          FilledButton.tonalIcon(
-                            onPressed: _openManageAccess,
-                            icon: const Icon(
-                              Icons.admin_panel_settings_outlined,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _fullName(),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
                             ),
-                            label: const Text('Manage access'),
                           ),
-                      ],
-                    ),
-                    if (_access.canEdit) ...[
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _saving ? null : _openEditDialog,
-                        child: Text(
-                          _saving ? 'Saving...' : 'Edit profile',
-                        ),
+                          const SizedBox(height: 8),
+                          Text('Patient ID: $patientId'),
+                          Text('Sex: ${_label('sex')}'),
+                          Text('Date of birth: ${_label('date_of_birth')}'),
+                          Text('Age: ${_label('age_years')}'),
+                          Text('Blood type: ${_label('blood_type')}'),
+                        ],
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Contact details',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          _row('Phone', _label('phone')),
+                          _row(
+                            'Emergency contact',
+                            _label('emergency_contact_name'),
+                          ),
+                          _row(
+                            'Emergency phone',
+                            _label('emergency_contact_phone'),
+                          ),
+                          _row('Address', _address()),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Medical basics',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          _row('Insurance plan', _label('insurance_plan')),
+                          _row('COVID vaccine', _label('covid_vaccine_type')),
+                          _row('Family doctor', _label('family_doctor_id')),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Access',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _access.canEdit
+                                ? 'You can edit this patient profile.'
+                                : 'Read-only access.',
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  '/medical_summary',
+                                  arguments: _routeContext(patientId),
+                                ),
+                                child: const Text('Open medical summary'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  '/emergency',
+                                  arguments: _routeContext(patientId),
+                                ),
+                                child: const Text('Emergency view'),
+                              ),
+                              if (_isOwner())
+                                FilledButton.tonalIcon(
+                                  onPressed: _openManageAccess,
+                                  icon: const Icon(
+                                    Icons.admin_panel_settings_outlined,
+                                  ),
+                                  label: const Text('Manage access'),
+                                ),
+                            ],
+                          ),
+                          if (_access.canEdit) ...[
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: _saving ? null : _openEditDialog,
+                              child: Text(
+                                _saving ? 'Saving...' : 'Edit profile',
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

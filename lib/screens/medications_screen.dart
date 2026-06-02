@@ -39,9 +39,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     // Listen for global permission changes.
     super.initState();
 
-    PatientAccessContext.instance.addListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
     _access = SectionScreenAccess(
       widgetCanEdit: widget.canEdit,
@@ -64,9 +62,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 
   @override
   void dispose() {
-    PatientAccessContext.instance.removeListener(
-      _rebuildOnPermissionChange,
-    );
+    PatientAccessContext.instance.removeListener(_rebuildOnPermissionChange);
 
     super.dispose();
   }
@@ -114,13 +110,16 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     final patientId = _patientId;
     if (patientId == null) return;
 
-    final nameController =
-    TextEditingController(text: initial?.medicationName ?? '');
+    final nameController = TextEditingController(
+      text: initial?.medicationName ?? '',
+    );
     final dosageController = TextEditingController(text: initial?.dosage ?? '');
-    final frequencyController =
-    TextEditingController(text: initial?.frequency ?? '');
-    final purposeController =
-    TextEditingController(text: initial?.purpose ?? '');
+    final frequencyController = TextEditingController(
+      text: initial?.frequency ?? '',
+    );
+    final purposeController = TextEditingController(
+      text: initial?.purpose ?? '',
+    );
 
     DateTime? startDate = initial?.startDate;
     DateTime? endDate = initial?.endDate;
@@ -198,12 +197,12 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                         onPressed: saving
                             ? null
                             : () => _pickDate(
-                          context: context,
-                          initialDate: startDate,
-                          onPicked: (d) {
-                            setDialogState(() => startDate = d);
-                          },
-                        ),
+                                context: context,
+                                initialDate: startDate,
+                                onPicked: (d) {
+                                  setDialogState(() => startDate = d);
+                                },
+                              ),
                         icon: const Icon(Icons.calendar_month),
                       ),
                     ),
@@ -220,12 +219,12 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                         onPressed: saving
                             ? null
                             : () => _pickDate(
-                          context: context,
-                          initialDate: endDate,
-                          onPicked: (d) {
-                            setDialogState(() => endDate = d);
-                          },
-                        ),
+                                context: context,
+                                initialDate: endDate,
+                                onPicked: (d) {
+                                  setDialogState(() => endDate = d);
+                                },
+                              ),
                         icon: const Icon(Icons.calendar_month),
                       ),
                     ),
@@ -302,58 +301,58 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
           : _patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return Card(
-              child: ListTile(
-                title: Text(item.medicationName),
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.medicationName),
 
-                subtitle: Text(
-                  [
-                    if ((item.dosage ?? '').isNotEmpty)
-                      'Dosage: ${item.dosage}',
-                    if ((item.frequency ?? '').isNotEmpty)
-                      'Frequency: ${item.frequency}',
-                    if ((item.purpose ?? '').isNotEmpty)
-                      'Purpose: ${item.purpose}',
-                    if (item.startDate != null)
-                      'Start: ${item.startDate!.toIso8601String().split('T').first}',
-                    if (item.endDate != null)
-                      'End: ${item.endDate!.toIso8601String().split('T').first}',
-                    if ((item.source).isNotEmpty)
-                      'Source: ${item.source}',
-                  ].join('\n'),
-                ),
-                trailing: _access.allowMutations
-                    ? PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      await _openEditor(initial: item);
-                    } else if (value == 'delete') {
-                      await _deleteItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
+                      subtitle: Text(
+                        [
+                          if ((item.dosage ?? '').isNotEmpty)
+                            'Dosage: ${item.dosage}',
+                          if ((item.frequency ?? '').isNotEmpty)
+                            'Frequency: ${item.frequency}',
+                          if ((item.purpose ?? '').isNotEmpty)
+                            'Purpose: ${item.purpose}',
+                          if (item.startDate != null)
+                            'Start: ${item.startDate!.toIso8601String().split('T').first}',
+                          if (item.endDate != null)
+                            'End: ${item.endDate!.toIso8601String().split('T').first}',
+                          if ((item.source).isNotEmpty)
+                            'Source: ${item.source}',
+                        ].join('\n'),
+                      ),
+                      trailing: _access.allowMutations
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await _openEditor(initial: item);
+                                } else if (value == 'delete') {
+                                  await _deleteItem(item);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                )
-                    : null,
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

@@ -58,7 +58,9 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated. Please sign in again.')),
+        const SnackBar(
+          content: Text('Password updated. Please sign in again.'),
+        ),
       );
 
       await _authService.signOut();
@@ -90,10 +92,9 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         children: [
           Text(
             'Choose a new password',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -138,10 +139,10 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             onPressed: _loading ? null : _updatePassword,
             child: _loading
                 ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Update password'),
           ),
           const SizedBox(height: 12),
@@ -149,10 +150,10 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             onPressed: _loading
                 ? null
                 : () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/login',
-                  (route) => false,
-            ),
+                    context,
+                    '/login',
+                    (route) => false,
+                  ),
             child: const Text('Back to login'),
           ),
         ],

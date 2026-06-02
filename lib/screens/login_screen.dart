@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const RoleRouterScreen()),
-            (route) => false,
+        (route) => false,
       );
     } on Exception catch (e) {
       setState(() {
@@ -88,10 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text(
               'Welcome back',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -132,10 +131,10 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _loading ? null : _signIn,
               child: _loading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Sign in'),
             ),
           ],
@@ -148,9 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
 class _ForgotPasswordDialog extends StatefulWidget {
   final String initialEmail;
 
-  const _ForgotPasswordDialog({
-    required this.initialEmail,
-  });
+  const _ForgotPasswordDialog({required this.initialEmail});
 
   @override
   State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
@@ -189,9 +186,9 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not send reset email: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not send reset email: $e')));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -227,10 +224,10 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
           onPressed: _sending ? null : _send,
           child: _sending
               ? const SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Send reset link'),
         ),
       ],

@@ -370,4 +370,3 @@ class _ClinicianProfileScreenState extends State<ClinicianProfileScreen> {
     );
   }
 }
-

@@ -32,22 +32,18 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
         PatientSessionService.instance.current?.patientId;
   }
 
-
-
   @override
   void initState() {
     super.initState();
 
     PatientAccessContext.instance.addListener(_rebuildOnPermissionChange);
 
-
     _load();
   }
 
   void _rebuildOnPermissionChange() {
     if (!mounted) return;
-    setState(() {
-    });
+    setState(() {});
   }
 
   @override
@@ -100,9 +96,9 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
             : <String, dynamic>{};
         final title =
             map['allergen_name'] ??
-                map['medication_name'] ??
-                map['condition_name'] ??
-                item;
+            map['medication_name'] ??
+            map['condition_name'] ??
+            item;
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Text('• $title'),
@@ -143,79 +139,78 @@ class _MedicalSummaryScreenState extends State<MedicalSummaryScreen> {
           : patientId == null
           ? const Center(child: Text('No patient selected.'))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // This is the owner-safe summary view from the DB view
-            // patient_emergency_summary.
-            Card(
-              child: Padding(
+              onRefresh: _load,
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _displayName().isEmpty
-                          ? 'Patient summary'
-                          : _displayName(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                children: [
+                  // This is the owner-safe summary view from the DB view
+                  // patient_emergency_summary.
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _displayName().isEmpty
+                                ? 'Patient summary'
+                                : _displayName(),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Patient ID: $patientId'),
+                          Text(
+                            'Sex: ${_summary?['sex']?.toString() ?? 'Unknown'}',
+                          ),
+                          Text(
+                            'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
+                          ),
+                          Text(
+                            'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
+                          ),
+                          Text(
+                            'Phone: ${_summary?['phone']?.toString() ?? 'Not set'}',
+                          ),
+                          Text(
+                            'Emergency contact: ${_summary?['emergency_contact_name']?.toString() ?? 'Not set'}',
+                          ),
+                          Text(
+                            'Emergency phone: ${_summary?['emergency_contact_phone']?.toString() ?? 'Not set'}',
+                          ),
+                          Text(
+                            'Insurance: ${_summary?['insurance_plan']?.toString() ?? 'Not set'}',
+                          ),
+                          Text(
+                            'COVID vaccine: ${_summary?['covid_vaccine_type']?.toString() ?? 'Not set'}',
+                          ),
+                          Text(
+                            'Address: ${[_summary?['address_country'], _summary?['address_governorate'], _summary?['address_city']].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text('Patient ID: $patientId'),
-                    Text(
-                      'Sex: ${_summary?['sex']?.toString() ?? 'Unknown'}',
-                    ),
-                    Text(
-                      'Age: ${_summary?['age_years']?.toString() ?? 'Unknown'}',
-                    ),
-                    Text(
-                      'Blood type: ${_summary?['blood_type']?.toString() ?? 'Unknown'}',
-                    ),
-                    Text(
-                      'Phone: ${_summary?['phone']?.toString() ?? 'Not set'}',
-                    ),
-                    Text(
-                      'Emergency contact: ${_summary?['emergency_contact_name']?.toString() ?? 'Not set'}',
-                    ),
-                    Text(
-                      'Emergency phone: ${_summary?['emergency_contact_phone']?.toString() ?? 'Not set'}',
-                    ),
-                    Text(
-                      'Insurance: ${_summary?['insurance_plan']?.toString() ?? 'Not set'}',
-                    ),
-                    Text(
-                      'COVID vaccine: ${_summary?['covid_vaccine_type']?.toString() ?? 'Not set'}',
-                    ),
-                    Text(
-                      'Address: ${[_summary?['address_country'], _summary?['address_governorate'], _summary?['address_city']].where((e) => e != null && e.toString().trim().isNotEmpty).join(' • ')}',
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+                  _section(
+                    'Allergies',
+                    _buildBulletList(_summary?['allergies']),
+                  ),
+                  const SizedBox(height: 12),
+                  _section(
+                    'Medications',
+                    _buildBulletList(_summary?['medications']),
+                  ),
+                  const SizedBox(height: 12),
+                  _section(
+                    'Chronic conditions',
+                    _buildBulletList(_summary?['chronic_conditions']),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            _section(
-              'Allergies',
-              _buildBulletList(_summary?['allergies']),
-            ),
-            const SizedBox(height: 12),
-            _section(
-              'Medications',
-              _buildBulletList(_summary?['medications']),
-            ),
-            const SizedBox(height: 12),
-            _section(
-              'Chronic conditions',
-              _buildBulletList(_summary?['chronic_conditions']),
-            ),
-
-          ],
-        ),
-      ),
     );
   }
 }

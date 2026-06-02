@@ -74,9 +74,9 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load dashboard: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not load dashboard: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -129,9 +129,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Remove patient'),
-          content: Text(
-            'Revoke your access to ${row.patientName}?',
-          ),
+          content: Text('Revoke your access to ${row.patientName}?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -153,14 +151,14 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
       if (!mounted) return;
       await _loadData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Access removed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Access removed.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not remove patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not remove patient: $e')));
     }
   }
 
@@ -197,9 +195,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: Navigator.of(context).canPop()
-            ? BackButton(
-          onPressed: () => Navigator.pop(context),
-        )
+            ? BackButton(onPressed: () => Navigator.pop(context))
             : null,
         title: Text(widget.title),
         actions: [
@@ -218,53 +214,53 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-        onRefresh: _loadData,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
+              onRefresh: _loadData,
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                child: Text(widget.subtitle),
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(widget.subtitle),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_pendingInvites.isNotEmpty) ...[
+                    Card(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: ListTile(
+                        leading: const Icon(Icons.inbox_outlined),
+                        title: Text(
+                          '${_pendingInvites.length} pending invite(s)',
+                        ),
+                        subtitle: const Text(
+                          'Open the inbox to accept or reject invites.',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _openInbox,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  Text(
+                    'Accessible patients',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_rows.isEmpty)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(widget.emptyMessage),
+                      ),
+                    )
+                  else
+                    ..._rows.map(_patientCard),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            if (_pendingInvites.isNotEmpty) ...[
-              Card(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: ListTile(
-                  leading: const Icon(Icons.inbox_outlined),
-                  title: Text(
-                    '${_pendingInvites.length} pending invite(s)',
-                  ),
-                  subtitle: const Text(
-                    'Open the inbox to accept or reject invites.',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _openInbox,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              'Accessible patients',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (_rows.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(widget.emptyMessage),
-                ),
-              )
-            else
-              ..._rows.map(_patientCard),
-          ],
-        ),
-      ),
     );
   }
 }

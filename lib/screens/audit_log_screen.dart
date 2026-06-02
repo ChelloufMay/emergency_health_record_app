@@ -35,7 +35,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   late SectionScreenAccess _access;
 
   String? _resolvePatientId() {
-    return widget.patientId ?? PatientSessionService.instance.current?.patientId;
+    return widget.patientId ??
+        PatientSessionService.instance.current?.patientId;
   }
 
   @override
@@ -139,7 +140,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       'delete' => 'Deleted',
       'view' => 'Viewed',
       'break_glass' => 'Emergency access used',
-      _ => action.isEmpty ? 'Action' : action[0].toUpperCase() + action.substring(1),
+      _ =>
+        action.isEmpty
+            ? 'Action'
+            : action[0].toUpperCase() + action.substring(1),
     };
 
     final entityLabel = entity.isEmpty
@@ -216,39 +220,49 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           : _logs.isEmpty
           ? const Center(child: Text('No actions performed found.'))
           : ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _logs.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final log = _logs[index];
-          final reason = (log.breakGlassReason ?? '').trim();
-
-          return Card(
-            child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _prettyAction(log),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+              itemCount: _logs.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final log = _logs[index];
+                final reason = (log.breakGlassReason ?? '').trim();
+
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _prettyAction(log),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        _rowLabel(
+                          context,
+                          'Where performed:',
+                          _prettyWhere(log),
+                        ),
+                        _rowLabel(
+                          context,
+                          'Who performed it:',
+                          _prettyWho(log),
+                        ),
+                        _rowLabel(context, 'Status:', _statusFor(log)),
+                        _rowLabel(
+                          context,
+                          'When performed:',
+                          _prettyWhen(log.timestamp),
+                        ),
+                        if (reason.isNotEmpty)
+                          _rowLabel(context, 'Reason:', reason),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  _rowLabel(context, 'Where performed:', _prettyWhere(log)),
-                  _rowLabel(context, 'Who performed it:', _prettyWho(log)),
-                  _rowLabel(context, 'Status:', _statusFor(log)),
-                  _rowLabel(context, 'When performed:', _prettyWhen(log.timestamp)),
-                  if (reason.isNotEmpty)
-                    _rowLabel(context, 'Reason:', reason),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

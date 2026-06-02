@@ -35,11 +35,7 @@ class _AccessPermissionEditorScreenState
   DateTime? _expiresAt;
   bool _saving = false;
 
-  static const List<String> _permissions = [
-    'read',
-    'edit',
-    'emergency_only',
-  ];
+  static const List<String> _permissions = ['read', 'edit', 'emergency_only'];
 
   @override
   void initState() {
@@ -150,9 +146,7 @@ class _AccessPermissionEditorScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit access permission'),
-      ),
+      appBar: AppBar(title: const Text('Edit access permission')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -161,7 +155,7 @@ class _AccessPermissionEditorScreenState
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Change the active grant for this ${_roleLabel(widget.granteeRole)}. '
-                    'Grant-only editor: permission, expiry, and notes.',
+                'Grant-only editor: permission, expiry, and notes.',
               ),
             ),
           ),
@@ -226,10 +220,10 @@ class _AccessPermissionEditorScreenState
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Save permission'),
           ),
         ],

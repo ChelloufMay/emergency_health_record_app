@@ -71,9 +71,9 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load inbox: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not load inbox: $e')));
     }
   }
 
@@ -89,15 +89,15 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invite accepted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invite accepted.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not accept invite: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not accept invite: $e')));
     }
   }
 
@@ -113,15 +113,15 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invite rejected.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invite rejected.')));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not reject invite: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not reject invite: $e')));
     }
   }
 
@@ -173,10 +173,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     }
 
     return Chip(
-      label: Text(
-        _prettyText(text),
-        style: TextStyle(color: foreground),
-      ),
+      label: Text(_prettyText(text), style: TextStyle(color: foreground)),
       backgroundColor: background,
       side: BorderSide.none,
       visualDensity: VisualDensity.compact,
@@ -184,10 +181,10 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
   }
 
   Widget _inviteCard(
-      BuildContext context, {
-        required AccessInboxItemModel item,
-        required bool showActions,
-      }) {
+    BuildContext context, {
+    required AccessInboxItemModel item,
+    required bool showActions,
+  }) {
     final message = item.message?.trim();
     final sender = _senderName(item);
 
@@ -225,9 +222,9 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
               const SizedBox(height: 10),
               Text(
                 'Message',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(message),
@@ -259,10 +256,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
 
   Widget _emptyCard(String message) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(message),
-      ),
+      child: Padding(padding: const EdgeInsets.all(16), child: Text(message)),
     );
   }
 
@@ -275,9 +269,7 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
     if (items.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          _emptyCard(emptyMessage),
-        ],
+        children: [_emptyCard(emptyMessage)],
       );
     }
 
@@ -287,11 +279,8 @@ class _AccessInboxScreenState extends State<AccessInboxScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           ...items.map(
-                (item) => _inviteCard(
-              context,
-              item: item,
-              showActions: showActions,
-            ),
+            (item) =>
+                _inviteCard(context, item: item, showActions: showActions),
           ),
         ],
       ),

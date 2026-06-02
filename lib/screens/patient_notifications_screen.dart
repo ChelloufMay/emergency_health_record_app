@@ -47,7 +47,9 @@ class _PatientNotificationsScreenState
   }
 
   bool _isAccessEvent(NotificationEventModel event) {
-    return NotificationEventService.accessEventTypes.contains(event.eventType) ||
+    return NotificationEventService.accessEventTypes.contains(
+          event.eventType,
+        ) ||
         event.eventType.startsWith('access_');
   }
 
@@ -161,9 +163,7 @@ class _PatientNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
-    var visibleEvents = _accessOnly
-        ? _events
-        : _events;
+    var visibleEvents = _accessOnly ? _events : _events;
     if (_showOnlyPending) {
       visibleEvents = visibleEvents.where((e) => !e.isSent).toList();
     }
