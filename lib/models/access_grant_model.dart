@@ -5,9 +5,9 @@ class AccessGrantModel {
   final String? id;
   final String patientId;
   final String granteeUserId;
-  final String granteeRole;  // Corresponds to the user_role enum.
-  final String permission;  // Corresponds to the permission_type enum.
-  final String status;  // Corresponds to the permission_status enum.
+  final String granteeRole; // Corresponds to the user_role enum.
+  final String permission; // Corresponds to the permission_type enum.
+  final String status; // Corresponds to the permission_status enum.
   final String? grantedByUserId;
   final DateTime? grantedAt;
   final DateTime? expiresAt;
@@ -15,7 +15,8 @@ class AccessGrantModel {
   final String? notes;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  final DateTime? lastExpiryReminderAt; // Used by queue_expiring_access_reminders().
+  final DateTime?
+  lastExpiryReminderAt; // Used by queue_expiring_access_reminders().
 
   const AccessGrantModel({
     this.id,

@@ -32,11 +32,7 @@ class AccessGrantViewModel {
   });
 
   // Helper to extract a non-empty string value from a map using a list of possible keys.
-  static String _stringValue(
-      Map row,
-      List keys, {
-        String fallback = '',
-      }) {
+  static String _stringValue(Map row, List keys, {String fallback = ''}) {
     for (final key in keys) {
       final value = row[key];
       if (value != null) {
@@ -49,22 +45,31 @@ class AccessGrantViewModel {
 
   // Helper to construct a full name from various possible patient name fields in a map.
   static String _fullNameFromRow(Map row) {
-    final direct = _stringValue(
-      row,
-      const ['patient_name', 'patient_full_name', 'full_name', 'name', 'display_name'],
-    );
+    final direct = _stringValue(row, const [
+      'patient_name',
+      'patient_full_name',
+      'full_name',
+      'name',
+      'display_name',
+    ]);
     if (direct.isNotEmpty) return direct;
 
-    final firstName = _stringValue(
-      row,
-      const ['first_name', 'patient_first_name', 'given_name'],
-    );
-    final familyName = _stringValue(
-      row,
-      const ['family_name', 'patient_family_name', 'last_name', 'surname'],
-    );
+    final firstName = _stringValue(row, const [
+      'first_name',
+      'patient_first_name',
+      'given_name',
+    ]);
+    final familyName = _stringValue(row, const [
+      'family_name',
+      'patient_family_name',
+      'last_name',
+      'surname',
+    ]);
 
-    return [firstName, familyName].where((part) => part.trim().isNotEmpty).join(' ').trim();
+    return [
+      firstName,
+      familyName,
+    ].where((part) => part.trim().isNotEmpty).join(' ').trim();
   }
 
   // Create a view model from a base AccessGrantModel.
@@ -88,35 +93,31 @@ class AccessGrantViewModel {
   factory AccessGrantViewModel.fromDashboardRow(Map map) {
     final row = Map.from(map);
 
-    final grantId = _stringValue(
-      row,
-      const ['grant_id', 'access_grant_id', 'id'],
-    );
+    final grantId = _stringValue(row, const [
+      'grant_id',
+      'access_grant_id',
+      'id',
+    ]);
 
     final patientName = _fullNameFromRow(row);
 
-    final granteeLabel = _stringValue(
-      row,
-      const [
-        'grantee_name',
-        'grantee_email',
-        'grantee_display_name',
-        'grantee_full_name',
-        'grantee_user_id',
-      ],
-      fallback: 'Connected user',
-    );
+    final granteeLabel = _stringValue(row, const [
+      'grantee_name',
+      'grantee_email',
+      'grantee_display_name',
+      'grantee_full_name',
+      'grantee_user_id',
+    ], fallback: 'Connected user');
 
     return AccessGrantViewModel(
       grantId: grantId,
       patientId: row['patient_id']?.toString() ?? '',
       patientName: patientName,
       granteeUserId: _stringValue(row, const ['grantee_user_id']),
-      granteeRole: _stringValue(
-        row,
-        const ['grantee_role', 'role'],
-        fallback: 'caregiver',
-      ),
+      granteeRole: _stringValue(row, const [
+        'grantee_role',
+        'role',
+      ], fallback: 'caregiver'),
       granteeLabel: granteeLabel,
       permission: row['permission']?.toString() ?? 'read',
       status: row['status']?.toString() ?? 'active',

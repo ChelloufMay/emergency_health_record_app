@@ -7,7 +7,8 @@ class UserModel {
   final String fullName;
   final String? phone;
   final String? email;
-  final String role; // The role assigned to the user (owner, clinician, caregiver, guardian).
+  final String
+  role; // The role assigned to the user (owner, clinician, caregiver, guardian).
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

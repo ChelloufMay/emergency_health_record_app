@@ -49,20 +49,25 @@ class AccessInboxItemModel {
 
   // Helper to extract or construct a patient's full name from a database row.
   static String patientNameFromRow(Map<String, dynamic> row) {
-    final directName = _stringValue(
-      row,
-      const ['patient_name', 'full_name', 'name', 'display_name'],
-    );
+    final directName = _stringValue(row, const [
+      'patient_name',
+      'full_name',
+      'name',
+      'display_name',
+    ]);
     if (directName.isNotEmpty) return directName;
 
-    final firstName = _stringValue(
-      row,
-      const ['first_name', 'patient_first_name', 'given_name'],
-    );
-    final familyName = _stringValue(
-      row,
-      const ['family_name', 'patient_family_name', 'last_name', 'surname'],
-    );
+    final firstName = _stringValue(row, const [
+      'first_name',
+      'patient_first_name',
+      'given_name',
+    ]);
+    final familyName = _stringValue(row, const [
+      'family_name',
+      'patient_family_name',
+      'last_name',
+      'surname',
+    ]);
 
     final fullName = '$firstName $familyName'.trim();
     return fullName.isEmpty ? 'Unknown patient' : fullName;
@@ -86,36 +91,29 @@ class AccessInboxItemModel {
       id: raw['id']?.toString(),
       patientId: raw['patient_id']?.toString() ?? '',
       patientName: patientNameFromRow(raw),
-      inviteToken: _stringValue(
-        raw,
-        const ['invite_token', 'token', 'access_invite_token'],
-      ),
-      invitedRole: _stringValue(
-        raw,
-        const ['invited_role', 'role'],
-        fallback: 'caregiver',
-      ),
+      inviteToken: _stringValue(raw, const [
+        'invite_token',
+        'token',
+        'access_invite_token',
+      ]),
+      invitedRole: _stringValue(raw, const [
+        'invited_role',
+        'role',
+      ], fallback: 'caregiver'),
       permission: raw['permission']?.toString() ?? 'read',
       status: status,
-      invitedEmail: _stringValue(
-        raw,
-        const ['invited_email', 'email'],
-      ),
-      senderLabel: _stringValue(
-        raw,
-        const [
-          'invited_by_name',
-          'sender_name',
-          'invited_by_email',
-          'invited_by_user_id',
-        ],
-        fallback: '',
-      ),
-      message: _stringValue(
-        raw,
-        const ['message', 'notes', 'invite_message'],
-        fallback: '',
-      ),
+      invitedEmail: _stringValue(raw, const ['invited_email', 'email']),
+      senderLabel: _stringValue(raw, const [
+        'invited_by_name',
+        'sender_name',
+        'invited_by_email',
+        'invited_by_user_id',
+      ], fallback: ''),
+      message: _stringValue(raw, const [
+        'message',
+        'notes',
+        'invite_message',
+      ], fallback: ''),
       eventAt: eventAt,
       raw: raw,
     );
