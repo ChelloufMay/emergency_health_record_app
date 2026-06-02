@@ -20,9 +20,7 @@ class PatientRiskPredictionApiService {
 
     final response = await http.post(
       uri,
-      headers: const {
-        'Content-Type': 'application/json',
-      },
+      headers: const {'Content-Type': 'application/json'},
       body: jsonEncode(payload),
     );
 

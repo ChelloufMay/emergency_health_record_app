@@ -2,7 +2,6 @@ import 'dart:convert';
 
 // Encoding and decoding emergency data payloads and links.
 class EmergencyPayloadService {
-
   // Encodes a Map of data into a Base64URL string.
   static String encodePayload(Map data) {
     return base64UrlEncode(utf8.encode(jsonEncode(data)));

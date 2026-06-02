@@ -9,16 +9,16 @@ class PatientRiskPredictionService {
   PatientRiskPredictionService({
     SupabaseClient? supabase,
     PatientRiskPredictionApiService? apiService,
-  })  : _supabase = supabase ?? Supabase.instance.client,
-        _apiService = apiService ?? PatientRiskPredictionApiService();
+  }) : _supabase = supabase ?? Supabase.instance.client,
+       _apiService = apiService ?? PatientRiskPredictionApiService();
 
   final SupabaseClient _supabase;
   final PatientRiskPredictionApiService _apiService;
 
   // Fetches all risk predictions for a specific patient.
   Future<List<PatientRiskPredictionModel>> fetchByPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final rows = await _supabase
         .from('patient_risk_predictions')
         .select()
@@ -28,9 +28,9 @@ class PatientRiskPredictionService {
     return (rows as List)
         .map(
           (row) => PatientRiskPredictionModel.fromMap(
-        Map<String, dynamic>.from(row as Map),
-      ),
-    )
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
         .toList();
   }
 
@@ -52,18 +52,19 @@ class PatientRiskPredictionService {
 
   // Generates a new risk prediction for a patient and stores it in the database
   Future<PatientRiskPredictionModel> generateAndStoreForPatient(
-      String patientId,
-      ) async {
+    String patientId,
+  ) async {
     final payload = await _buildPayload(patientId);
     final apiResult = await _apiService.predict(payload: payload);
 
     final riskLevel = apiResult['risk_level']?.toString() ?? 'low';
     final confidence = (apiResult['confidence'] as num?)?.toDouble() ?? 0.0;
 
-    final reasons = (apiResult['reasons'] as List?)
-        ?.map((e) => e.toString())
-        .where((e) => e.trim().isNotEmpty)
-        .toList() ??
+    final reasons =
+        (apiResult['reasons'] as List?)
+            ?.map((e) => e.toString())
+            .where((e) => e.trim().isNotEmpty)
+            .toList() ??
         <String>[];
 
     final explanation = reasons.isEmpty
@@ -73,15 +74,15 @@ class PatientRiskPredictionService {
     final inserted = await _supabase
         .from('patient_risk_predictions')
         .insert({
-      'patient_id': patientId,
-      'model_name': 'Gradient Boosting',
-      'model_version': 'v1',
-      'risk_score': confidence,
-      'risk_level': riskLevel,
-      'main_factors': reasons,
-      'input_snapshot': payload,
-      'explanation': explanation,
-    })
+          'patient_id': patientId,
+          'model_name': 'Gradient Boosting',
+          'model_version': 'v1',
+          'risk_score': confidence,
+          'risk_level': riskLevel,
+          'main_factors': reasons,
+          'input_snapshot': payload,
+          'explanation': explanation,
+        })
         .select()
         .single();
 
@@ -105,8 +106,8 @@ class PatientRiskPredictionService {
     final lifestyleRows = await _supabase
         .from('lifestyle_factors')
         .select(
-      'smoking, packs_per_day, smoking_years, chicha, chicha_years, drugs, alcohol_frequency, socioeconomic_class, work_status, lives_alone, has_caregiver, created_at',
-    )
+          'smoking, packs_per_day, smoking_years, chicha, chicha_years, drugs, alcohol_frequency, socioeconomic_class, work_status, lives_alone, has_caregiver, created_at',
+        )
         .eq('patient_id', patientId)
         .order('created_at', ascending: false)
         .limit(1);
@@ -115,14 +116,25 @@ class PatientRiskPredictionService {
         ? Map<String, dynamic>.from(lifestyleRows.first as Map)
         : <String, dynamic>{};
 
-    final chronicConditionsCount =
-    await _countRows('medical_conditions', patientId, 'type', 'chronic');
-    final acuteConditionsCount =
-    await _countRows('medical_conditions', patientId, 'type', 'acute');
+    final chronicConditionsCount = await _countRows(
+      'medical_conditions',
+      patientId,
+      'type',
+      'chronic',
+    );
+    final acuteConditionsCount = await _countRows(
+      'medical_conditions',
+      patientId,
+      'type',
+      'acute',
+    );
     final medicationsCount = await _countRows('medications', patientId);
     final allergiesCount = await _countRows('allergies', patientId);
     final surgeriesCount = await _countRows('surgeries', patientId);
-    final hospitalizationsCount = await _countRows('hospitalizations', patientId);
+    final hospitalizationsCount = await _countRows(
+      'hospitalizations',
+      patientId,
+    );
     final vaccinationsCount = await _countRows('vaccinations', patientId);
 
     final dateOfBirthRaw = profile['date_of_birth']?.toString();
@@ -139,25 +151,23 @@ class PatientRiskPredictionService {
     final socioeconomicClass = _normalizeSocioeconomic(
       lifestyle['socioeconomic_class']?.toString(),
     );
-    final workStatus = _normalizeWorkStatus(lifestyle['work_status']?.toString());
+    final workStatus = _normalizeWorkStatus(
+      lifestyle['work_status']?.toString(),
+    );
 
     final smoking = _asBool(lifestyle['smoking']);
     final chicha = _asBool(lifestyle['chicha']);
 
     final covidVaccineType = profile['covid_vaccine_type']?.toString().trim();
-    final isCovidVaccinated = (covidVaccineType ?? '').isNotEmpty ||
-        vaccinationsCount > 0;
+    final isCovidVaccinated =
+        (covidVaccineType ?? '').isNotEmpty || vaccinationsCount > 0;
 
     return {
       'age': age ?? 0,
       'sex': sex,
       'smoking': smoking,
-      'packs_per_day': smoking
-          ? _asDouble(lifestyle['packs_per_day'])
-          : 0.0,
-      'smoking_years': smoking
-          ? _asDouble(lifestyle['smoking_years'])
-          : 0.0,
+      'packs_per_day': smoking ? _asDouble(lifestyle['packs_per_day']) : 0.0,
+      'smoking_years': smoking ? _asDouble(lifestyle['smoking_years']) : 0.0,
       'chicha': chicha,
       'chicha_years': chicha ? _asDouble(lifestyle['chicha_years']) : 0.0,
       'drugs': _asBool(lifestyle['drugs']),
@@ -178,12 +188,15 @@ class PatientRiskPredictionService {
 
   // Counts rows in a table for a specific patient, optionally filtering by a column.
   Future<int> _countRows(
-      String table,
-      String patientId, [
-        String? filterColumn,
-        Object? filterValue,
-      ]) async {
-    dynamic query = _supabase.from(table).select('id').eq('patient_id', patientId);
+    String table,
+    String patientId, [
+    String? filterColumn,
+    Object? filterValue,
+  ]) async {
+    dynamic query = _supabase
+        .from(table)
+        .select('id')
+        .eq('patient_id', patientId);
 
     if (filterColumn != null) {
       query = query.eq(filterColumn, filterValue);
@@ -200,7 +213,7 @@ class PatientRiskPredictionService {
     var age = now.year - dateOfBirth.year;
     final hadBirthdayThisYear =
         (now.month > dateOfBirth.month) ||
-            (now.month == dateOfBirth.month && now.day >= dateOfBirth.day);
+        (now.month == dateOfBirth.month && now.day >= dateOfBirth.day);
     if (!hadBirthdayThisYear) {
       age -= 1;
     }

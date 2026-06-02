@@ -36,8 +36,9 @@ class AttachmentService {
         .replaceAll(RegExp(r'\s+'), '_')
         .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final ext = (extension ?? '').trim();
-    final safeExt =
-    ext.isEmpty ? '' : '.${ext.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}';
+    final safeExt = ext.isEmpty
+        ? ''
+        : '.${ext.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}';
 
     return '$pid/${DateTime.now().millisecondsSinceEpoch}_$safeName$safeExt';
   }
@@ -56,11 +57,13 @@ class AttachmentService {
     );
 
     try {
-      await _supabase.storage.from('attachments').uploadBinary(
-        storagePath,
-        bytes,
-        fileOptions: const FileOptions(upsert: true),
-      );
+      await _supabase.storage
+          .from('attachments')
+          .uploadBinary(
+            storagePath,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
       return storagePath;
     } on PostgrestException catch (e) {
       throw Exception(readablePostgrestMessage(e, 'Attachment upload'));
@@ -78,8 +81,9 @@ class AttachmentService {
     final pid = requireText(patientId, 'patientId');
     final uploaderId = requireText(performedByUserId, 'performedByUserId');
     final fileName = requireText(attachment.fileName, 'File name');
-    final fileKind =
-    attachment.fileKind.trim().isEmpty ? 'other' : attachment.fileKind.trim();
+    final fileKind = attachment.fileKind.trim().isEmpty
+        ? 'other'
+        : attachment.fileKind.trim();
     final storagePath = attachment.storagePath.trim().isNotEmpty
         ? attachment.storagePath.trim()
         : buildStoragePath(patientId: pid, fileName: fileName);
@@ -125,10 +129,9 @@ class AttachmentService {
     final path = requireText(storagePath, 'storagePath');
 
     try {
-      return await _supabase.storage.from('attachments').createSignedUrl(
-        path,
-        60 * 10,
-      );
+      return await _supabase.storage
+          .from('attachments')
+          .createSignedUrl(path, 60 * 10);
     } on StorageException {
       return _supabase.storage.from('attachments').getPublicUrl(path);
     }

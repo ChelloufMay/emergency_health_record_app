@@ -258,16 +258,17 @@ class PatientService {
   }
 
   // Fetches a patient profile if the current user is a valid grantee.
-  Future<Map<String, dynamic>?> fetchPatientProfileForGrantee(String patientId) async {
-    
+  Future<Map<String, dynamic>?> fetchPatientProfileForGrantee(
+    String patientId,
+  ) async {
     // patient_profiles RLS uses can_access_patient which covers grantees.
     final row = await _supabase
         .from('patient_profiles')
         .select(
-      'id, first_name, family_name, sex, date_of_birth, blood_type, '
+          'id, first_name, family_name, sex, date_of_birth, blood_type, '
           'phone, emergency_contact_name, emergency_contact_phone, '
           'insurance_plan, covid_vaccine_type',
-    )
+        )
         .eq('id', patientId)
         .maybeSingle();
     if (row == null) return null;

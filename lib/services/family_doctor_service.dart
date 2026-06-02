@@ -15,7 +15,9 @@ class FamilyDoctorService {
   }
 
   // Fetches the family doctor details + including address for a specific patient.
-  Future<FamilyDoctorWithAddressModel?> fetchForPatient(String patientId) async {
+  Future<FamilyDoctorWithAddressModel?> fetchForPatient(
+    String patientId,
+  ) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
 
@@ -77,13 +79,22 @@ class FamilyDoctorService {
           '_phone': _trimToNull(doctor.phone),
           '_address_id': doctor.addressId,
           '_country': _trimToNull(addressFields?['country']?.toString()),
-          '_governorate': _trimToNull(addressFields?['governorate']?.toString()),
+          '_governorate': _trimToNull(
+            addressFields?['governorate']?.toString(),
+          ),
           '_city': _trimToNull(addressFields?['city']?.toString()),
           '_avenue': _trimToNull(addressFields?['avenue']?.toString()),
           '_street': _trimToNull(addressFields?['street']?.toString()),
-          '_postal_code': _trimToNull(addressFields?['postal_code']?.toString()),
-          '_extra_details': _trimToNull(addressFields?['extra_details']?.toString()),
-          '_first_seen_date': doctor.firstSeenDate?.toIso8601String().split('T').first,
+          '_postal_code': _trimToNull(
+            addressFields?['postal_code']?.toString(),
+          ),
+          '_extra_details': _trimToNull(
+            addressFields?['extra_details']?.toString(),
+          ),
+          '_first_seen_date': doctor.firstSeenDate
+              ?.toIso8601String()
+              .split('T')
+              .first,
           '_notes': _trimToNull(doctor.notes),
         },
       );

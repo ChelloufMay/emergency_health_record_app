@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 
 import '../utils/audit_helper.dart';
 
-/// A service that handles client-side audit logging for tables confirmed to lack server-side triggers.
+// Handles client-side audit logging for tables confirmed to lack server-side triggers.
 class AuditWriteService {
   AuditWriteService._();
 
-  /// Singleton instance of [AuditWriteService].
+  // Singleton instance of [AuditWriteService].
   static final AuditWriteService instance = AuditWriteService._();
 
-  /// Tables confirmed to lack audit triggers in the current schema.
+  // Tables confirmed to lack audit triggers in the current schema
   static const Set<String> gapTables = {
     'account_deletion_requests',
     'addresses',
@@ -22,7 +22,7 @@ class AuditWriteService {
     'users',
   };
 
-  /// Records an audit log entry if the specified entity type is in the gapTables allowlist.
+  // Records an audit log entry if the specified entity type is in the gapTables allowlist
   Future<void> recordIfNeeded({
     required String patientId,
     required String action,
