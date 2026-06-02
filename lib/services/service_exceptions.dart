@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Converts a PostgrestException into a human-readable error message.
 String readablePostgrestMessage(PostgrestException error, String action) {
   final parts = <String>[error.message];
 
@@ -16,6 +17,7 @@ String readablePostgrestMessage(PostgrestException error, String action) {
   return '$action failed: ${parts.join(' ')}';
 }
 
+// Ensures a string value is not empty after trimming; throws ArgumentError otherwise.
 String requireText(String value, String label) {
   final trimmed = value.trim();
   if (trimmed.isEmpty) {
@@ -24,6 +26,7 @@ String requireText(String value, String label) {
   return trimmed;
 }
 
+// Trims a string and returns null if the resulting string is empty
 String? trimToNull(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;

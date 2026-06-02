@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lifestyle_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for patient lifestyle factor records.
 class LifestyleService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches the lifestyle factor record for a specific patient.
   Future<LifestyleModel?> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
@@ -20,6 +22,7 @@ class LifestyleService {
     return LifestyleModel.fromMap(Map<String, dynamic>.from(row));
   }
 
+  // Saves/creates/updates the lifestyle factor
   Future<String> save({
     required LifestyleModel lifestyle,
     required String patientId,
@@ -77,6 +80,7 @@ class LifestyleService {
     }
   }
 
+  // Deletes the lifestyle factor record 
   Future<void> delete({required String patientId}) async {
     final pid = requireText(patientId, 'patientId');
 

@@ -3,15 +3,18 @@ import '../models/family_doctor_model.dart';
 import '../models/family_doctor_with_address_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for a patient's family doctor and their associated address.
 class FamilyDoctorService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Internal helper to trim a string and return null if empty
   String? _trimToNull(String? value) {
     final text = value?.trim();
     if (text == null || text.isEmpty) return null;
     return text;
   }
 
+  // Fetches the family doctor details + including address for a specific patient.
   Future<FamilyDoctorWithAddressModel?> fetchForPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
@@ -54,6 +57,7 @@ class FamilyDoctorService {
     });
   }
 
+  // Saves/creates/updates the family doctor and their address for a patient via RPC.
   Future<String> saveForPatient({
     required String patientId,
     required FamilyDoctorModel doctor,
@@ -89,6 +93,7 @@ class FamilyDoctorService {
     }
   }
 
+  // Deletes the family doctor record for a specific patient via RPC.
   Future<void> deleteForPatient({
     required String patientId,
     required String doctorId,

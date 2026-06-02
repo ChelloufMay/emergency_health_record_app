@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// A model representing the resolved identities and roles of a user.
 class ResolvedIdentity {
   final String appUserId;
   final String? role;
@@ -19,15 +20,24 @@ class ResolvedIdentity {
     this.sex,
   });
 
+  // Whether the user has a patient profile.
   bool get hasPatientProfile => patientProfileId != null;
+
+  // Whether the user has a caregiver profile.
   bool get hasCaregiverProfile => caregiverProfileId != null;
+
+  // Whether the user has a guardian profile.
   bool get hasGuardianProfile => guardianProfileId != null;
+
+  // Whether the user has a clinician profile.
   bool get hasClinicianProfile => clinicianProfileId != null;
 }
 
+// A service that manages user identity resolution and patient related data access. >:(
 class PatientService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches the public.users row for the currently authenticated user
   Future<Map<String, dynamic>?> fetchCurrentAppUserRow() async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
@@ -42,6 +52,7 @@ class PatientService {
     return Map<String, dynamic>.from(row);
   }
 
+  // Ensures an app specific user row exists for the current auth user and returns its ID.
   Future<String?> ensureAppUserId({String? fullName, String? phone}) async {
     final authUser = _supabase.auth.currentUser;
     if (authUser == null) return null;
@@ -82,6 +93,7 @@ class PatientService {
     }
   }
 
+  // Resolves all profiles (patient, caregiver ...) associated with the current user.
   Future<ResolvedIdentity?> resolveIdentity() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return null;
@@ -123,6 +135,7 @@ class PatientService {
     );
   }
 
+  // Checks if the current user has a patient profile.
   Future<bool> hasPatientProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
@@ -136,6 +149,7 @@ class PatientService {
     return row != null;
   }
 
+  // Checks if the current user has a caregiver profile.
   Future<bool> hasCaregiverProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
@@ -149,6 +163,7 @@ class PatientService {
     return row != null;
   }
 
+  // Checks if the current user has a guardian profile.
   Future<bool> hasGuardianProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
@@ -162,6 +177,7 @@ class PatientService {
     return row != null;
   }
 
+  // Checks if the current user has a clinician profile.
   Future<bool> hasClinicianProfile() async {
     final appUserId = await ensureAppUserId();
     if (appUserId == null) return false;
@@ -175,6 +191,7 @@ class PatientService {
     return row != null;
   }
 
+  // Checks if the user can perform a specific action on a patient's data.
   Future<bool> canAccessPatient(String patientId, String action) async {
     final result = await _supabase.rpc(
       'can_access_patient',
@@ -183,6 +200,7 @@ class PatientService {
     return result == true;
   }
 
+  // Checks if the user can perform a specific action on a patient's data section.
   Future<bool> canAccessPatientSection(
     String patientId,
     String section,
@@ -199,6 +217,7 @@ class PatientService {
     return result == true;
   }
 
+  // Checks if the user has any type of access grant for a patient.
   Future<bool> hasAnyAccessGrant(String patientId) async {
     final result = await _supabase.rpc(
       'has_any_access_for_patient',
@@ -207,6 +226,7 @@ class PatientService {
     return result == true;
   }
 
+  // Fetches an enriched summary of patient profile data.
   Future<Map<String, dynamic>?> fetchPatientSummary(String patientId) async {
     final row = await _supabase
         .from('patient_profiles_enriched')
@@ -220,6 +240,7 @@ class PatientService {
     return Map<String, dynamic>.from(row);
   }
 
+  // Fetches a specialized emergency summary for a patient.
   Future<Map<String, dynamic>?> fetchEmergencySummary(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
@@ -236,7 +257,9 @@ class PatientService {
     }
   }
 
+  // Fetches a patient profile if the current user is a valid grantee.
   Future<Map<String, dynamic>?> fetchPatientProfileForGrantee(String patientId) async {
+    
     // patient_profiles RLS uses can_access_patient which covers grantees.
     final row = await _supabase
         .from('patient_profiles')
@@ -251,6 +274,7 @@ class PatientService {
     return Map<String, dynamic>.from(row);
   }
 
+  // Resolves a one-time emergency access token
   Future<Map<String, dynamic>?> resolveEmergencyAccessToken(
     String token,
   ) async {

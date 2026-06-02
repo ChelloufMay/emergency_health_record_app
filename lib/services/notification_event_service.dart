@@ -2,10 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/notification_event_model.dart';
 
-/// Reads `notification_events`.
-///
-/// The database now writes access lifecycle events itself, so this service
-/// stays read-only.
+// Reads `notification_events`.
+// The database writes access lifecycle events itself, so this service is read-only.
 class NotificationEventService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -21,6 +19,7 @@ class NotificationEventService {
     eventGrantRevoked,
   ];
 
+  // Fetches all notification events
   Future<List<NotificationEventModel>> fetchByPatient(String patientId) async {
     final rows = await _supabase
         .from('notification_events')
@@ -37,6 +36,7 @@ class NotificationEventService {
         .toList();
   }
 
+  // Fetches notification events that have not been sent yet for a specific patient
   Future<List<NotificationEventModel>> fetchPendingByPatient(
       String patientId,
       ) async {
@@ -56,6 +56,7 @@ class NotificationEventService {
         .toList();
   }
 
+  // Fetches notification events related to access management
   Future<List<NotificationEventModel>> fetchAccessRelatedForPatient(
       String patientId,
       ) async {
@@ -69,6 +70,7 @@ class NotificationEventService {
         .toList();
   }
 
+  // Checks if a similar event occurred within a specified timeframe.
   Future<bool> hasRecentEvent({
     required String patientId,
     required String eventType,

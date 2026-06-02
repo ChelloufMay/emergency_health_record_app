@@ -2,10 +2,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/caregiver_profile_model.dart';
 import 'patient_service.dart';
 
+// Service for managing caregiver profiles.
 class CaregiverProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final PatientService _patientService = PatientService();
 
+  // Fetches the caregiver profile of the currently authenticated user.
   Future<CaregiverProfileModel?> fetchMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
@@ -20,6 +22,7 @@ class CaregiverProfileService {
     return CaregiverProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
+  // Saves or updates the caregiver profile for the currently authenticated user.
   Future<String> saveMine(CaregiverProfileModel model) async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) {
@@ -53,6 +56,7 @@ class CaregiverProfileService {
     return row['id'].toString();
   }
 
+  // Deletes the caregiver profile of the currently authenticated user.
   Future<void> deleteMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;

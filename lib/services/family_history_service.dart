@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/family_history_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for a patient's family medical history records.
 class FamilyHistoryService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all family history records for a specific patient.
   Future<List<FamilyHistoryModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -24,6 +26,7 @@ class FamilyHistoryService {
         .toList();
   }
 
+  // Saves/creates/updates a family history record.
   Future<String> save({
     required FamilyHistoryModel familyHistory,
     required String patientId,
@@ -64,6 +67,7 @@ class FamilyHistoryService {
     }
   }
 
+  // Deletes a family history record.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

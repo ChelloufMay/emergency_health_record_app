@@ -3,7 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/patient_risk_prediction_model.dart';
 import 'patient_risk_prediction_api_service.dart';
 
+// Managing and generating patient risk predictions.
 class PatientRiskPredictionService {
+  // Creates a new instance of PatientRiskPredictionService
   PatientRiskPredictionService({
     SupabaseClient? supabase,
     PatientRiskPredictionApiService? apiService,
@@ -13,6 +15,7 @@ class PatientRiskPredictionService {
   final SupabaseClient _supabase;
   final PatientRiskPredictionApiService _apiService;
 
+  // Fetches all risk predictions for a specific patient.
   Future<List<PatientRiskPredictionModel>> fetchByPatient(
       String patientId,
       ) async {
@@ -31,6 +34,7 @@ class PatientRiskPredictionService {
         .toList();
   }
 
+  // Fetches the latest risk prediction for a specific patient.
   Future<PatientRiskPredictionModel?> fetchLatest(String patientId) async {
     final rows = await _supabase
         .from('patient_risk_predictions')
@@ -46,6 +50,7 @@ class PatientRiskPredictionService {
     );
   }
 
+  // Generates a new risk prediction for a patient and stores it in the database
   Future<PatientRiskPredictionModel> generateAndStoreForPatient(
       String patientId,
       ) async {
@@ -85,6 +90,7 @@ class PatientRiskPredictionService {
     );
   }
 
+  // Builds the data payload for the risk prediction API.
   Future<Map<String, dynamic>> _buildPayload(String patientId) async {
     final profile = await _supabase
         .from('patient_profiles')
@@ -170,6 +176,7 @@ class PatientRiskPredictionService {
     };
   }
 
+  // Counts rows in a table for a specific patient, optionally filtering by a column.
   Future<int> _countRows(
       String table,
       String patientId, [
@@ -186,6 +193,7 @@ class PatientRiskPredictionService {
     return (rows as List).length;
   }
 
+  // Calculates age based on date of birth
   int? _calculateAge(DateTime? dateOfBirth) {
     if (dateOfBirth == null) return null;
     final now = DateTime.now();
@@ -199,6 +207,7 @@ class PatientRiskPredictionService {
     return age < 0 ? 0 : age;
   }
 
+  // Normalizes a value to a boolean
   bool _asBool(dynamic value) {
     if (value == null) return false;
     if (value is bool) return value;
@@ -206,12 +215,14 @@ class PatientRiskPredictionService {
     return text == 'true' || text == '1' || text == 'yes' || text == 'y';
   }
 
+  // Normalizes a value to a double
   double _asDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString()) ?? 0.0;
   }
 
+  // Normalizes sex string to 'male' or 'female'
   String _normalizeSex(String? value) {
     final v = (value ?? '').trim().toLowerCase();
     if (v == 'male' || v == 'm') return 'male';
@@ -219,18 +230,21 @@ class PatientRiskPredictionService {
     return 'female';
   }
 
+  // Normalizes alcohol frequency string
   String _normalizeAlcohol(String? value) {
     const allowed = {'never', 'rarely', 'monthly', 'weekly', 'daily'};
     final v = (value ?? '').trim().toLowerCase();
     return allowed.contains(v) ? v : 'never';
   }
 
+  // Normalizes socioeconomic class string
   String _normalizeSocioeconomic(String? value) {
     const allowed = {'low', 'middle', 'high', 'unknown'};
     final v = (value ?? '').trim().toLowerCase();
     return allowed.contains(v) ? v : 'unknown';
   }
 
+  // Normalizes work status string
   String _normalizeWorkStatus(String? value) {
     const allowed = {'employed', 'unemployed', 'retired', 'student'};
     final v = (value ?? '').trim().toLowerCase();

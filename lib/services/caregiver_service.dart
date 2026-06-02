@@ -1,12 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Handles CRUD operations for caregiver profiles.
 class CaregiverService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Internal helper to cast a dynamic row to a Map.
   Map<String, dynamic> _asMap(dynamic row) {
     return Map<String, dynamic>.from(row as Map);
   }
 
+  // Fetches the caregiver profile of the currently authenticated user.
   Future<Map<String, dynamic>?> fetchMyCaregiverProfile() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
@@ -14,6 +17,7 @@ class CaregiverService {
     return fetchCaregiverProfileByAuthUserId(user.id);
   }
 
+  // Fetches a caregiver profile by the user's auth ID.
   Future<Map<String, dynamic>?> fetchCaregiverProfileByAuthUserId(
       String authUserId,
       ) async {
@@ -27,6 +31,7 @@ class CaregiverService {
     return _asMap(row);
   }
 
+  // Fetches all caregiver profiles in the system.
   Future<List<Map<String, dynamic>>> fetchAllCaregiverProfiles() async {
     final rows = await _supabase
         .from('caregiver_profiles')
@@ -38,6 +43,7 @@ class CaregiverService {
         .toList();
   }
 
+  // Upserts/creates/updates a caregiver profile
   Future<String> upsertCaregiverProfile({
     required String authUserId,
     String? fullName,
@@ -68,6 +74,7 @@ class CaregiverService {
     return inserted['id'].toString();
   }
 
+  // Updates specific fields of an existing caregiver profile
   Future<void> updateCaregiverProfile({
     required String id,
     required Map<String, dynamic> changes,
@@ -84,6 +91,7 @@ class CaregiverService {
     await _supabase.from('caregiver_profiles').update(payload).eq('id', id);
   }
 
+  // Deletes a caregiver profile by its ID.
   Future<void> deleteCaregiverProfile(String id) async {
     if (id.trim().isEmpty) {
       throw Exception('Missing caregiver profile id.');

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/audit_log_model.dart';
 
+// A service that manages retrieval of audit logs for patients.
 class AuditService {
   AuditService._();
 
@@ -9,6 +10,7 @@ class AuditService {
 
   final SupabaseClient _client = Supabase.instance.client;
 
+  // Fetches audit logs from a specified source for a given patient.
   Future<List<AuditLogModel>> _fetchLogs(
       String source,
       String patientId, {
@@ -36,15 +38,12 @@ class AuditService {
         .toList();
   }
 
-  // Read-only.
-  // The database triggers already write audit rows for data changes,
-  // so the app should not insert audit rows manually during CRUD flows.
+  // Retrieves all audit logs for a specific patient.
   Future<List<AuditLogModel>> getAuditLogsForPatient(String patientId) {
     return _fetchLogs('audit_logs', patientId);
   }
 
-  /// Same idea as above, but reads the ranked view if the screen wants
-  /// a precomputed newest-first ordering per patient.
+  // Retrieves audit logs for a patient from the ranked view (newest first).
   Future<List<AuditLogModel>> getRankedAuditLogsForPatient(
       String patientId,
       ) {
@@ -55,7 +54,7 @@ class AuditService {
     );
   }
 
-  /// Convenience filter for screens that want only one entity type or action.
+  // Retrieves filtered audit logs for a patient, optionally by entity type or action.
   Future<List<AuditLogModel>> getAuditLogsForPatientEntity(
       String patientId, {
         String? entityType,

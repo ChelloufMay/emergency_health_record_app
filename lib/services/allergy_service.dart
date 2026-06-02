@@ -4,9 +4,11 @@ import '../models/allergy_model.dart';
 import 'audit_write_service.dart';
 import 'service_exceptions.dart';
 
+// A service that handles CRUD operations for patient allergy records.
 class AllergyService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all allergy records for a specific patient.
   Future<List<AllergyModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -24,6 +26,7 @@ class AllergyService {
         .toList();
   }
 
+  // Saves/ creates/ updates) an allergy record and records an audit log.
   Future<String> save({
     required AllergyModel allergy,
     required String patientId,
@@ -84,6 +87,7 @@ class AllergyService {
     }
   }
 
+  // Deletes an allergy record and records an audit log.
   Future<void> delete({
     required String patientId,
     required String id,

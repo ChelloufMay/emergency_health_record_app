@@ -4,10 +4,12 @@ import '../models/address_model.dart';
 import '../models/patient_profile_model.dart';
 import 'patient_service.dart';
 
+// Handles CRUD operations for patient profiles and associated addresses.
 class ProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final PatientService _patientService = PatientService();
 
+  // Fetches the profile of the currently authenticated user
   Future<PatientProfileModel?> fetchProfile() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
@@ -22,6 +24,7 @@ class ProfileService {
     return PatientProfileModel.fromMap(Map<String, dynamic>.from(row));
   }
 
+  // Saves/ creates/ updates the patient profile and its associated address
   Future<String> saveProfile({
     required PatientProfileModel profile,
     required String performedByUserId,
@@ -109,6 +112,7 @@ class ProfileService {
     return savedId;
   }
 
+  // Ensures a profile exists for the given user ID, creating one if necessary.
   Future<String> ensureProfileExists({
     required String userId,
     required String firstName,
@@ -137,6 +141,7 @@ class ProfileService {
     return inserted['id'] as String;
   }
 
+  // Internal helper to upsert/ update/ create (if not provided, insert) an address record.
   Future<String?> _upsertAddress({
     required String? addressId,
     required Map<String, dynamic>? addressFields,

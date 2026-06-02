@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/surgery_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for patient surgery records
 class SurgeryService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all surgery records.
   Future<List<SurgeryModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -23,6 +25,7 @@ class SurgeryService {
         .toList();
   }
 
+  // Saves/ creates/ updates a surgery record
   Future<String> save({
     required SurgeryModel surgery,
     required String patientId,
@@ -60,6 +63,7 @@ class SurgeryService {
     }
   }
 
+  // Deletes a surgery record.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

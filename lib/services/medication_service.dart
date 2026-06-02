@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/medication_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for patient medication records.
 class MedicationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all medication records for a specific patient.
   Future<List<MedicationModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -24,6 +26,7 @@ class MedicationService {
         .toList();
   }
 
+  // Saves/creates/updates a medication record.
   Future<String> save({
     required MedicationModel medication,
     required String patientId,
@@ -70,6 +73,7 @@ class MedicationService {
     }
   }
 
+  // Deletes a medication record.
   Future<void> delete({
     required String patientId,
     required String id,

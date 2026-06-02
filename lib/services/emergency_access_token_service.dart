@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/emergency_access_token_model.dart';
 import 'service_exceptions.dart';
 
+// Managing emergency access tokens.
 class EmergencyAccessTokenService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all emergency access tokens for a specific patient.
   Future<List<EmergencyAccessTokenModel>> fetchByPatient(
       String patientId,
       ) async {
@@ -30,6 +32,7 @@ class EmergencyAccessTokenService {
         .toList();
   }
 
+  // Creates a new emergency access token for a patient.
   Future<EmergencyAccessTokenModel> create({
     required String patientId,
     String? createdByUserId,
@@ -62,6 +65,7 @@ class EmergencyAccessTokenService {
     }
   }
 
+  // Revokes an emergency access token, making it inactive.
   Future<void> revoke(String id) async {
     final rowId = requireText(id, 'id');
 
@@ -75,6 +79,7 @@ class EmergencyAccessTokenService {
     }
   }
 
+  // Deletes an emergency access token record.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');
@@ -90,14 +95,14 @@ class EmergencyAccessTokenService {
     }
   }
 
+  // Fetches an active and visible emergency token for a specific patient.
   Future<EmergencyAccessTokenModel?> fetchActiveVisibleTokenForPatient(
       String patientId,
       ) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
 
-    // First try the RPC path. If the DB wrapper is still blocked,
-    // fall back to a direct table read for owner/admin-style access.
+
     try {
       final result = await _supabase.rpc(
         'get_active_emergency_token_for_patient',
@@ -128,6 +133,7 @@ class EmergencyAccessTokenService {
     return null;
   }
 
+  // Resolves an emergency access token to its associated data.
   Future<Map<String, dynamic>?> resolveEmergencyAccessToken(
       String token,
       ) async {
@@ -165,6 +171,7 @@ class EmergencyAccessTokenService {
     return null;
   }
 
+  // Parses a single token row from a dynamic result.
   EmergencyAccessTokenModel? _parseSingleTokenRow(dynamic result) {
     if (result is Map) {
       return EmergencyAccessTokenModel.fromMap(
@@ -181,6 +188,7 @@ class EmergencyAccessTokenService {
     return null;
   }
 
+  // Parses a single map row from a dynamic result.
   Map<String, dynamic>? _parseSingleMapRow(dynamic result) {
     if (result is Map) {
       return Map<String, dynamic>.from(result);

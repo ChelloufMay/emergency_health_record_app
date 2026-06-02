@@ -6,14 +6,17 @@ import '../models/access_inbox_item_model.dart';
 import '../models/access_invite_model.dart';
 import '../models/patient_access_row_model.dart';
 
+// Manages patient access grants, invites, and inbox items.
 class AccessService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Returns the email of the currently authenticated user.
   String? _currentEmail() {
     final email = _supabase.auth.currentUser?.email?.trim().toLowerCase();
     return email == null || email.isEmpty ? null : email;
   }
 
+  // Returns the app-specific user ID of the currently authenticated user.
   Future<String?> _currentAppUserId() async {
     if (_supabase.auth.currentUser == null) return null;
     final result = await _supabase.rpc('current_app_user_id');
@@ -21,6 +24,7 @@ class AccessService {
     return (text == null || text.isEmpty) ? null : text;
   }
 
+  // Helper to convert a dynamic list of rows into a list of maps.
   List<Map<String, dynamic>> _toMapList(dynamic rows) {
     if (rows is! List) return const [];
     return rows
@@ -28,6 +32,7 @@ class AccessService {
         .toList();
   }
 
+  // Determines if a grant row represents an active, non-expired grant.
   bool _isActiveGrantRow(Map<String, dynamic> row) {
     final status = row['status']?.toString();
     if (status != 'active') return false;
@@ -43,6 +48,7 @@ class AccessService {
     return expiresAt.isAfter(DateTime.now());
   }
 
+  // Fetches rows for the current user's access dashboard.
   Future<List<PatientAccessRowModel>> fetchMyAccessDashboardRows() async {
     final rows = await _supabase
         .from('patient_access_dashboard')
@@ -65,16 +71,19 @@ class AccessService {
         .toList();
   }
 
+  // Fetches the current user's access dashboard rows as a list of maps.
   Future<List<Map<String, dynamic>>> fetchMyAccessDashboardRowMaps() async {
     final rows = await fetchMyAccessDashboardRows();
     return rows.map((row) => row.toMap()).toList();
   }
 
+  // Fetches the current user's active access grants as maps.
   Future<List<Map<String, dynamic>>> fetchMyActiveGrants() async {
     final rows = await fetchMyAccessDashboardRows();
     return rows.map((row) => row.toMap()).toList();
   }
 
+  // Fetches all active access grants for a specific patient.
   Future<List<AccessGrantModel>> fetchPatientGrants(String patientId) async {
     final rows = await _supabase
         .from('access_grants')
@@ -92,6 +101,7 @@ class AccessService {
         .toList();
   }
 
+  // Fetches all access invites for a specific patient.
   Future<List<AccessInviteModel>> fetchPatientInvites(String patientId) async {
     final rows = await _supabase
         .from('access_invites_dashboard')
@@ -108,6 +118,7 @@ class AccessService {
         .toList();
   }
 
+  // Internal helper to fetch current user's invites by status.
   Future<List<Map<String, dynamic>>> _fetchMyInvitesByStatus(
       String status,
       ) async {
@@ -124,61 +135,74 @@ class AccessService {
     return _toMapList(rows);
   }
 
+  // Fetches pending invites for the current user.
   Future<List<Map<String, dynamic>>> fetchMyPendingInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('pending');
   }
 
+  // accepted invites
   Future<List<Map<String, dynamic>>> fetchMyAcceptedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('accepted');
   }
 
+  // rejected invites
   Future<List<Map<String, dynamic>>> fetchMyRejectedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('rejected');
   }
 
+  // revoked invites
   Future<List<Map<String, dynamic>>> fetchMyRevokedInvitesWithPatientDetails() {
     return _fetchMyInvitesByStatus('revoked');
   }
 
+  // Legacy helper for pending invite maps.
   Future<List<Map<String, dynamic>>> fetchMyPendingInviteMaps() {
     return fetchMyPendingInvitesWithPatientDetails();
   }
 
+  // Fetches pending invites as model objects.
   Future<List<AccessInviteModel>> fetchMyPendingInvites() async {
     final rows = await fetchMyPendingInvitesWithPatientDetails();
     return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
+  // accepted invites as model objects.
   Future<List<AccessInviteModel>> fetchMyAcceptedInvites() async {
     final rows = await fetchMyAcceptedInvitesWithPatientDetails();
     return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
+  // rejected invites 
   Future<List<AccessInviteModel>> fetchMyRejectedInvites() async {
     final rows = await fetchMyRejectedInvitesWithPatientDetails();
     return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
+  // Revoked invites 
   Future<List<AccessInviteModel>> fetchMyRevokedInvites() async {
     final rows = await fetchMyRevokedInvitesWithPatientDetails();
     return rows.map((e) => AccessInviteModel.fromMap(e)).toList();
   }
 
+  // Fetches pending inbox items for the current user.
   Future<List<AccessInboxItemModel>> fetchMyInboxPending() async {
     final rows = await fetchMyPendingInvitesWithPatientDetails();
     return rows.map(AccessInboxItemModel.fromMap).toList();
   }
 
+  //  accepted inbox items 
   Future<List<AccessInboxItemModel>> fetchMyInboxAccepted() async {
     final rows = await fetchMyAcceptedInvitesWithPatientDetails();
     return rows.map(AccessInboxItemModel.fromMap).toList();
   }
 
+  // Rejected inbox items 
   Future<List<AccessInboxItemModel>> fetchMyInboxRejected() async {
     final rows = await fetchMyRejectedInvitesWithPatientDetails();
     return rows.map(AccessInboxItemModel.fromMap).toList();
   }
 
+  // Fetches view-optimized grant models for a patient.
   Future<List<AccessGrantViewModel>> fetchPatientGrantViews(
       String patientId,
       ) async {
@@ -189,6 +213,7 @@ class AccessService {
         .toList();
   }
 
+  // Fetches view optimized grant models for the current user.
   Future<List<AccessGrantViewModel>> fetchMyActiveGrantViews() async {
     final rows = await fetchMyActiveGrants();
     return rows
@@ -197,8 +222,10 @@ class AccessService {
         .toList();
   }
 
+  // Notifies listeners that access state has changed.
   void notifyAccessChanged() {}
 
+  // Fetches active access details for the current user regarding a specific patient.
   Future<List<Map<String, dynamic>>> fetchActiveAccessForPatient(
       String patientId,
       ) async {
@@ -222,6 +249,7 @@ class AccessService {
     return _toMapList(rows);
   }
 
+  // Creates a new access invite for a patient.
   Future<String> createInvite({
     required String patientId,
     required String invitedEmail,
@@ -245,6 +273,7 @@ class AccessService {
     return result.toString();
   }
 
+  // Accepts an access invite using its token.
   Future<dynamic> acceptInvite(
       String inviteToken, {
         String? patientId,
@@ -260,6 +289,7 @@ class AccessService {
     return result;
   }
 
+  // Rejects an access invite using its token.
   Future<dynamic> rejectInvite(
       String inviteToken, {
         String? patientId,
@@ -275,6 +305,7 @@ class AccessService {
     return result;
   }
 
+  // Updates the permission level or expiry of an existing access grant.
   Future<dynamic> updateGrantPermission({
     required String grantId,
     required String permission,
@@ -297,6 +328,7 @@ class AccessService {
     return result;
   }
 
+  // Revokes an existing access grant.
   Future<dynamic> revokeGrant(
       String grantId, {
         String? patientId,

@@ -1,8 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Handles authentication tasks using Supabase Auth.
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Signs up a new user with the provided email, password, and optional metadata.
   Future<AuthResponse> signUp({
     required String email,
     required String password,
@@ -12,7 +14,7 @@ class AuthService {
     final safeFullName =
     fullName.trim().isEmpty ? email.split('@').first : fullName.trim();
 
-    // CHANGED: keep auth creation separate from domain/profile logic.
+    // keep auth creation separate from domain/profile logic.
     // The DB sync layer fills public.users and related tables.
     return _supabase.auth.signUp(
       email: email.trim(),
@@ -25,6 +27,7 @@ class AuthService {
     );
   }
 
+  // Signs in an existing user with email and password.
   Future<AuthResponse> signIn({
     required String email,
     required String password,
@@ -35,27 +38,27 @@ class AuthService {
     );
   }
 
+  // Signs out the currently authenticated user
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }
-
-  // CHANGED: keep password recovery only for the login flow.
-  // The settings screens should not expose this action anymore.
+  
+  // Sends a password reset email to the specified user.
   Future<void> sendPasswordResetEmail({required String email}) async {
     await _supabase.auth.resetPasswordForEmail(
       email.trim(),
       redirectTo: 'healthapp://auth-callback?type=recovery',
     );
   }
-
-  // CHANGED: shared helper for password updates inside settings.
+  
+  // Updates the current user's password.
   Future<void> updatePassword(String newPassword) async {
     await _supabase.auth.updateUser(
       UserAttributes(password: newPassword.trim()),
     );
   }
-
-  // CHANGED: secure deletion request via Edge Function.
+  
+  // Submits a request to delete the user's account, optionally providing a reason.
   Future<void> requestAccountDeletion({String? reason}) async {
     final res = await _supabase.functions.invoke(
       'request-account-deletion',
@@ -68,6 +71,9 @@ class AuthService {
     }
   }
 
+  // Returns the currently authenticated user, if any.
   User? get currentUser => _supabase.auth.currentUser;
+
+  // Returns the current authentication session, if any.
   Session? get currentSession => _supabase.auth.currentSession;
 }

@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/reproductive_health_model.dart';
 import 'service_exceptions.dart';
 
+// Managing patient reproductive health records.
 class ReproductiveHealthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches the reproductive health record.
   Future<ReproductiveHealthModel?> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return null;
@@ -20,6 +22,7 @@ class ReproductiveHealthService {
     return ReproductiveHealthModel.fromMap(Map<String, dynamic>.from(row));
   }
 
+  // Saves or updates the reproductive health record for a patient
   Future<String> save({
     required ReproductiveHealthModel reproductiveHealth,
     required String patientId,
@@ -74,6 +77,7 @@ class ReproductiveHealthService {
     }
   }
 
+  // Deletes the reproductive health.
   Future<void> delete({required String patientId}) async {
     final pid = requireText(patientId, 'patientId');
 

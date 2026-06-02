@@ -2,15 +2,12 @@ import 'package:flutter/foundation.dart';
 
 import '../utils/audit_helper.dart';
 
-/// Server-primary audit helper: Postgres triggers write most audit rows.
-///
-/// This service only fills gaps for tables that lack triggers. The allowlist is
-/// limited to tables confirmed missing audit triggers in the current schema.
+// A service that handles client-side audit logging for tables confirmed to lack server-side triggers.
 class AuditWriteService {
   AuditWriteService._();
   static final AuditWriteService instance = AuditWriteService._();
 
-  /// Tables confirmed to lack audit triggers in the current schema.
+  // Tables confirmed to lack audit triggers in the current schema.
   static const Set<String> gapTables = {
     'account_deletion_requests',
     'addresses',
@@ -23,6 +20,7 @@ class AuditWriteService {
     'users',
   };
 
+  // Records an audit log entry if the specified entity type is in the gapTables allowlist.
   Future<void> recordIfNeeded({
     required String patientId,
     required String action,
@@ -44,7 +42,7 @@ class AuditWriteService {
       return;
     }
 
-    // Gap insert would go here once RLS/RPC is confirmed for client writes.
+    // Gap insert go here once RLS/RPC is confirmed for client writes.
     final _ = AuditHelper.buildAuditRecord(
       patientId: patientId,
       action: action,

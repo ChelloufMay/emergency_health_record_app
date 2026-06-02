@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/hospitalization_model.dart';
 import 'service_exceptions.dart';
 
+// Managing patient hospitalization records.
 class HospitalizationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all hospitalisation records for a specific patient
   Future<List<HospitalizationModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -25,6 +27,7 @@ class HospitalizationService {
         .toList();
   }
 
+  // Saves or updates a hospitalisation record.
   Future<String> save({
     required HospitalizationModel hospitalization,
     required String patientId,
@@ -61,6 +64,7 @@ class HospitalizationService {
     }
   }
 
+  // Deletes a specific hospitalisation record for a patient.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

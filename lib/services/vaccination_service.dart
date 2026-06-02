@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/vaccination_model.dart';
 import 'service_exceptions.dart';
 
+// Handles CRUD operations for patient vaccination records
 class VaccinationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all vaccination records
   Future<List<VaccinationModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -24,6 +26,7 @@ class VaccinationService {
         .toList();
   }
 
+  // Saves/creates/updates a vaccination record.
   Future<String> save({
     required VaccinationModel vaccination,
     required String patientId,
@@ -63,6 +66,7 @@ class VaccinationService {
     }
   }
 
+  // Deletes a vaccination record.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

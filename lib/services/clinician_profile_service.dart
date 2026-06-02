@@ -2,10 +2,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/clinician_profile_model.dart';
 import 'patient_service.dart';
 
+// Managing clinician profiles.
 class ClinicianProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final PatientService _patientService = PatientService();
 
+  // Fetches the clinician profile of the currently authenticated user.
   Future<ClinicianProfileModel?> fetchMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return null;
@@ -41,6 +43,7 @@ class ClinicianProfileService {
     return row['id'].toString();
   }
 
+  // Deletes the clinician profile of the currently authenticated user
   Future<void> deleteMine() async {
     final appUserId = await _patientService.ensureAppUserId();
     if (appUserId == null) return;

@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/medical_condition_model.dart';
 import 'service_exceptions.dart';
 
+// Managing patient medical condition records.
 class MedicalConditionService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all medical conditions 
   Future<List<MedicalConditionModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -25,6 +27,7 @@ class MedicalConditionService {
         .toList();
   }
 
+  // Saves or updates a medical condition record.
   Future<String> save({
     required MedicalConditionModel condition,
     required String patientId,
@@ -67,6 +70,7 @@ class MedicalConditionService {
     }
   }
 
+  // Deletes a specific medical condition record 
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');

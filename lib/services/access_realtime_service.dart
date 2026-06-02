@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Subscribes to access-related tables so inbox/management screens refresh.
-///
-/// This version also tracks the logged-in app user and only emits grant-change
-/// refreshes when the change is relevant to that user.
+// Subscribes to access-related tables so inbox/management screens refresh.
+//
+// Tracks the logged-in app user and only emits grant-change +refreshes when the change is relevant to that user.
 class AccessRealtimeService {
   AccessRealtimeService._();
   static final AccessRealtimeService instance = AccessRealtimeService._();
@@ -18,12 +17,15 @@ class AccessRealtimeService {
   int _listenerCount = 0;
   String? _watchedAppUserId;
 
+  // Stream that emits when access related changes occur.
   Stream<void> get onChanged => _changes.stream;
 
+  // adds a listener to be notified of access changes
   void addListener(VoidCallback listener) {
     _changes.stream.listen((_) => listener());
   }
 
+  // Fetches the current app user ID from the DB using a RPC call.
   Future<String?> _currentAppUserId() async {
     if (_supabase.auth.currentUser == null) return null;
 
@@ -33,12 +35,12 @@ class AccessRealtimeService {
     return text;
   }
 
+  // Checks if the realtime payload involves the currently watched user.
   bool _payloadTouchesWatchedUser(dynamic payload) {
     final watchedUserId = _watchedAppUserId;
     if (watchedUserId == null || watchedUserId.isEmpty) return false;
 
-    // Realtime payloads usually expose newRecord / oldRecord.
-    // We check both so INSERT / UPDATE / DELETE all work.
+    // Realtime payloads expose newRecord / oldRecord. --> check both so INSERT / UPDATE / DELETE work.
     Map<String, dynamic>? newRecord;
     Map<String, dynamic>? oldRecord;
 
@@ -57,7 +59,7 @@ class AccessRealtimeService {
         oldRecord = Map<String, dynamic>.from(or);
       }
     } catch (_) {
-      // Ignore payload shape differences.
+      
     }
 
     final newGrantee = newRecord?['grantee_user_id']?.toString();
@@ -66,6 +68,7 @@ class AccessRealtimeService {
     return newGrantee == watchedUserId || oldGrantee == watchedUserId;
   }
 
+  // Subscribes to realtime changes for access related tables (invites, notifications, grants).
   Future<void> subscribe() async {
     _listenerCount++;
 
@@ -79,8 +82,7 @@ class AccessRealtimeService {
       return;
     }
 
-    // If the authenticated app user changed, rebuild the channel so the
-    // grant listener tracks the new user correctly.
+    // If the authenticated app user changed --> rebuild the channel so the grant listener tracks the new user correctly.
     if (_channel != null) {
       await _supabase.removeChannel(_channel!);
       _channel = null;
@@ -108,8 +110,7 @@ class AccessRealtimeService {
       schema: 'public',
       table: 'access_grants',
       callback: (payload) {
-        // Only refresh the dashboard/context when the change touches the
-        // currently logged-in app user.
+        // Only refresh when the change touches the currently logged in user.
         if (_payloadTouchesWatchedUser(payload)) {
           _emit();
         }
@@ -119,6 +120,7 @@ class AccessRealtimeService {
     _channel!.subscribe();
   }
 
+  // Decrements the listener count and unsubscribes if no more listeners remain.
   Future<void> unsubscribe() async {
     _listenerCount = (_listenerCount - 1).clamp(0, 999);
     if (_listenerCount > 0 || _channel == null) return;
@@ -128,12 +130,14 @@ class AccessRealtimeService {
     _watchedAppUserId = null;
   }
 
+  // Emits a change event to the stream controller
   void _emit() {
     if (!_changes.isClosed) {
       _changes.add(null);
     }
   }
 
+  // Disposes of the service, removing channels and closing the stream controller.
   void dispose() {
     _listenerCount = 0;
     _watchedAppUserId = null;

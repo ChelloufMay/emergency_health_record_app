@@ -5,9 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/attachment_model.dart';
 import 'service_exceptions.dart';
 
+// Manages patient attachments: file uploads to storage and database records.
 class AttachmentService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Fetches all attachment records for a specific patient.
   Future<List<AttachmentModel>> fetchByPatient(String patientId) async {
     final pid = patientId.trim();
     if (pid.isEmpty) return [];
@@ -23,6 +25,7 @@ class AttachmentService {
         .toList();
   }
 
+  // Builds a unique storage path for an attachment.
   String buildStoragePath({
     required String patientId,
     required String fileName,
@@ -39,6 +42,7 @@ class AttachmentService {
     return '$pid/${DateTime.now().millisecondsSinceEpoch}_$safeName$safeExt';
   }
 
+  // Uploads a binary file to Supabase storage.
   Future<String> uploadFile({
     required String patientId,
     required String fileName,
@@ -65,6 +69,7 @@ class AttachmentService {
     }
   }
 
+  // Saves/ creates/ updates an attachment record in the database.
   Future<String> save({
     required AttachmentModel attachment,
     required String patientId,
@@ -115,6 +120,7 @@ class AttachmentService {
     }
   }
 
+  // Generates a temporary signed URL or a public URL for accessing an attachment.
   Future<String> getOpenUrl(String storagePath) async {
     final path = requireText(storagePath, 'storagePath');
 
@@ -128,6 +134,7 @@ class AttachmentService {
     }
   }
 
+  // Deletes an attachment record and its corresponding file in storage.
   Future<void> delete({required String patientId, required String id}) async {
     final pid = requireText(patientId, 'patientId');
     final rowId = requireText(id, 'id');
