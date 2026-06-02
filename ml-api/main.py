@@ -9,9 +9,7 @@ import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-# ---------------------------------------------------------
-# Logging
-# ---------------------------------------------------------
+# ----------------------------------- Logging -----------------------------------
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,9 +18,8 @@ logging.basicConfig(
 
 logger = logging.getLogger("risk-api")
 
-# ---------------------------------------------------------
-# Paths / model loading
-# ---------------------------------------------------------
+# ----------------------------------- Paths / model loading -----------------------------------
+
 
 APP_DIR = Path(__file__).resolve().parent
 ARTIFACT_DIR = APP_DIR / "artifacts"
@@ -40,19 +37,15 @@ WORK_MAP = META["work_map"]
 logger.info("Model loaded successfully")
 logger.info("Expected feature order: %s", FEATURE_ORDER)
 
-# ---------------------------------------------------------
-# FastAPI app
-# ---------------------------------------------------------
+# ----------------------------------- FastAPI app -----------------------------------
 
 app = FastAPI(
     title="Patient Risk Prediction API",
     version="1.0.0",
 )
 
-# ---------------------------------------------------------
-# Request model
-# ---------------------------------------------------------
 
+# ----------------------------------- Request model -----------------------------------
 
 class RiskInput(BaseModel):
     age: int = Field(ge=0, le=120)
@@ -104,9 +97,7 @@ class RiskInput(BaseModel):
     is_covid_vaccinated: bool = False
 
 
-# ---------------------------------------------------------
 # Feature encoding
-# ---------------------------------------------------------
 
 
 def encode_payload(payload: RiskInput) -> dict:
@@ -177,9 +168,7 @@ def encode_payload(payload: RiskInput) -> dict:
     }
 
 
-# ---------------------------------------------------------
-# Explanation generation
-# ---------------------------------------------------------
+# ----------------------------------- Explanation generation -----------------------------------
 
 
 def make_reasons(raw: RiskInput) -> list[str]:
@@ -234,9 +223,7 @@ def make_reasons(raw: RiskInput) -> list[str]:
     return reasons[:5]
 
 
-# ---------------------------------------------------------
-# Routes
-# ---------------------------------------------------------
+# ----------------------------------- Routes -----------------------------------
 
 
 @app.get("/")
