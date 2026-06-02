@@ -19,19 +19,19 @@ class PatientAccessContext extends ChangeNotifier {
     required bool isEmergencyOnly,
     String? actorUserId,
     String? actorRole,
-  })  : _patientId = patientId.trim(),
-        _legacyCanEdit = canEdit,
-        _legacyIsEmergencyOnly = isEmergencyOnly,
-        _actorUserId = actorUserId,
-        _actorRole = actorRole;
+  }) : _patientId = patientId.trim(),
+       _legacyCanEdit = canEdit,
+       _legacyIsEmergencyOnly = isEmergencyOnly,
+       _actorUserId = actorUserId,
+       _actorRole = actorRole;
 
   // Internal constructor for the reactive singleton.
   PatientAccessContext._reactive()
-      : _patientId = '',
-        _legacyCanEdit = false,
-        _legacyIsEmergencyOnly = false,
-        _actorUserId = null,
-        _actorRole = null;
+    : _patientId = '',
+      _legacyCanEdit = false,
+      _legacyIsEmergencyOnly = false,
+      _actorUserId = null,
+      _actorRole = null;
 
   // Singleton instance of PatientAccessContext for reactive usage.
   static final PatientAccessContext instance = PatientAccessContext._reactive();
@@ -83,6 +83,7 @@ class PatientAccessContext extends ChangeNotifier {
 
   // Backward-compatible access flags.
   bool get canEdit => _legacyCanEdit || _permission == 'edit';
+
   bool get isEmergencyOnly =>
       _legacyIsEmergencyOnly || _permission == 'emergency_only';
 
@@ -224,7 +225,8 @@ class PatientAccessContext extends ChangeNotifier {
   }) {
     final normalizedPermission = permission.trim().toLowerCase();
 
-    final changed = _permission != normalizedPermission ||
+    final changed =
+        _permission != normalizedPermission ||
         _grantId != grantId ||
         _expiresAt != expiresAt;
 

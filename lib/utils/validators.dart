@@ -50,7 +50,7 @@ class Validators {
     }
     return null;
   }
-  
+
   // Validates that a field contains a valid phone number format or is empty.
   static String? optionalPhone(String? value) {
     if (value == null || value.trim().isEmpty) return null;
@@ -61,7 +61,7 @@ class Validators {
     }
     return null;
   }
-  
+
   // Validates that a value belongs to a specific set of allowed strings.
   // Useful for dropdown-backed fields when to keep values aligned with the enums/allowed strings in the database.
   static String? valueInSet(

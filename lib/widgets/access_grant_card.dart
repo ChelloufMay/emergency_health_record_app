@@ -79,36 +79,31 @@ class AccessGrantCard extends StatelessWidget {
       title: Text('${_roleLabel(grant.granteeRole)} • $mainLabel'),
       subtitle: Text(
         'Permission: ${_permissionLabel(grant.permission)}\n'
-            'Status: ${grant.status}\n'
-            'Expires: $expiry',
+        'Status: ${grant.status}\n'
+        'Expires: $expiry',
       ),
       isThreeLine: true,
       trailing: canManage
           ? Wrap(
-        spacing: 4,
-        children: [
-          IconButton(
-            onPressed: grant.grantId.isEmpty ? null : onEditPermission,
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Change permission',
-          ),
-          IconButton(
-            onPressed: grant.grantId.isEmpty ? null : onRevoke,
-            icon: const Icon(Icons.block),
-            tooltip: 'Revoke access',
-          ),
-        ],
-      )
+              spacing: 4,
+              children: [
+                IconButton(
+                  onPressed: grant.grantId.isEmpty ? null : onEditPermission,
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Change permission',
+                ),
+                IconButton(
+                  onPressed: grant.grantId.isEmpty ? null : onRevoke,
+                  icon: const Icon(Icons.block),
+                  tooltip: 'Revoke access',
+                ),
+              ],
+            )
           : null,
     );
 
     return Card(
-      child: onTap == null
-          ? content
-          : InkWell(
-        onTap: onTap,
-        child: content,
-      ),
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }

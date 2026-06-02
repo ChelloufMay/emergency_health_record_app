@@ -16,12 +16,14 @@ class SectionScreenAccess {
   SectionScreenAccess({
     required bool widgetCanEdit,
     required bool widgetIsEmergencyOnly,
-  })  : canEdit = widgetCanEdit ||
-      PatientAccessContext.instance.canEdit ||
-      (PatientSessionService.instance.current?.canEdit ?? false),
-        isEmergencyOnly = widgetIsEmergencyOnly ||
-            PatientAccessContext.instance.isEmergencyOnly ||
-            (PatientSessionService.instance.current?.isEmergencyOnly ?? false);
+  }) : canEdit =
+           widgetCanEdit ||
+           PatientAccessContext.instance.canEdit ||
+           (PatientSessionService.instance.current?.canEdit ?? false),
+       isEmergencyOnly =
+           widgetIsEmergencyOnly ||
+           PatientAccessContext.instance.isEmergencyOnly ||
+           (PatientSessionService.instance.current?.isEmergencyOnly ?? false);
 
   // Returns true if the user has full mutation access
   bool get canMutate => canEdit && !isEmergencyOnly;

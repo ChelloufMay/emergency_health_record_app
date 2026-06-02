@@ -25,10 +25,10 @@ class AuditHelper {
 
   // Joins non empty strings with a separator.
   static String joinNonEmpty(
-      Iterable<String?> values, {
-        String separator = ' • ',
-        String fallback = '',
-      }) {
+    Iterable<String?> values, {
+    String separator = ' • ',
+    String fallback = '',
+  }) {
     final parts = values
         .map((e) => e?.trim())
         .where((e) => e != null && e.isNotEmpty)
