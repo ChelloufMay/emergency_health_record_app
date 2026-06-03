@@ -585,10 +585,9 @@ class _RoleSettingsScreenState extends State<RoleSettingsScreen> {
                         _tile(
                           icon: Icons.privacy_tip_outlined,
                           title: 'Privacy policy',
-                          subtitle: 'How your data is protected',
-                          onTap: () => _showSnack(
-                            'Privacy policy — coming in a future version.',
-                          ),
+                          subtitle: 'Read how your data is handled',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/privacy-policy'),
                         ),
                         _divider(),
                         _tile(
@@ -596,9 +595,8 @@ class _RoleSettingsScreenState extends State<RoleSettingsScreen> {
                           title: 'Terms of use',
                           subtitle:
                               'This app supplements but does not replace clinical records',
-                          onTap: () => _showSnack(
-                            'Terms of use — coming in a future version.',
-                          ),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/terms-of-use'),
                         ),
                       ],
                     ),

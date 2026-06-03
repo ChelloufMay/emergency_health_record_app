@@ -43,6 +43,8 @@ import 'screens/patient_notifications_screen.dart';
 import 'screens/patient_profile_view_screen.dart';
 import 'screens/patient_risk_predictions_screen.dart';
 import 'screens/patient_settings_screen.dart';
+import 'screens/privacy_policy_screen.dart';
+import 'screens/terms_of_use_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_screen.dart';
 import 'screens/register_screen.dart';
@@ -109,7 +111,7 @@ class _MyAppState extends State<MyApp> {
   // Sets up a listener for authentication state changes.
   void _setupAuthListener() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-          (data) async {
+      (data) async {
         debugPrint('Auth event: ${data.event}');
         switch (data.event) {
           case AuthChangeEvent.signedOut:
@@ -141,17 +143,15 @@ class _MyAppState extends State<MyApp> {
       if (uri.scheme != 'healthapp') return;
 
       if (uri.host == 'auth-callback') {
-        final isRecovery = uri.queryParameters['type'] == 'recovery' ||
+        final isRecovery =
+            uri.queryParameters['type'] == 'recovery' ||
             uri.queryParameters['recovery'] == 'true' ||
             uri.toString().contains('type=recovery');
 
         nav.pushNamedAndRemoveUntil(
           isRecovery ? '/password_reset' : '/auth_callback',
-              (route) => false,
-          arguments: {
-            'uri': uri.toString(),
-            'isRecovery': isRecovery,
-          },
+          (route) => false,
+          arguments: {'uri': uri.toString(), 'isRecovery': isRecovery},
         );
         return;
       }
@@ -161,7 +161,7 @@ class _MyAppState extends State<MyApp> {
         final token = uri.queryParameters['token']?.trim();
         nav.pushNamedAndRemoveUntil(
           '/emergency',
-              (route) => false,
+          (route) => false,
           arguments: {
             'payload': (payload != null && payload.isNotEmpty)
                 ? payload
@@ -184,7 +184,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
-          (uri) {
+      (uri) {
         _initialLinkHandled = true;
         handleUri(uri);
       },
@@ -312,9 +312,7 @@ class _MyAppState extends State<MyApp> {
             );
 
           case '/access_inbox':
-            return MaterialPageRoute(
-              builder: (_) => const AccessInboxScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const AccessInboxScreen());
 
           case '/patient_access_management':
             return MaterialPageRoute(
@@ -340,7 +338,7 @@ class _MyAppState extends State<MyApp> {
                 patientId: args['patientId'] as String? ?? '',
                 granteeRole: args['granteeRole'] as String? ?? 'caregiver',
                 currentPermission:
-                args['currentPermission'] as String? ?? 'read',
+                    args['currentPermission'] as String? ?? 'read',
                 currentExpiresAt: args['currentExpiresAt'] as DateTime?,
                 currentNotes: args['currentNotes'] as String?,
               ),
@@ -370,7 +368,8 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               builder: (_) => PatientDetailScreen(
                 patientId: args['patientId'] as String? ?? '',
-                grantId: args['grantId'] as String? ?? '', // <-- FIX
+                grantId: args['grantId'] as String? ?? '',
+                // <-- FIX
                 patientName: args['patientName'] as String? ?? 'Patient',
                 permission: args['permission'] as String? ?? 'read',
                 roleLabel: args['roleLabel'] as String? ?? 'unknown',
@@ -584,6 +583,14 @@ class _MyAppState extends State<MyApp> {
               builder: (_) => const ClinicianSettingsScreen(),
             );
 
+          case '/privacy-policy':
+            return MaterialPageRoute(
+              builder: (_) => const PrivacyPolicyScreen(),
+            );
+
+          case '/terms-of-use':
+            return MaterialPageRoute(builder: (_) => const TermsOfUseScreen());
+
           default:
             if (settings.name != null &&
                 settings.name!.contains('auth-callback')) {
@@ -713,7 +720,9 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
 
         if (snapshot.hasError) {
           return Scaffold(
-            body: Center(child: Text('Settings route error: ${snapshot.error}')),
+            body: Center(
+              child: Text('Settings route error: ${snapshot.error}'),
+            ),
           );
         }
 
@@ -727,9 +736,7 @@ class _SettingsRouteScreenState extends State<SettingsRouteScreen> {
           );
         });
 
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }
@@ -779,10 +786,9 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     if (!mounted) return;
 
     if (widget.isRecovery) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/password_reset',
-            (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil('/password_reset', (route) => false);
       return;
     }
 
