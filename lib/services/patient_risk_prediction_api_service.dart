@@ -9,7 +9,7 @@ class PatientRiskPredictionApiService {
 
   // Creates a new instance of PatientRiskPredictionApiService
   PatientRiskPredictionApiService({
-    this.baseUrl = 'http://192.168.100.21:8000',
+    this.baseUrl = 'http://192.168.100.10:8000',
   });
 
   // Sends patient data to the prediction API and returns the results.
